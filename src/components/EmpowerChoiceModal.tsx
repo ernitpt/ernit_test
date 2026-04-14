@@ -4,15 +4,18 @@ import {
     StyleSheet,
     Platform,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { ShoppingBag, Gift } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, ExperienceCategory } from '../types';
+import { analyticsService } from '../services/AnalyticsService';
 import { useApp } from '../context/AppContext';
 import { Colors, useColors, Typography, Spacing, BorderRadius } from '../config';
 import { BaseModal } from './BaseModal';
 import Button from './Button';
+import { formatCurrency } from '../utils/helpers';
 
 interface EmpowerChoiceModalProps {
     visible: boolean;
@@ -41,6 +44,7 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
     const { dispatch } = useApp();
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
 
     const pendingRef = useRef(false);
 
@@ -57,6 +61,11 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
         pendingRef.current = true;
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setEmpowerContext();
+        analyticsService.trackEvent('empower_started', 'social', {
+          goalId,
+          empowerPath: 'direct',
+          experienceId: pledgedExperienceId,
+        }, 'EmpowerChoiceModal');
         onClose();
         navigation.navigate('ExperienceCheckout', {
             cartItems: [{ experienceId: pledgedExperienceId, quantity: 1 }],
@@ -67,23 +76,25 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
     const handleBrowse = () => {
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setEmpowerContext();
+        analyticsService.trackEvent('empower_started', 'social', {
+          goalId,
+          empowerPath: 'browse',
+        }, 'EmpowerChoiceModal');
         onClose();
-        navigation.navigate('CategorySelection',
-            preferredRewardCategory ? { prefilterCategory: preferredRewardCategory } : undefined
-        );
+        navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection', params: preferredRewardCategory ? { prefilterCategory: preferredRewardCategory } : undefined } });
     };
 
     return (
-        <BaseModal visible={visible} onClose={onClose} title="Gift an Experience">
+        <BaseModal visible={visible} onClose={onClose} title={t('modals.empowerChoice.title')}>
             <Text style={styles.subtitle}>
-                Celebrate {userName}'s progress
+                {t('modals.empowerChoice.subtitle', { name: userName })}
             </Text>
 
             {/* Option 1: Buy pledged experience */}
             {experienceTitle && pledgedExperienceId && (
                 <Button
                     variant="primary"
-                    title={`Gift "${experienceTitle}"${experiencePrice != null ? `  €${experiencePrice}` : ''}`}
+                    title={`${t('modals.empowerChoice.giftButton', { title: experienceTitle })}${experiencePrice != null ? `  ${formatCurrency(experiencePrice)}` : ''}`}
                     icon={<ShoppingBag size={18} color={colors.white} />}
                     onPress={handleDirect}
                     style={styles.optionPrimary}
@@ -96,8 +107,8 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
                 variant="secondary"
                 title={
                     preferredRewardCategory && !experienceTitle
-                        ? `Browse ${preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)} Experiences`
-                        : 'Choose Another Experience'
+                        ? t('modals.empowerChoice.browseCategory', { category: preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1) })
+                        : t('modals.empowerChoice.browseOther')
                 }
                 icon={<Gift size={18} color={colors.primary} />}
                 onPress={handleBrowse}
@@ -108,7 +119,7 @@ const EmpowerChoiceModal: React.FC<EmpowerChoiceModalProps> = ({
             {/* Cancel */}
             <Button
                 variant="ghost"
-                title="Cancel"
+                title={t('modals.empowerChoice.cancel')}
                 onPress={onClose}
                 style={styles.cancelButton}
                 fullWidth

@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     Platform,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { Heart, Gift, X, CheckCircle } from 'lucide-react-native';
@@ -33,6 +34,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
     isLatest = true,
     onActionComplete,
 }) => {
+    const { t } = useTranslation();
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { state } = useApp();
@@ -105,6 +107,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
     };
 
     const handleMotivationSent = () => {
+        setAlreadySentMotivation(true);
         onActionComplete?.();
     };
 
@@ -119,7 +122,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                     activeOpacity={0.7}
                     hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     accessibilityRole="button"
-                    accessibilityLabel="Dismiss notification"
+                    accessibilityLabel={t('notifications.notificationComponents.dismissNotification')}
                 >
                     <X color={colors.textMuted} size={14} />
                 </TouchableOpacity>
@@ -173,7 +176,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                         </View>
                         <View style={styles.experienceInfo}>
                             <Text style={styles.experienceTitle} numberOfLines={1}>
-                                Loves {data.preferredRewardCategory.charAt(0).toUpperCase() + data.preferredRewardCategory.slice(1)} experiences
+                                {t('notifications.notificationComponents.freeGoal.lovesCategory', { category: data.preferredRewardCategory.charAt(0).toUpperCase() + data.preferredRewardCategory.slice(1) })}
                             </Text>
                         </View>
                     </View>
@@ -189,7 +192,7 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                             styles.milestoneText,
                             isCompleted && styles.milestoneTextCompleted,
                         ]}>
-                            {isCompleted ? 'Challenge Completed!' : `${milestone}% Complete`}
+                            {isCompleted ? t('notifications.notificationComponents.freeGoal.challengeCompleted') : t('notifications.notificationComponents.freeGoal.milestonePercent', { milestone })}
                         </Text>
                     </View>
                 )}
@@ -200,11 +203,11 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                     {alreadyEmpowered ? (
                         <View style={styles.empoweredBadge}>
                             <CheckCircle size={16} color={colors.primary} />
-                            <Text style={styles.empoweredBadgeText}>Already Empowered</Text>
+                            <Text style={styles.empoweredBadgeText}>{t('notifications.notificationComponents.freeGoal.alreadyEmpowered')}</Text>
                         </View>
                     ) : (
                         <Button
-                            title="Empower"
+                            title={t('notifications.notificationComponents.freeGoal.empower')}
                             variant="primary"
                             size="sm"
                             onPress={() => setShowEmpowerModal(true)}
@@ -213,14 +216,18 @@ const FreeGoalNotification: React.FC<FreeGoalNotificationProps> = ({
                         />
                     )}
 
-                    {/* Only show Motivate for latest milestone, not completed, not already sent */}
-                    {!isCompleted && !goalIsCompleted && !alreadySentMotivation && isLatest && (
+                    {/* Motivate button: shown for latest milestone on active goals.
+                        Disabled with "Motivation sent" label once user has already sent one this session. */}
+                    {!isCompleted && !goalIsCompleted && isLatest && (
                         <Button
-                            title="Motivate"
+                            title={alreadySentMotivation
+                                ? t('notifications.notificationComponents.freeGoal.motivationSent')
+                                : t('notifications.notificationComponents.freeGoal.motivate')}
                             variant="secondary"
                             size="sm"
                             onPress={() => setShowMotivationModal(true)}
-                            icon={<Heart size={16} color={colors.primary} />}
+                            disabled={alreadySentMotivation}
+                            icon={<Heart size={16} color={alreadySentMotivation ? colors.textMuted : colors.primary} />}
                             style={{ flex: 1 }}
                         />
                     )}

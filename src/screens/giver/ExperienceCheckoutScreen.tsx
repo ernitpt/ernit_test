@@ -2,6 +2,8 @@
 // ✅ Final version: supports multiple gifts via cartItems, with personal message
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useTranslation } from 'react-i18next';
+import { formatCurrency } from '../../utils/helpers';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import {
   View,
@@ -34,7 +36,6 @@ import { userService } from "../../services/userService";
 import { useApp } from "../../context/AppContext";
 import { useAuthGuard } from '../../context/AuthGuardContext';
 import LoginPrompt from "../../components/LoginPrompt";
-import MainScreen from "../MainScreen";
 import { logger } from '../../utils/logger';
 import { config } from '../../config/environment';
 import { logErrorToFirestore } from '../../utils/errorLogger';
@@ -209,6 +210,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
   totalQuantity,
   goalId,
 }) => {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -265,7 +267,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
         const { paymentIntent, error } = await stripe.retrievePaymentIntent(redirectClientSecret);
         if (error) {
           logger.error("Error retrieving payment intent:", error);
-          showError("Could not verify payment. Please contact support if payment was deducted.");
+          showError(t('giver.checkout.toast.verifyFailed'));
           setIsCheckingRedirect(false);
           return;
         }
@@ -284,7 +286,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             }
 
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            showSuccess("Your payment was processed successfully!");
+            showSuccess(t('giver.checkout.toast.paymentSuccess'));
             navigation.replace("Confirmation", { experienceGift: gifts[0], goalId });
           } else if (gifts.length > 1) {
             await clearCartEverywhere();
@@ -297,16 +299,16 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
           } else {
             logger.warn("⚠️ Gifts not found after polling");
             dispatch({ type: "CLEAR_CART" });  // Still clear cart — payment succeeded
-            showInfo("Your payment was successful! Check 'Purchased Gifts' to view your gifts.");
-            setTimeout(() => navigation.navigate('PurchasedGifts'), 2000);
+            showInfo(t('giver.checkout.toast.paymentSuccessCheckPurchased'));
+            setTimeout(() => navigation.navigate('MainTabs', { screen: 'ProfileTab', params: { screen: 'PurchasedGifts' } }), 2000);
           }
         } else if (paymentIntent?.status === "processing") {
           // Payment will succeed via webhook — clear cart everywhere to avoid duplicate purchases
           await clearCartEverywhere();
-          showInfo("Your payment is being processed. You will receive a confirmation shortly.");
+          showInfo(t('giver.checkout.toast.paymentProcessing'));
         } else if (paymentIntent?.status === "requires_action") {
           // Do NOT clear cart — user needs to complete the action and retry
-          showInfo("Additional action is required to complete your payment.");
+          showInfo(t('giver.checkout.toast.paymentActionRequired'));
         }
       } catch (err: unknown) {
         logger.error("Error handling redirect return:", err);
@@ -319,7 +321,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             paymentIntentId: redirectClientSecret
           }
         });
-        showError("Failed to verify payment status. Please contact support.");
+        showError(t('giver.checkout.toast.verifyFailed'));
       } finally {
         setIsCheckingRedirect(false);
       }
@@ -339,7 +341,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
     processingRef.current = true;
     if (!stripe || !elements) {
       processingRef.current = false;  // Reset so user can retry
-      showInfo("Please wait a few seconds and try again.");
+      showInfo(t('giver.checkout.toast.setupFailed'));
       return;
     }
 
@@ -373,7 +375,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
           dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
           await removeStorageItem(`pending_payment_${clientSecret}`);
           if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          showSuccess("Your payment was processed successfully!");
+          showSuccess(t('giver.checkout.toast.paymentSuccess'));
           navigation.replace("Confirmation", { experienceGift: gifts[0], goalId });
         } else if (gifts.length > 1) {
           dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
@@ -383,11 +385,11 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
         } else {
           logger.warn("⚠️ Gifts not found after polling");
           dispatch({ type: "CLEAR_CART" });  // Still clear cart — payment succeeded
-          showInfo("Your payment was successful! Check 'Purchased Gifts' to view your gifts.");
-          setTimeout(() => navigation.navigate('PurchasedGifts'), 2000);
+          showInfo(t('giver.checkout.toast.paymentSuccessCheckPurchased'));
+          setTimeout(() => navigation.navigate('MainTabs', { screen: 'ProfileTab', params: { screen: 'PurchasedGifts' } }), 2000);
         }
       } else if (paymentIntent.status === "processing") {
-        showInfo("Your payment is being processed. You will receive confirmation shortly.");
+        showInfo(t('giver.checkout.toast.paymentProcessing'));
       }
       // If redirect happens, the useEffect above will handle it
     } catch (err: unknown) {
@@ -416,7 +418,6 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
   }, [stripe, elements, isProcessing, clientSecret, totalAmount, totalQuantity, goalId, navigation, dispatch, state.user?.id, cartItems]);
 
   return (
-    <MainScreen activeRoute="Home">
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -427,16 +428,16 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             <TouchableOpacity
               onPress={() => {
                 if (navigation.canGoBack()) navigation.goBack();
-                else navigation.navigate('CategorySelection');
+                else navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection' } });
               }}
               style={[styles.backButton, (isProcessing || isCheckingRedirect) && styles.backButtonDisabled]}
               disabled={isProcessing || isCheckingRedirect}
               accessibilityRole="button"
-              accessibilityLabel="Go back"
+              accessibilityLabel={t('giver.checkout.accessibility.goBack')}
             >
               <ChevronLeft color={colors.textPrimary} size={24} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Checkout</Text>
+            <Text style={styles.headerTitle}>{t('giver.checkout.screenTitle')}</Text>
             <View style={styles.lockIcon}>
               <Lock color={colors.secondary} size={20} />
             </View>
@@ -451,7 +452,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
           >
             {/* Summary */}
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Your Gifts</Text>
+              <Text style={styles.summaryLabel}>{t('giver.checkout.yourGifts')}</Text>
 
               {cartItems.map((item) => {
                 const exp = cartExperiences.find((e) => e.id === item.experienceId);
@@ -464,18 +465,18 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
                       {exp.subtitle && (
                         <Text style={styles.subtitle}>{exp.subtitle}</Text>
                       )}
-                      <Text style={styles.quantityText}>Qty: {item.quantity}</Text>
+                      <Text style={styles.quantityText}>{t('giver.checkout.quantity', { count: item.quantity })}</Text>
                     </View>
                     <Text style={styles.priceAmount}>
-                      €{(exp.price * item.quantity).toFixed(2)}
+                      {formatCurrency(exp.price * item.quantity)}
                     </Text>
                   </View>
                 );
               })}
 
               <View style={styles.priceLine}>
-                <Text style={styles.priceLabel}>Total Amount</Text>
-                <Text style={styles.priceAmount}>€{totalAmount.toFixed(2)}</Text>
+                <Text style={styles.priceLabel}>{t('giver.checkout.totalAmount')}</Text>
+                <Text style={styles.priceAmount}>{formatCurrency(totalAmount)}</Text>
               </View>
             </View>
 
@@ -483,7 +484,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <CreditCard color={colors.secondary} size={20} />
-                <Text style={[styles.sectionTitle, { marginLeft: Spacing.sm }]}>Payment Details</Text>
+                <Text style={[styles.sectionTitle, { marginLeft: Spacing.sm }]}>{t('giver.checkout.paymentDetails')}</Text>
               </View>
               <View style={styles.paymentBox}>
                 <PaymentElement />
@@ -494,7 +495,7 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
             <View style={styles.securityNotice}>
               <Lock color={colors.textSecondary} size={16} />
               <Text style={styles.securityText}>
-                Your payment information is encrypted and secure
+                {t('giver.checkout.securityText')}
               </Text>
             </View>
 
@@ -504,12 +505,12 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
           {/* Bottom CTA */}
           <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
             <View style={styles.totalSection}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalAmount}>€{totalAmount.toFixed(2)}</Text>
+              <Text style={styles.totalLabel}>{t('giver.checkout.total')}</Text>
+              <Text style={styles.totalAmount}>{formatCurrency(totalAmount)}</Text>
             </View>
             <Button
               variant="primary"
-              title="Complete Purchase"
+              title={t('giver.checkout.completePurchase')}
               onPress={handlePurchase}
               disabled={isProcessing}
               loading={isProcessing}
@@ -518,12 +519,12 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
           </View>
         </View>
       </KeyboardAvoidingView>
-    </MainScreen>
   );
 };
 
 // ========== NATIVE CHECKOUT (uses @stripe/stripe-react-native PaymentSheet) ==========
 const NativeCheckoutScreen: React.FC = () => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const route = useRoute();
@@ -561,13 +562,13 @@ const NativeCheckoutScreen: React.FC = () => {
   const { initPaymentSheet, presentPaymentSheet } = usePaymentSheet();
 
   useEffect(() => {
-    if (!state.user) requireAuth("Please log in to proceed to checkout.");
-  }, [state.user, requireAuth]);
+    if (!state.user) requireAuth(t('loginPrompt.accessCheckout'));
+  }, [state.user, requireAuth, t]);
 
   useEffect(() => {
     if (!Array.isArray(cartItems) || cartItems.length === 0) {
       if (navigation.canGoBack()) navigation.goBack();
-      else navigation.reset({ index: 0, routes: [{ name: 'CategorySelection' }] });
+      else navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'HomeTab', params: { screen: 'CategorySelection' } } }] });
     }
   }, [cartItems, navigation]);
 
@@ -635,7 +636,7 @@ const NativeCheckoutScreen: React.FC = () => {
 
         if (error) {
           logger.error('PaymentSheet init error:', error);
-          showError('Could not set up payment. Please try again.');
+          showError(t('giver.checkout.toast.setupFailed'));
           initRef.current = false;
         } else {
           setSheetReady(true);
@@ -683,16 +684,16 @@ const NativeCheckoutScreen: React.FC = () => {
         if (gifts.length === 1) {
           dispatch({ type: 'SET_EXPERIENCE_GIFT', payload: gifts[0] });
           dispatch({ type: 'CLEAR_CART' });
-          showSuccess('Your payment was processed successfully!');
+          showSuccess(t('giver.checkout.toast.paymentSuccess'));
           navigation.replace('Confirmation', { experienceGift: gifts[0], goalId });
         } else if (gifts.length > 1) {
           dispatch({ type: 'CLEAR_CART' });
-          showSuccess('Your payment was processed successfully!');
+          showSuccess(t('giver.checkout.toast.paymentSuccess'));
           navigation.replace('ConfirmationMultiple', { experienceGifts: gifts });
         } else {
           dispatch({ type: 'CLEAR_CART' });
-          showInfo("Your payment was successful! Check 'Purchased Gifts' to view your gifts.");
-          setTimeout(() => navigation.navigate('PurchasedGifts'), 2000);
+          showInfo(t('giver.checkout.toast.paymentSuccessCheckPurchased'));
+          setTimeout(() => navigation.navigate('MainTabs', { screen: 'ProfileTab', params: { screen: 'PurchasedGifts' } }), 2000);
         }
       }
     } catch (err: unknown) {
@@ -712,9 +713,7 @@ const NativeCheckoutScreen: React.FC = () => {
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
     return (
       <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
-        <MainScreen activeRoute="Home">
-          <View style={styles.loadingContainer}><Text style={styles.loadingText}>Redirecting...</Text></View>
-        </MainScreen>
+          <View style={styles.loadingContainer}><Text style={styles.loadingText}>{t('giver.checkout.redirecting')}</Text></View>
       </ErrorBoundary>
     );
   }
@@ -722,9 +721,7 @@ const NativeCheckoutScreen: React.FC = () => {
   if (!state.user) {
     return (
       <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
-        <MainScreen activeRoute="Home">
           <LoginPrompt visible={showLoginPrompt} onClose={closeLoginPrompt} message={loginMessage} />
-        </MainScreen>
       </ErrorBoundary>
     );
   }
@@ -732,27 +729,24 @@ const NativeCheckoutScreen: React.FC = () => {
   if (loading) {
     return (
       <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
-        <MainScreen activeRoute="Home">
           <View style={styles.container}>
             <View style={styles.header}>
               <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
                 <ChevronLeft color={colors.textPrimary} size={24} />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Checkout</Text>
+              <Text style={styles.headerTitle}>{t('giver.checkout.screenTitle')}</Text>
               <View style={styles.lockIcon}><Lock color={colors.secondary} size={20} /></View>
             </View>
             <View style={{ flex: 1, paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl }}>
               <CheckoutSkeleton />
             </View>
           </View>
-        </MainScreen>
       </ErrorBoundary>
     );
   }
 
   return (
     <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
-      <MainScreen activeRoute="Home">
         <View style={styles.container}>
           <View style={styles.header}>
             <TouchableOpacity
@@ -763,14 +757,14 @@ const NativeCheckoutScreen: React.FC = () => {
             >
               <ChevronLeft color={colors.textPrimary} size={24} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Checkout</Text>
+            <Text style={styles.headerTitle}>{t('giver.checkout.screenTitle')}</Text>
             <View style={styles.lockIcon}><Lock color={colors.secondary} size={20} /></View>
           </View>
 
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
             {/* Order summary */}
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>Your Gifts</Text>
+              <Text style={styles.summaryLabel}>{t('giver.checkout.yourGifts')}</Text>
               {cartItems.map((item) => {
                 const exp = cartExperiences.find((e) => e.id === item.experienceId);
                 if (!exp) return null;
@@ -780,20 +774,20 @@ const NativeCheckoutScreen: React.FC = () => {
                       <Text style={styles.summaryTitle}>{exp.title}</Text>
                       {exp.subtitle ? <Text style={styles.subtitle}>{exp.subtitle}</Text> : null}
                     </View>
-                    <Text style={styles.priceAmount}>{'\u20AC'}{(exp.price * item.quantity).toFixed(2)}</Text>
+                    <Text style={styles.priceAmount}>{formatCurrency(exp.price * item.quantity)}</Text>
                   </View>
                 );
               })}
               <View style={styles.priceLine}>
-                <Text style={styles.priceLabel}>Total</Text>
-                <Text style={styles.priceAmount}>{'\u20AC'}{totalAmount.toFixed(2)}</Text>
+                <Text style={styles.priceLabel}>{t('giver.checkout.total')}</Text>
+                <Text style={styles.priceAmount}>{formatCurrency(totalAmount)}</Text>
               </View>
             </View>
 
             {/* Security notice */}
             <View style={styles.securityNotice}>
               <Lock color={colors.textSecondary} size={16} />
-              <Text style={styles.securityText}>Your payment information is encrypted and secure</Text>
+              <Text style={styles.securityText}>{t('giver.checkout.securityText')}</Text>
             </View>
 
             <View style={{ height: vh(200) }} />
@@ -802,12 +796,12 @@ const NativeCheckoutScreen: React.FC = () => {
           {/* Bottom CTA */}
           <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.md }]}>
             <View style={styles.totalSection}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalAmount}>{'\u20AC'}{totalAmount.toFixed(2)}</Text>
+              <Text style={styles.totalLabel}>{t('giver.checkout.total')}</Text>
+              <Text style={styles.totalAmount}>{formatCurrency(totalAmount)}</Text>
             </View>
             <Button
               variant="primary"
-              title={sheetReady ? `Pay \u20AC${totalAmount.toFixed(2)}` : 'Setting up...'}
+              title={sheetReady ? t('giver.checkout.pay', { amount: formatCurrency(totalAmount) }) : t('giver.checkout.settingUp')}
               onPress={handlePay}
               disabled={isProcessing || !sheetReady}
               loading={isProcessing}
@@ -815,13 +809,13 @@ const NativeCheckoutScreen: React.FC = () => {
             />
           </View>
         </View>
-      </MainScreen>
     </ErrorBoundary>
   );
 };
 
 // ========== WEB CHECKOUT WRAPPER (creates PaymentIntent & <Elements>) ==========
 const WebCheckoutScreen: React.FC = () => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const route = useRoute();
@@ -857,9 +851,9 @@ const WebCheckoutScreen: React.FC = () => {
   // Require authentication for checkout
   useEffect(() => {
     if (!state.user) {
-      requireAuth("Please log in to proceed to checkout.");
+      requireAuth(t('loginPrompt.accessCheckout'));
     }
-  }, [state.user, requireAuth]);
+  }, [state.user, requireAuth, t]);
 
   // Redirect if data is missing (e.g., after page refresh)
   useEffect(() => {
@@ -870,7 +864,7 @@ const WebCheckoutScreen: React.FC = () => {
       } else {
         navigation.reset({
           index: 0,
-          routes: [{ name: 'CategorySelection' }],
+          routes: [{ name: 'MainTabs', params: { screen: 'HomeTab', params: { screen: 'CategorySelection' } } }],
         });
       }
     }
@@ -909,7 +903,7 @@ const WebCheckoutScreen: React.FC = () => {
         showError("Could not load experiences for checkout.");
         initRef.current = false;
         if (navigation.canGoBack()) navigation.goBack();
-        else navigation.navigate('CategorySelection');
+        else navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection' } });
         return;
       }
 
@@ -964,7 +958,7 @@ const WebCheckoutScreen: React.FC = () => {
       showError(getUserMessage(err, 'Could not set up payment. Please check your connection and try again.'));
       initRef.current = false;
       if (navigation.canGoBack()) navigation.goBack();
-      else navigation.navigate('CategorySelection');
+      else navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection' } });
     } finally {
       setLoading(false);
     }
@@ -981,11 +975,9 @@ const WebCheckoutScreen: React.FC = () => {
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
     return (
       <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
-      <MainScreen activeRoute="Home">
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Redirecting...</Text>
+          <Text style={styles.loadingText}>{t('giver.checkout.redirecting')}</Text>
         </View>
-      </MainScreen>
       </ErrorBoundary>
     );
   }
@@ -993,7 +985,6 @@ const WebCheckoutScreen: React.FC = () => {
   if (!state.user) {
     return (
       <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
-      <MainScreen activeRoute="Home">
         <LoginPrompt
           visible={showLoginPrompt}
           onClose={() => {
@@ -1003,7 +994,6 @@ const WebCheckoutScreen: React.FC = () => {
           }}
           message={loginMessage}
         />
-      </MainScreen>
       </ErrorBoundary>
     );
   }
@@ -1011,13 +1001,12 @@ const WebCheckoutScreen: React.FC = () => {
   if (loading) {
     return (
       <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
-      <MainScreen activeRoute="Home">
         <View style={styles.container}>
           <View style={styles.header}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
               <ChevronLeft color={colors.textPrimary} size={24} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Checkout</Text>
+            <Text style={styles.headerTitle}>{t('giver.checkout.screenTitle')}</Text>
             <View style={styles.lockIcon}>
               <Lock color={colors.secondary} size={20} />
             </View>
@@ -1026,7 +1015,6 @@ const WebCheckoutScreen: React.FC = () => {
             <CheckoutSkeleton />
           </View>
         </View>
-      </MainScreen>
       </ErrorBoundary>
     );
   }
@@ -1034,9 +1022,8 @@ const WebCheckoutScreen: React.FC = () => {
   if (!clientSecret || !paymentIntentId) {
     return (
       <ErrorBoundary screenName="ExperienceCheckoutScreen" userId={state.user?.id}>
-      <MainScreen activeRoute="Home">
         <View style={styles.loadingContainer}>
-          <Text style={styles.errorText}>Could not initialize payment.</Text>
+          <Text style={styles.errorText}>{t('giver.checkout.errorInitPayment')}</Text>
           <View style={{ flexDirection: 'row', gap: Spacing.md }}>
             <TouchableOpacity
               onPress={() => {
@@ -1049,17 +1036,16 @@ const WebCheckoutScreen: React.FC = () => {
               }}
               style={styles.retryButton}
             >
-              <Text style={styles.retryButtonText}>Retry</Text>
+              <Text style={styles.retryButtonText}>{t('giver.checkout.retry')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => {
               if (navigation.canGoBack()) navigation.goBack();
-              else navigation.navigate('CategorySelection');
+              else navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection' } });
             }} style={[styles.retryButton, { backgroundColor: colors.backgroundLight }]} activeOpacity={0.7}>
-              <Text style={[styles.retryButtonText, { color: colors.textSecondary }]}>Go Back</Text>
+              <Text style={[styles.retryButtonText, { color: colors.textSecondary }]}>{t('giver.checkout.goBack')}</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </MainScreen>
       </ErrorBoundary>
     );
   }

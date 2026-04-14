@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatLocalDate, getMonthNames, getWeekdayAbbreviations } from '../utils/i18nHelpers';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { SkeletonBox } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
@@ -53,6 +55,7 @@ import ModernSlider from '../components/ModernSlider';
 import WizardProgressBar from '../components/WizardProgressBar';
 import { EXPERIENCE_CATEGORIES, setStorageItem, sanitizeNumericInput } from '../utils/wizardHelpers';
 import { sanitizeText } from '../utils/sanitization';
+import { analyticsService } from '../services/AnalyticsService';
 import { vh } from '../utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -63,86 +66,49 @@ import SpriteAnimation from '../components/SpriteAnimation';
 const GYM_SPRITE = require('../assets/sprites/bicep_sprite.png');
 
 // ─── Goal type options (Together flow) ───────────────────────────────────────
-const getGoalTypes = (colors: typeof Colors) => [
-    { icon: null, sprite: GYM_SPRITE, name: 'Gym', tagline: 'Hit the weights', color: colors.success },
-    { icon: '🧘', sprite: null, name: 'Yoga', tagline: 'Find your flow', color: colors.info },
-    { icon: '💃', sprite: null, name: 'Dance', tagline: 'Move to the beat', color: colors.warning },
-    { icon: '✏️', sprite: null, name: 'Add your own', tagline: 'Custom Challenge', color: colors.textMuted },
+const getGoalTypes = (colors: typeof Colors, t: (key: string) => string) => [
+    { icon: '\u{1F3CB}\uFE0F', sprite: null, name: 'Gym', tagline: t('wizard.gift.goalTypes.gym.tagline'), color: colors.success },
+    { icon: '🧘', sprite: null, name: 'Yoga', tagline: t('wizard.gift.goalTypes.yoga.tagline'), color: colors.info },
+    { icon: '💃', sprite: null, name: 'Dance', tagline: t('wizard.gift.goalTypes.dance.tagline'), color: colors.warning },
+    { icon: '✏️', sprite: null, name: 'Add your own', tagline: t('wizard.gift.goalTypes.custom.tagline'), color: colors.textMuted },
 ];
 
-// ─── Step titles (dynamic based on challengeType) ────────────────────────────
-const SOLO_STEP_TITLES = [
-    'Who takes the challenge?',
-    'Pick the reward',
-    'Secure the reward',
-    'How is the reward revealed?',
-    'Confirm your gift',
-];
-
-const SOLO_STEP_SUBTITLES = [
-    'Choose how they will work towards their goal.',
-    "Pick a category. We'll recommend the perfect reward!",
-    "Choose how you'd like to back this challenge.",
-    "Should they know what they're working towards?",
-    'Review everything before sending.',
-];
-
-const TOGETHER_STEP_TITLES = [
-    'Who takes the challenge?',
-    'What type of challenge?',
-    'Set your challenge',
-    'How long per session?',
-    'Pick the reward',
-    'Secure the reward',
-    'How is the reward revealed?',
-    'Confirm your gift',
-];
-
-const TOGETHER_STEP_SUBTITLES = [
-    'Choose how they will work towards their goal.',
-    'Pick the activity for your challenge',
-    'Set the challenge intensity for both of you.',
-    'Set the duration for each time you show up.',
-    "Pick a category. We'll recommend the perfect reward!",
-    "Choose how you'd like to back this challenge.",
-    "Should they know what you're both working towards?",
-    'Review everything before sending.',
-];
+// ─── Step titles/subtitles and option builders are now inside the component using t() ────────────────────────────
 
 // ─── Challenge type options ───────────────────────────────────────────────────
-const getTypeOptions = (colors: typeof Colors): { key: GiftChallengeType; emoji: string; label: string; tagline: string; color: string }[] => [
+const getTypeOptions = (colors: typeof Colors, t: (key: string) => string): { key: GiftChallengeType; emoji: string; label: string; tagline: string; color: string }[] => [
     {
         key: 'solo',
         emoji: '👤',
-        label: 'Just them',
-        tagline: 'They work on the goal. You gift the reward when they succeed.',
+        label: t('wizard.gift.challengeTypes.solo.label'),
+        tagline: t('wizard.gift.challengeTypes.solo.tagline'),
         color: colors.warning,
     },
     {
         key: 'shared',
         emoji: '👥',
-        label: 'Together',
-        tagline: 'You both commit to a goal. The reward unlocks for both of you.',
+        label: t('wizard.gift.challengeTypes.shared.label'),
+        tagline: t('wizard.gift.challengeTypes.shared.tagline'),
         color: colors.secondary,
     },
 ];
 
 // ─── Reveal options ───────────────────────────────────────────────────────────
-const getRevealOptions = (colors: typeof Colors): { key: GiftRevealMode; emoji: string; label: string; tagline: string; color: string; badge?: string }[] => [
+const getRevealOptions = (colors: typeof Colors, t: (key: string) => string): { key: GiftRevealMode; emoji: string; label: string; tagline: string; color: string; badge?: string }[] => [
     {
         key: 'revealed',
         emoji: '👁️',
-        label: 'Revealed',
-        tagline: 'They know the reward from day one. Full motivation to earn it.',
+        label: t('wizard.gift.revealOptions.revealed.label'),
+        tagline: t('wizard.gift.revealOptions.revealed.tagline'),
         color: colors.warning,
     },
     {
         key: 'secret',
         emoji: '🔒',
-        label: 'Secret',
-        tagline: 'The reward stays hidden. Ernit drops hints every session.',
+        label: t('wizard.gift.revealOptions.secret.label'),
+        tagline: t('wizard.gift.revealOptions.secret.tagline'),
         color: colors.secondary,
-        badge: 'Surprise factor',
+        badge: t('wizard.gift.revealOptions.secret.badge'),
     },
 ];
 
@@ -151,13 +117,14 @@ const ProgressBar = WizardProgressBar;
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function GiftFlowScreen() {
+    const { t } = useTranslation();
     const colors = useColors();
     const insets = useSafeAreaInsets();
     const { width: screenWidth } = useWindowDimensions();
     const styles = useMemo(() => createStyles(colors, screenWidth), [colors, screenWidth]);
-    const TYPE_OPTIONS = useMemo(() => getTypeOptions(colors), [colors]);
-    const REVEAL_OPTIONS = useMemo(() => getRevealOptions(colors), [colors]);
-    const goalTypes = useMemo(() => getGoalTypes(colors), [colors]);
+    const TYPE_OPTIONS = useMemo(() => getTypeOptions(colors, t), [colors, t]);
+    const REVEAL_OPTIONS = useMemo(() => getRevealOptions(colors, t), [colors, t]);
+    const goalTypes = useMemo(() => getGoalTypes(colors, t), [colors, t]);
     const navigation = useRootNavigation();
     const route = useRoute();
     const routeParams = route.params as { prefill?: GiftFlowPrefill } | undefined;
@@ -253,33 +220,33 @@ export default function GiftFlowScreen() {
 
     // Step titles/subtitles (dynamic — use lookup functions to handle free-payment step skipping)
     const getStepTitle = (): string => {
-        if (currentStep === 1) return 'Choose a type';
-        if (challengeType === 'shared' && currentStep === 2) return TOGETHER_STEP_TITLES[1];
-        if (challengeType === 'shared' && currentStep === 3) return TOGETHER_STEP_TITLES[2];
-        if (challengeType === 'shared' && currentStep === 4) return TOGETHER_STEP_TITLES[3];
-        if (currentStep === getExperienceStep()) return challengeType === 'solo' ? 'Pick a reward' : 'Pick a reward';
-        if (currentStep === getRevealStep()) return 'How is the reward revealed?';
-        if (needsPaymentStep && currentStep === getPaymentStep()) return 'Secure the reward';
-        if (currentStep === getConfirmStep()) return 'Confirm your gift';
+        if (currentStep === 1) return t('wizard.gift.stepTitles.chooseType');
+        if (challengeType === 'shared' && currentStep === 2) return t('wizard.gift.togetherStepTitles.step2');
+        if (challengeType === 'shared' && currentStep === 3) return t('wizard.gift.togetherStepTitles.step3');
+        if (challengeType === 'shared' && currentStep === 4) return t('wizard.gift.togetherStepTitles.step4');
+        if (currentStep === getExperienceStep()) return t('wizard.gift.stepTitles.pickReward');
+        if (currentStep === getRevealStep()) return t('wizard.gift.stepTitles.revealMode');
+        if (needsPaymentStep && currentStep === getPaymentStep()) return t('wizard.gift.stepTitles.secureReward');
+        if (currentStep === getConfirmStep()) return t('wizard.gift.stepTitles.confirmGift');
         return '';
     };
     const getStepSubtitle = (): string => {
-        if (currentStep === 1) return 'Choose how they will work towards their goal.';
-        if (challengeType === 'shared' && currentStep === 2) return TOGETHER_STEP_SUBTITLES[1];
-        if (challengeType === 'shared' && currentStep === 3) return TOGETHER_STEP_SUBTITLES[2];
-        if (challengeType === 'shared' && currentStep === 4) return TOGETHER_STEP_SUBTITLES[3];
+        if (currentStep === 1) return t('wizard.gift.stepSubtitles.chooseType');
+        if (challengeType === 'shared' && currentStep === 2) return t('wizard.gift.togetherStepSubtitles.step2');
+        if (challengeType === 'shared' && currentStep === 3) return t('wizard.gift.togetherStepSubtitles.step3');
+        if (challengeType === 'shared' && currentStep === 4) return t('wizard.gift.togetherStepSubtitles.step4');
         const expStep = getExperienceStep();
         if (currentStep === expStep) return challengeType === 'solo'
-            ? "Browse and pick the experience they'll earn"
-            : "Pick a category or browse for the perfect reward!";
+            ? t('wizard.gift.stepSubtitles.pickRewardSolo')
+            : t('wizard.gift.stepSubtitles.pickRewardTogether');
         const payStep = getPaymentStep();
-        if (currentStep === payStep) return "Choose how you'd like to back this challenge.";
+        if (currentStep === payStep) return t('wizard.gift.stepSubtitles.secureReward');
         const revealStep = getRevealStep();
         if (needsRevealStep && currentStep === revealStep) return challengeType === 'shared'
-            ? "Should they know what you're both working towards?"
-            : "Should they know what they're working towards?";
+            ? t('wizard.gift.stepSubtitles.revealTogether')
+            : t('wizard.gift.stepSubtitles.revealSolo');
         const confirmStep = getConfirmStep();
-        if (currentStep === confirmStep) return 'Review everything before sending.';
+        if (currentStep === confirmStep) return t('wizard.gift.stepSubtitles.confirm');
         return '';
     };
 
@@ -289,14 +256,19 @@ export default function GiftFlowScreen() {
         if (currentStep === 1) return; // Allow back from step 1
         e.preventDefault();
         Alert.alert(
-            'Discard changes?',
-            'You have unsaved progress. Are you sure you want to leave?',
+            t('wizard.gift.discard.alertTitle'),
+            t('wizard.gift.discard.alertMessage'),
             [
-                { text: 'Stay', style: 'cancel' },
-                { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+                { text: t('wizard.gift.discard.buttonStay'), style: 'cancel' },
+                { text: t('wizard.gift.discard.buttonLeave'), style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
             ]
         );
-    }, [currentStep]);
+    }, [currentStep, t]);
+
+    // Track gift flow started on mount
+    useEffect(() => {
+        analyticsService.trackEvent('gift_flow_started', 'conversion', {}, 'GiftFlowScreen');
+    }, []);
 
     // Restore pending_gift_flow from AsyncStorage on mount (app restart while authenticated)
     useEffect(() => {
@@ -454,11 +426,11 @@ export default function GiftFlowScreen() {
         if (challengeType === 'shared' && currentStep === 2) {
             // Goal type selection
             if (!selectedGoalType) {
-                showError('Please select a challenge type');
+                showError(t('wizard.gift.validation.selectChallengeType'));
                 return false;
             }
             if (selectedGoalType === 'Add your own' && !customGoalType.trim()) {
-                showError('Please enter your custom challenge type');
+                showError(t('wizard.gift.validation.enterCustomChallengeType'));
                 return false;
             }
             return true;
@@ -479,7 +451,7 @@ export default function GiftFlowScreen() {
                     return false;
                 }
                 if (hoursNum > 3 || (hoursNum === 3 && minutesNum > 0)) {
-                    showError('Each session cannot exceed 3 hours.');
+                    showError(t('wizard.gift.validation.sessionMaxTime'));
                     return false;
                 }
             } else {
@@ -532,6 +504,11 @@ export default function GiftFlowScreen() {
         if (currentStep < totalSteps) {
             if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setCurrentStep(prev => prev + 1);
+            analyticsService.trackEvent('gift_step_completed', 'conversion', {
+                fromStep: currentStep,
+                toStep: currentStep + 1,
+                totalSteps,
+            }, 'GiftFlowScreen');
             scrollViewRef.current?.scrollTo({ y: 0, animated: true });
         }
     };
@@ -583,7 +560,7 @@ export default function GiftFlowScreen() {
                 navigation.navigate('Auth', { mode: 'signup' });
             } catch (error: unknown) {
                 logger.error('Error storing gift flow config:', error);
-                showError('Something went wrong. Please try again.');
+                showError(t('wizard.gift.toasts.storageError'));
             }
         }
     };
@@ -600,12 +577,12 @@ export default function GiftFlowScreen() {
         // Solo giver requires a specific experience (no free option)
         // Together giver can use category-only ("Surprise me") path
         if (!selectedExperience && challengeType === 'solo') {
-            showError('Please select a specific experience');
+            showError(t('wizard.gift.validation.selectSpecificExperience'));
             submittingRef.current = false;
             return;
         }
         if (!selectedExperience && !preferredRewardCategory) {
-            showError('Please select a reward option');
+            showError(t('wizard.gift.validation.selectRewardOption'));
             submittingRef.current = false;
             return;
         }
@@ -739,7 +716,7 @@ export default function GiftFlowScreen() {
                 });
             } else if (paymentChoice === 'payLater') {
                 // setupIntentClientSecret missing - payment setup failed
-                showError('Payment setup failed. Please try again.');
+                showError(t('wizard.gift.toasts.paymentSetupFailed'));
                 return;
             } else {
                 navigation.navigate('Confirmation', { experienceGift: result.gift });
@@ -751,7 +728,7 @@ export default function GiftFlowScreen() {
                 feature: 'CreateGift',
                 userId: state.user?.id,
             });
-            showError('Failed to create gift. Please try again.');
+            showError(t('wizard.gift.toasts.createFailed'));
             submittingRef.current = false;
         } finally {
             setIsSubmitting(false);
@@ -765,7 +742,7 @@ export default function GiftFlowScreen() {
         <View style={styles.stepContent}>
             {validationErrors.type && (
                 <View style={styles.errorBanner}>
-                    <Text style={styles.errorText}>Please choose a challenge type</Text>
+                    <Text style={styles.errorText}>{t('wizard.gift.validation.chooseChallengeType')}</Text>
                 </View>
             )}
             {TYPE_OPTIONS.map((option, index) => {
@@ -793,7 +770,7 @@ export default function GiftFlowScreen() {
                             }}
                             activeOpacity={0.8}
                             accessibilityRole="button"
-                            accessibilityLabel={`Select ${option.label} challenge type`}
+                            accessibilityLabel={t('wizard.gift.accessibility.selectChallengeType', { label: option.label })}
                         >
                             <View style={styles.rewardChoiceHeader}>
                                 <View style={{ flex: 1 }}>
@@ -849,7 +826,7 @@ export default function GiftFlowScreen() {
                                 }}
                                 activeOpacity={0.8}
                                 accessibilityRole="button"
-                                accessibilityLabel={`Select ${type.name} goal type`}
+                                accessibilityLabel={t('wizard.gift.accessibility.selectGoalType', { name: type.name })}
                             >
                                 {type.sprite ? (
                                     <View style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
@@ -879,8 +856,8 @@ export default function GiftFlowScreen() {
             {selectedGoalType === 'Add your own' && (
                 <View style={{ marginTop: Spacing.xl }}>
                     <TextInput
-                        label="What's your challenge?"
-                        placeholder="e.g., Swimming, Pilates, Boxing..."
+                        label={t('wizard.gift.customGoal.label')}
+                        placeholder={t('wizard.gift.customGoal.placeholder')}
                         value={customGoalType}
                         onChangeText={setCustomGoalType}
                         maxLength={50}
@@ -896,27 +873,27 @@ export default function GiftFlowScreen() {
         <View style={styles.stepContent}>
             <View style={styles.section}>
                 <ModernSlider
-                    label="Duration"
+                    label={t('wizard.gift.sliders.duration')}
                     value={weeks}
                     min={1}
                     max={5}
                     onChange={setWeeks}
-                    leftLabel="Chill"
-                    rightLabel="Intense"
-                    unit="week"
-                    unitPlural="weeks"
+                    leftLabel={t('wizard.gift.sliders.chill')}
+                    rightLabel={t('wizard.gift.sliders.intense')}
+                    unit={t('wizard.gift.sliders.week')}
+                    unitPlural={t('wizard.gift.sliders.weeks')}
                 />
             </View>
 
             <View style={styles.section}>
                 <ModernSlider
-                    label="Weekly Sessions"
+                    label={t('wizard.gift.sliders.weeklySessions')}
                     value={sessionsPerWeek}
                     min={1}
                     max={7}
                     onChange={setSessionsPerWeek}
-                    leftLabel="Easy"
-                    rightLabel="Beast"
+                    leftLabel={t('wizard.gift.sliders.easy')}
+                    rightLabel={t('wizard.gift.sliders.beast')}
                 />
             </View>
         </View>
@@ -1029,7 +1006,7 @@ export default function GiftFlowScreen() {
                                 {visMinutes}
                             </Text>
                             <Text style={{ ...Typography.captionBold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 2 }}>
-                                MINUTES
+                                {t('wizard.gift.dial.minutes')}
                             </Text>
                         </View>
 
@@ -1064,7 +1041,7 @@ export default function GiftFlowScreen() {
                                 activeOpacity={0.8}
                             >
                                 <Text style={[styles.presetChipText, sessionMinutes === m && styles.presetChipTextActive]}>
-                                    {m} min
+                                    {m} {t('wizard.gift.dial.min')}
                                 </Text>
                             </TouchableOpacity>
                         </MotiView>
@@ -1078,7 +1055,7 @@ export default function GiftFlowScreen() {
                     activeOpacity={0.7}
                 >
                     <Text style={{ ...Typography.bodyBold, color: colors.primary }}>
-                        {showCustomTime ? 'Use the dial' : 'Or enter a custom time \u203A'}
+                        {showCustomTime ? t('wizard.gift.dial.useDial') : t('wizard.gift.dial.customTime')}
                     </Text>
                 </TouchableOpacity>
 
@@ -1093,33 +1070,33 @@ export default function GiftFlowScreen() {
                                 <RNTextInput
                                     style={styles.timeInput}
                                     value={hours}
-                                    onChangeText={(t) => {
-                                        setHours(sanitizeNumericInput(t));
+                                    onChangeText={(text) => {
+                                        setHours(sanitizeNumericInput(text));
                                         if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
                                     }}
                                     keyboardType="numeric" maxLength={1} placeholder="0"
                                     placeholderTextColor={colors.textMuted} returnKeyType="next"
                                     onSubmitEditing={() => minutesRef.current?.focus()}
-                                    accessibilityLabel="Hours per session"
+                                    accessibilityLabel={t('wizard.gift.accessibility.hoursPerSession')}
                                 />
-                                <Text style={styles.timeLabel}>hr</Text>
+                                <Text style={styles.timeLabel}>{t('wizard.gift.dial.hr')}</Text>
                             </View>
                             <View style={styles.timeInputGroup}>
                                 <RNTextInput
                                     ref={minutesRef}
                                     style={styles.timeInput}
                                     value={minutes}
-                                    onChangeText={(t) => {
-                                        const clean = sanitizeNumericInput(t);
+                                    onChangeText={(text) => {
+                                        const clean = sanitizeNumericInput(text);
                                         const m = parseInt(clean || '0', 10);
                                         setMinutes(m > 59 ? '59' : clean);
                                         if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
                                     }}
                                     keyboardType="numeric" maxLength={2} placeholder="00"
                                     placeholderTextColor={colors.textMuted} returnKeyType="done"
-                                    accessibilityLabel="Minutes per session"
+                                    accessibilityLabel={t('wizard.gift.accessibility.minutesPerSession')}
                                 />
-                                <Text style={styles.timeLabel}>min</Text>
+                                <Text style={styles.timeLabel}>{t('wizard.gift.dial.min')}</Text>
                             </View>
                         </View>
                     </MotiView>
@@ -1127,7 +1104,7 @@ export default function GiftFlowScreen() {
 
                 {validationErrors.time && (
                     <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.sm, textAlign: 'center' }}>
-                        Please set a time per session (at least 5 minutes)
+                        {t('wizard.gift.validation.setSessionTime')}
                     </Text>
                 )}
             </View>
@@ -1156,7 +1133,7 @@ export default function GiftFlowScreen() {
                     setValidationErrors(prev => ({ ...prev, experience: false }));
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={`Select ${exp.title} experience, ${exp.price} euros`}
+                accessibilityLabel={t('wizard.gift.accessibility.selectExperience', { title: exp.title, price: exp.price })}
             >
                 <View style={styles.expIconBox}>
                     <Image
@@ -1172,7 +1149,7 @@ export default function GiftFlowScreen() {
                     onPress={() => setDetailExperience(exp)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     accessibilityRole="button"
-                    accessibilityLabel={`View details for ${exp.title}`}
+                    accessibilityLabel={t('wizard.gift.accessibility.viewDetails', { title: exp.title })}
                 >
                     <Info size={14} color={colors.textOnImage} />
                 </TouchableOpacity>
@@ -1211,15 +1188,15 @@ export default function GiftFlowScreen() {
                         activeOpacity={0.7}
                     >
                         <ChevronLeft color={colors.primary} size={18} strokeWidth={2.5} />
-                        <Text style={styles.browseBackText}>Back to categories</Text>
+                        <Text style={styles.browseBackText}>{t('wizard.gift.experience.backToCategories')}</Text>
                     </TouchableOpacity>
                     )}
 
                     {/* Need help choosing? — solo flow only */}
                     {challengeType === 'solo' && !selectedExperience && (
                         <View style={styles.helpChoosingCard}>
-                            <Text style={styles.helpChoosingTitle}>Need help choosing?</Text>
-                            <Text style={styles.helpChoosingDesc}>Here are our most popular experiences:</Text>
+                            <Text style={styles.helpChoosingTitle}>{t('wizard.gift.experience.needHelp')}</Text>
+                            <Text style={styles.helpChoosingDesc}>{t('wizard.gift.experience.popularExperiences')}</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: Spacing.lg }}>
                                 {experiences
                                     .filter(e => e.status !== 'draft')
@@ -1260,7 +1237,7 @@ export default function GiftFlowScreen() {
                                                 isActive && styles.filterChipActive,
                                             ]}
                                             accessibilityRole="button"
-                                            accessibilityLabel={`Filter by ${cat.label}`}
+                                            accessibilityLabel={t('wizard.gift.accessibility.filterBy', { label: cat.label })}
                                         >
                                             <Text style={[
                                                 styles.filterText,
@@ -1326,7 +1303,7 @@ export default function GiftFlowScreen() {
                                                             setValidationErrors(prev => ({ ...prev, experience: false }));
                                                         }}
                                                         accessibilityRole="button"
-                                                        accessibilityLabel={`Select ${exp.title} experience, ${exp.price} euros`}
+                                                        accessibilityLabel={t('wizard.gift.accessibility.selectExperience', { title: exp.title, price: exp.price })}
                                                     >
                                                         <View style={styles.expIconBox}>
                                                             <Image
@@ -1342,7 +1319,7 @@ export default function GiftFlowScreen() {
                                                             onPress={() => setDetailExperience(exp)}
                                                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                                             accessibilityRole="button"
-                                                            accessibilityLabel={`View details for ${exp.title}`}
+                                                            accessibilityLabel={t('wizard.gift.accessibility.viewDetails', { title: exp.title })}
                                                         >
                                                             <Info size={14} color={colors.textOnImage} />
                                                         </TouchableOpacity>
@@ -1377,9 +1354,9 @@ export default function GiftFlowScreen() {
 
         // Together giver: equal fork (same pattern as ChallengeSetupScreen)
         const CATEGORY_TAGLINES: Record<string, string> = {
-            adventure: 'Explore something new together',
-            wellness: 'Treat yourselves',
-            creative: 'Make something amazing together',
+            adventure: t('wizard.gift.experience.categories.adventure'),
+            wellness: t('wizard.gift.experience.categories.wellness'),
+            creative: t('wizard.gift.experience.categories.creative'),
         };
         const CATEGORY_CARDS: { key: ExperienceCategory; emoji: string; label: string; tagline: string; color: string }[] =
             EXPERIENCE_CATEGORIES.map(cat => ({
@@ -1394,7 +1371,7 @@ export default function GiftFlowScreen() {
             <View style={styles.stepContent}>
                 {validationErrors.experience && (
                     <View style={styles.errorBanner}>
-                        <Text style={styles.errorText}>Please pick a reward option</Text>
+                        <Text style={styles.errorText}>{t('wizard.gift.validation.pickReward')}</Text>
                     </View>
                 )}
 
@@ -1413,16 +1390,16 @@ export default function GiftFlowScreen() {
                         onPress={() => setShowExperiencePicker(true)}
                         activeOpacity={0.8}
                         accessibilityRole="button"
-                        accessibilityLabel="Choose a shared experience"
+                        accessibilityLabel={t('wizard.gift.accessibility.chooseSharedExperience')}
                     >
                         <RNImage source={require('../assets/icon.png')} style={{ width: 36, height: 36, marginRight: Spacing.lg }} resizeMode="contain" accessible={false} />
                         <View style={{ flex: 1 }}>
                             <Text style={[
                                 styles.rewardCategoryLabel,
                                 selectedExperience && { color: colors.primary },
-                            ]}>{selectedExperience ? selectedExperience.title : 'Choose your experience'}</Text>
+                            ]}>{selectedExperience ? selectedExperience.title : t('wizard.gift.experience.chooseExperience')}</Text>
                             <Text style={styles.rewardCategoryTagline}>
-                                {selectedExperience ? `\u20AC${selectedExperience.price}` : 'Browse shared experiences for 2'}
+                                {selectedExperience ? `\u20AC${selectedExperience.price}` : t('wizard.gift.experience.browseShared')}
                             </Text>
                         </View>
                         {selectedExperience ? (
@@ -1438,7 +1415,7 @@ export default function GiftFlowScreen() {
                 {/* Divider */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: Spacing.md }}>
                     <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-                    <Text style={{ paddingHorizontal: Spacing.md, color: colors.textMuted, ...Typography.small }}>or surprise them</Text>
+                    <Text style={{ paddingHorizontal: Spacing.md, color: colors.textMuted, ...Typography.small }}>{t('wizard.gift.experience.orSurpriseThem')}</Text>
                     <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
                 </View>
 
@@ -1467,7 +1444,7 @@ export default function GiftFlowScreen() {
                                 }}
                                 activeOpacity={0.8}
                                 accessibilityRole="button"
-                                accessibilityLabel={`Select ${cat.label} reward category`}
+                                accessibilityLabel={t('wizard.gift.accessibility.selectCategory', { label: cat.label })}
                             >
                                 <Text style={styles.rewardCategoryEmoji}>{cat.emoji}</Text>
                                 <View style={{ flex: 1 }}>
@@ -1521,16 +1498,16 @@ export default function GiftFlowScreen() {
                     }}
                     activeOpacity={0.8}
                     accessibilityRole="button"
-                    accessibilityLabel="Keep reward as a secret surprise"
+                    accessibilityLabel={t('wizard.gift.accessibility.keepSecret')}
                 >
                     <View style={styles.rewardChoiceHeader}>
                         <View style={{ flex: 1 }}>
-                            <Text style={[styles.rewardChoiceTitle, revealMode === 'secret' && styles.rewardChoiceTitleActive]}>Keep it a surprise</Text>
+                            <Text style={[styles.rewardChoiceTitle, revealMode === 'secret' && styles.rewardChoiceTitleActive]}>{t('wizard.gift.revealOptions.secret.title')}</Text>
                             <Text style={styles.rewardChoiceDesc}>
-                                The reward stays hidden. They'll receive hints with every session, building anticipation until the big reveal.
+                                {t('wizard.gift.revealOptions.secret.desc')}
                             </Text>
                             <View style={styles.revealBadge}>
-                                <Text style={styles.revealBadgeText}>Recommended</Text>
+                                <Text style={styles.revealBadgeText}>{t('wizard.gift.revealOptions.recommended')}</Text>
                             </View>
                         </View>
                         {revealMode === 'secret' && (
@@ -1554,7 +1531,7 @@ export default function GiftFlowScreen() {
                     color: revealMode === 'revealed' ? colors.primary : colors.textMuted,
                     textDecorationLine: revealMode === 'revealed' ? 'none' : 'underline',
                 }}>
-                    {revealMode === 'revealed' ? '\u2713 Reward will be revealed from day one' : 'Reveal the experience instead'}
+                    {revealMode === 'revealed' ? t('wizard.gift.revealOptions.revealedActive') : t('wizard.gift.revealOptions.revealInstead')}
                 </Text>
             </TouchableOpacity>
         </View>
@@ -1571,7 +1548,7 @@ export default function GiftFlowScreen() {
         <View style={styles.stepContent}>
             {validationErrors.paymentChoice && (
                 <View style={styles.errorBanner}>
-                    <Text style={styles.errorText}>Please choose a payment option</Text>
+                    <Text style={styles.errorText}>{t('wizard.gift.validation.choosePaymentOption')}</Text>
                 </View>
             )}
 
@@ -1584,16 +1561,16 @@ export default function GiftFlowScreen() {
                 }}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel="Lock it in, pay now"
+                accessibilityLabel={t('wizard.gift.payment.lockInLabel')}
             >
                 <View style={styles.rewardChoiceHeader}>
                     <View style={{ flex: 1 }}>
-                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'payNow' && styles.rewardChoiceTitleActive]}>Lock it in</Text>
+                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'payNow' && styles.rewardChoiceTitleActive]}>{t('wizard.gift.payment.lockIn')}</Text>
                         <Text style={styles.rewardChoiceDesc}>
-                            Pay now. Experience secured immediately. They'll know you believe in them.
+                            {t('wizard.gift.payment.lockInDesc')}
                         </Text>
                         <View style={styles.revealBadge}>
-                            <Text style={[styles.revealBadgeText, { color: colors.warning }]}>Recommended</Text>
+                            <Text style={[styles.revealBadgeText, { color: colors.warning }]}>{t('wizard.gift.payment.recommended')}</Text>
                         </View>
                     </View>
                     {paymentChoice === 'payNow' && (
@@ -1611,13 +1588,13 @@ export default function GiftFlowScreen() {
                 }}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel="Pay on success, save card now"
+                accessibilityLabel={t('wizard.gift.payment.payOnSuccessLabel')}
             >
                 <View style={styles.rewardChoiceHeader}>
                     <View style={{ flex: 1 }}>
-                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'payLater' && styles.rewardChoiceTitleActive]}>Pay on success</Text>
+                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'payLater' && styles.rewardChoiceTitleActive]}>{t('wizard.gift.payment.payOnSuccess')}</Text>
                         <Text style={styles.rewardChoiceDesc}>
-                            Save your card now. Only charged when they complete the challenge.
+                            {t('wizard.gift.payment.payOnSuccessDesc')}
                         </Text>
                     </View>
                     {paymentChoice === 'payLater' && (
@@ -1628,9 +1605,9 @@ export default function GiftFlowScreen() {
 
             {/* Motivational stat */}
             <View style={styles.statCard}>
-                <Text style={styles.statNumber}>Invest in their success.</Text>
+                <Text style={styles.statNumber}>{t('wizard.gift.payment.statTitle')}</Text>
                 <Text style={styles.statText}>
-                    Your loved one is more likely to achieve their goals when they have a reward from you at the end.
+                    {t('wizard.gift.payment.statDesc')}
                 </Text>
             </View>
         </View>
@@ -1641,53 +1618,53 @@ export default function GiftFlowScreen() {
         <View style={styles.stepContent}>
             <View style={styles.confirmSummaryCard}>
                 <Text style={styles.confirmSummaryRow}>
-                    <Text style={styles.confirmSummaryLabel}>Type: </Text>
+                    <Text style={styles.confirmSummaryLabel}>{t('wizard.gift.confirm.typeLabel')} </Text>
                     {typeLabel}
                 </Text>
                 {challengeType === 'shared' && (
                     <>
                         <Text style={styles.confirmSummaryRow}>
-                            <Text style={styles.confirmSummaryLabel}>Duration: </Text>
-                            {weeks} {weeks === 1 ? 'week' : 'weeks'}
+                            <Text style={styles.confirmSummaryLabel}>{t('wizard.gift.confirm.durationLabel')} </Text>
+                            {t('wizard.gift.footer.weekLabel', { count: weeks })}
                         </Text>
                         <Text style={styles.confirmSummaryRow}>
-                            <Text style={styles.confirmSummaryLabel}>Sessions/week: </Text>
+                            <Text style={styles.confirmSummaryLabel}>{t('wizard.gift.confirm.sessionsLabel')} </Text>
                             {sessionsPerWeek}
                         </Text>
                         <Text style={styles.confirmSummaryRow}>
-                            <Text style={styles.confirmSummaryLabel}>Per session: </Text>
+                            <Text style={styles.confirmSummaryLabel}>{t('wizard.gift.confirm.perSessionLabel')} </Text>
                             {showCustomTime ? `${hours || '0'}h ${minutes || '0'}m` : `${sessionMinutes} min`}
                         </Text>
                     </>
                 )}
                 {selectedExperience ? (
                     <Text style={styles.confirmSummaryRow}>
-                        <Text style={styles.confirmSummaryLabel}>Reward: </Text>
+                        <Text style={styles.confirmSummaryLabel}>{t('wizard.gift.confirm.rewardLabel')} </Text>
                         {selectedExperience.title}
                     </Text>
                 ) : preferredRewardCategory ? (
                     <Text style={styles.confirmSummaryRow}>
-                        <Text style={styles.confirmSummaryLabel}>Reward preference: </Text>
+                        <Text style={styles.confirmSummaryLabel}>{t('wizard.gift.confirm.rewardPrefLabel')} </Text>
                         {preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)}
                     </Text>
                 ) : null}
                 {needsRevealStep && revealMode && (
                     <Text style={styles.confirmSummaryRow}>
-                        <Text style={styles.confirmSummaryLabel}>Mode: </Text>
-                        {revealMode === 'revealed' ? 'Revealed' : 'Secret (with hints)'}
+                        <Text style={styles.confirmSummaryLabel}>{t('wizard.gift.confirm.modeLabel')} </Text>
+                        {revealMode === 'revealed' ? t('wizard.gift.confirm.modeRevealed') : t('wizard.gift.confirm.modeSecret')}
                     </Text>
                 )}
                 {needsPaymentStep && paymentChoice && (
                     <Text style={styles.confirmSummaryRow}>
-                        <Text style={styles.confirmSummaryLabel}>Payment: </Text>
+                        <Text style={styles.confirmSummaryLabel}>{t('wizard.gift.confirm.paymentLabel')} </Text>
                         {getPaymentLabel()}
                     </Text>
                 )}
             </View>
 
             <TextInput
-                label="Add a personal note"
-                placeholder="Write something meaningful..."
+                label={t('wizard.gift.confirm.personalNoteLabel')}
+                placeholder={t('wizard.gift.confirm.personalNotePlaceholder')}
                 value={personalizedMessage}
                 onChangeText={setPersonalizedMessage}
                 maxLength={200}
@@ -1724,19 +1701,19 @@ export default function GiftFlowScreen() {
     };
 
     // ─── Derived display values ───────────────────────────────────────────────
-    const typeLabel = challengeType === 'shared' ? 'Together' : 'Just them';
+    const typeLabel = challengeType === 'shared' ? t('wizard.gift.challengeTypes.shared.label') : t('wizard.gift.challengeTypes.solo.label');
 
     const getPaymentLabel = () => {
-        if (paymentChoice === 'payNow') return 'Paid upfront';
-        if (paymentChoice === 'payLater') return 'Pay on success';
+        if (paymentChoice === 'payNow') return t('wizard.gift.payment.paidUpfront');
+        if (paymentChoice === 'payLater') return t('wizard.gift.payment.payOnSuccess');
         return '';
     };
 
     const getCtaLabel = () => {
-        if (isSubmitting) return 'Sending...';
-        if (!needsPaymentStep) return 'Send Challenge';
-        if (paymentChoice === 'payNow') return 'Pay & Send';
-        return 'Commit & Send (pay on success)';
+        if (isSubmitting) return t('wizard.gift.footer.sending');
+        if (!needsPaymentStep) return t('wizard.gift.footer.sendChallenge');
+        if (paymentChoice === 'payNow') return t('wizard.gift.footer.payAndSend');
+        return t('wizard.gift.footer.commitAndSend');
     };
 
     const userId = state.user?.id || '';
@@ -1757,11 +1734,11 @@ export default function GiftFlowScreen() {
                             onPress={handleBack}
                             activeOpacity={0.8}
                             accessibilityRole="button"
-                            accessibilityLabel="Go back"
+                            accessibilityLabel={t('wizard.gift.accessibility.goBack')}
                         >
                             <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2.5} />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Gift a Challenge</Text>
+                        <Text style={styles.headerTitle}>{t('wizard.gift.header.title')}</Text>
                         <View style={styles.stepIndicator}>
                             <Text style={styles.stepIndicatorText}>{currentStep}/{totalSteps}</Text>
                         </View>
@@ -1797,7 +1774,7 @@ export default function GiftFlowScreen() {
                                 animate={{ opacity: 1, translateX: 0 }}
                                 exit={{ opacity: 0, translateX: -30 }}
                                 transition={{ type: 'timing', duration: 250 }}
-                                style={{ backgroundColor: 'transparent' }}
+                                style={{ backgroundColor: colors.surface }}
                             >
                                 {renderCurrentStep()}
                             </MotiView>
@@ -1835,9 +1812,9 @@ export default function GiftFlowScreen() {
                                             onPress={() => setDetailExperience(selectedExperience)}
                                             style={styles.heroDetailsButton}
                                             accessibilityRole="button"
-                                            accessibilityLabel="View experience details"
+                                            accessibilityLabel={t('wizard.gift.accessibility.viewExperienceDetails')}
                                         >
-                                            <Text style={styles.heroDetailsText}>View details</Text>
+                                            <Text style={styles.heroDetailsText}>{t('wizard.gift.footer.viewDetails')}</Text>
                                         </TouchableOpacity>
                                     </View>
 
@@ -1853,7 +1830,7 @@ export default function GiftFlowScreen() {
                                                 <>
                                                     <View style={styles.contextDivider} />
                                                     <View style={styles.contextBadge}>
-                                                        <Text style={styles.contextLabel}>{weeks} {weeks === 1 ? 'week' : 'weeks'}</Text>
+                                                        <Text style={styles.contextLabel}>{t('wizard.gift.footer.weekLabel', { count: weeks })}</Text>
                                                     </View>
                                                     <View style={styles.contextDivider} />
                                                     <View style={styles.contextBadge}>
@@ -1865,7 +1842,7 @@ export default function GiftFlowScreen() {
                                                 <>
                                                     <View style={styles.contextDivider} />
                                                     <View style={styles.contextBadge}>
-                                                        <Text style={styles.contextLabel}>{revealMode === 'revealed' ? '👁️' : '🔒'} {revealMode === 'revealed' ? 'Revealed' : 'Secret'}</Text>
+                                                        <Text style={styles.contextLabel}>{revealMode === 'revealed' ? '👁️' : '🔒'} {revealMode === 'revealed' ? t('wizard.gift.revealOptions.revealed.label') : t('wizard.gift.revealOptions.secret.label')}</Text>
                                                     </View>
                                                 </>
                                             )}
@@ -1882,13 +1859,13 @@ export default function GiftFlowScreen() {
                                 onPress={handleCreate}
                                 activeOpacity={0.9}
                                 accessibilityRole="button"
-                                accessibilityLabel={state.user?.id ? 'Send gift' : 'Sign up and send gift'}
+                                accessibilityLabel={state.user?.id ? t('wizard.gift.footer.sendGift') : t('wizard.gift.footer.signUpSend')}
                             >
                                 <LinearGradient colors={colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
                                     <Text style={styles.createButtonText}>
                                         {state.user?.id
-                                            ? (!needsPaymentStep ? 'Send Challenge' : paymentChoice === 'payNow' ? 'Pay & Send' : 'Commit & Send')
-                                            : 'Sign Up & Send Gift'}
+                                            ? (!needsPaymentStep ? t('wizard.gift.footer.sendChallenge') : paymentChoice === 'payNow' ? t('wizard.gift.footer.payAndSend') : t('wizard.gift.footer.commitAndSend'))
+                                            : t('wizard.gift.footer.signUpSend')}
                                     </Text>
                                     <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                                 </LinearGradient>
@@ -1899,10 +1876,10 @@ export default function GiftFlowScreen() {
                                 onPress={handleNext}
                                 activeOpacity={0.9}
                                 accessibilityRole="button"
-                                accessibilityLabel="Continue to next step"
+                                accessibilityLabel={t('wizard.gift.footer.continueNext')}
                             >
                                 <LinearGradient colors={colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
-                                    <Text style={styles.createButtonText}>Next</Text>
+                                    <Text style={styles.createButtonText}>{t('wizard.gift.footer.next')}</Text>
                                     <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                                 </LinearGradient>
                             </TouchableOpacity>
@@ -1913,55 +1890,55 @@ export default function GiftFlowScreen() {
                     <BaseModal
                         visible={showConfirm}
                         onClose={() => setShowConfirm(false)}
-                        title="Confirm Your Gift"
+                        title={t('wizard.gift.confirm.title')}
                         variant="center"
                     >
                         <View style={{ width: '100%', alignItems: 'center' }}>
                             <Text style={styles.modalSubtitle}>
-                                Ready to send? Let's make it happen!
+                                {t('wizard.gift.confirm.subtitle')}
                             </Text>
 
                             <View style={styles.modalDetails}>
                                 <Text style={styles.modalRow}>
-                                    <Text style={styles.modalLabel}>Type: </Text>
+                                    <Text style={styles.modalLabel}>{t('wizard.gift.confirm.typeLabel')} </Text>
                                     {typeLabel}
                                 </Text>
                                 {challengeType === 'shared' && (
                                     <>
                                         <Text style={styles.modalRow}>
-                                            <Text style={styles.modalLabel}>Duration: </Text>
-                                            {weeks} {weeks === 1 ? 'week' : 'weeks'}
+                                            <Text style={styles.modalLabel}>{t('wizard.gift.confirm.durationLabel')} </Text>
+                                            {t('wizard.gift.footer.weekLabel', { count: weeks })}
                                         </Text>
                                         <Text style={styles.modalRow}>
-                                            <Text style={styles.modalLabel}>Sessions/week: </Text>
+                                            <Text style={styles.modalLabel}>{t('wizard.gift.confirm.sessionsLabel')} </Text>
                                             {sessionsPerWeek}
                                         </Text>
                                         <Text style={styles.modalRow}>
-                                            <Text style={styles.modalLabel}>Per session: </Text>
+                                            <Text style={styles.modalLabel}>{t('wizard.gift.confirm.perSessionLabel')} </Text>
                                             {showCustomTime ? `${hours || '0'}h ${minutes || '0'}m` : `${sessionMinutes} min`}
                                         </Text>
                                     </>
                                 )}
                                 {selectedExperience ? (
                                     <Text style={styles.modalRow}>
-                                        <Text style={styles.modalLabel}>Reward: </Text>
+                                        <Text style={styles.modalLabel}>{t('wizard.gift.confirm.rewardLabel')} </Text>
                                         {selectedExperience.title}
                                     </Text>
                                 ) : preferredRewardCategory ? (
                                     <Text style={styles.modalRow}>
-                                        <Text style={styles.modalLabel}>Reward preference: </Text>
+                                        <Text style={styles.modalLabel}>{t('wizard.gift.confirm.rewardPrefLabel')} </Text>
                                         {preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)}
                                     </Text>
                                 ) : null}
                                 {needsRevealStep && revealMode && (
                                     <Text style={styles.modalRow}>
-                                        <Text style={styles.modalLabel}>Mode: </Text>
-                                        {revealMode === 'revealed' ? 'Revealed' : 'Secret (with hints)'}
+                                        <Text style={styles.modalLabel}>{t('wizard.gift.confirm.modeLabel')} </Text>
+                                        {revealMode === 'revealed' ? t('wizard.gift.confirm.modeRevealed') : t('wizard.gift.confirm.modeSecret')}
                                     </Text>
                                 )}
                                 {needsPaymentStep && paymentChoice && (
                                     <Text style={styles.modalRow}>
-                                        <Text style={styles.modalLabel}>Payment: </Text>
+                                        <Text style={styles.modalLabel}>{t('wizard.gift.confirm.paymentLabel')} </Text>
                                         {getPaymentLabel()}
                                     </Text>
                                 )}
@@ -1969,10 +1946,10 @@ export default function GiftFlowScreen() {
 
                             <Text style={styles.pledgeNote}>
                                 {!needsPaymentStep
-                                    ? 'We\'ll find the perfect experience as they progress!'
+                                    ? t('wizard.gift.confirm.pledgeCategory')
                                     : paymentChoice === 'payNow'
-                                        ? 'Experience will be secured immediately after payment.'
-                                        : 'Your card will only be charged when they succeed.'}
+                                        ? t('wizard.gift.confirm.pledgePayNow')
+                                        : t('wizard.gift.confirm.pledgePayLater')}
                             </Text>
 
                             <View style={styles.modalButtons}>
@@ -1980,7 +1957,7 @@ export default function GiftFlowScreen() {
                                     variant="ghost"
                                     onPress={() => setShowConfirm(false)}
                                     disabled={isSubmitting}
-                                    title="Cancel"
+                                    title={t('wizard.gift.confirm.cancel')}
                                     style={styles.modalButton}
                                 />
 
@@ -2316,21 +2293,32 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         paddingHorizontal: Spacing.xl,
         paddingBottom: Platform.OS === 'ios' ? vh(30) : vh(18),
         paddingTop: vh(14),
-        backgroundColor: colors.white,
-        borderTopWidth: 1,
-        borderTopColor: colors.backgroundLight,
+        backgroundColor: colors.surface,
+        borderTopWidth: 0,
         ...Shadows.md,
-        shadowColor: colors.black,
-        shadowOffset: { width: 0, height: -4 },
+        ...Platform.select({
+            web: {},
+            default: {
+                shadowColor: colors.black,
+                shadowOffset: { width: 0, height: -4 },
+            },
+        }),
     },
     createButton: {
         borderRadius: BorderRadius.lg,
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 16,
-        elevation: 8,
-    },
+        ...Platform.select({
+            ios: {
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.3,
+                shadowRadius: 16,
+            },
+            android: {
+                boxShadow: `0 8 16 0 ${colors.primary}4D`,
+            },
+            default: {},
+        }),
+    } as any,
     createButtonGradient: {
         flexDirection: 'row',
         alignItems: 'center',

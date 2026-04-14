@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
@@ -36,6 +37,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const { width, height } = Dimensions.get('window');
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList<string>>(null);
@@ -85,7 +87,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         <View style={{ width, height, justifyContent: 'center', alignItems: 'center' }}>
             {imageErrors.has(index) ? (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.backgroundLight }}>
-                    <Text style={{ color: colors.textMuted }}>Image failed to load</Text>
+                    <Text style={{ color: colors.textMuted }}>{t('accessibility.imageViewer.imageFailedToLoad')}</Text>
                 </View>
             ) : (
                 <Image
@@ -110,7 +112,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
         <View style={styles.webImageContainer}>
             {imageErrors.has(currentIndex) ? (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.backgroundLight }}>
-                    <Text style={{ color: colors.textMuted }}>Image failed to load</Text>
+                    <Text style={{ color: colors.textMuted }}>{t('accessibility.imageViewer.imageFailedToLoad')}</Text>
                 </View>
             ) : (
                 <Image
@@ -126,7 +128,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                 <TouchableOpacity
                     style={[styles.arrowButton, styles.arrowLeft]}
                     onPress={() => goToImage('prev')}
-                    accessibilityLabel="Previous image"
+                    accessibilityLabel={t('accessibility.imageViewer.previousImage')}
                     accessibilityRole="button"
                 >
                     <ChevronLeft size={28} color={colors.white} />
@@ -136,7 +138,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                 <TouchableOpacity
                     style={[styles.arrowButton, styles.arrowRight]}
                     onPress={() => goToImage('next')}
-                    accessibilityLabel="Next image"
+                    accessibilityLabel={t('accessibility.imageViewer.nextImage')}
                     accessibilityRole="button"
                 >
                     <ChevronRight size={28} color={colors.white} />
@@ -181,7 +183,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
                 <TouchableOpacity
                     style={[styles.closeButton, { top: insets.top + 8 }]}
                     onPress={onClose}
-                    accessibilityLabel="Close image viewer"
+                    accessibilityLabel={t('accessibility.imageViewer.close')}
                     accessibilityRole="button"
                 >
                     <View style={styles.closeButtonCircle}>

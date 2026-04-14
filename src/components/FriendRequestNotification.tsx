@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Avatar } from './Avatar';
 import { Notification } from '../types';
 import { friendService } from '../services/FriendService';
@@ -26,6 +27,7 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
   notification,
   onRequestHandled,
 }) => {
+  const { t } = useTranslation();
   const { showSuccess, showError, showInfo } = useToast();
   const [isHandling, setIsHandling] = useState(false);
   const colors = useColors();
@@ -44,11 +46,11 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
       }
 
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showSuccess(`You are now friends with ${notification.data.senderName}!`);
+      showSuccess(t('notifications.notificationComponents.friendRequest.nowFriends', { name: notification.data.senderName }));
       onRequestHandled();
     } catch (error: unknown) {
       logger.error('Error accepting friend request:', error);
-      showError('Failed to accept friend request. Please try again.');
+      showError(t('notifications.notificationComponents.friendRequest.acceptFailed'));
     } finally {
       setIsHandling(false);
     }
@@ -67,11 +69,11 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
       }
 
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      showInfo(`Friend request from ${notification.data.senderName} has been declined.`);
+      showInfo(t('notifications.notificationComponents.friendRequest.declined', { name: notification.data.senderName }));
       onRequestHandled();
     } catch (error: unknown) {
       logger.error('Error declining friend request:', error);
-      showError('Failed to decline friend request. Please try again.');
+      showError(t('notifications.notificationComponents.friendRequest.declineFailed'));
     } finally {
       setIsHandling(false);
     }
@@ -108,12 +110,12 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
           onPress={handleDecline}
           disabled={isHandling}
           accessibilityRole="button"
-          accessibilityLabel="Decline friend request"
+          accessibilityLabel={t('notifications.notificationComponents.friendRequest.declineA11y')}
         >
           {isHandling ? (
             <ActivityIndicator size="small" color={colors.white} />
           ) : (
-            <Text style={styles.declineButtonText}>Decline</Text>
+            <Text style={styles.declineButtonText}>{t('notifications.notificationComponents.friendRequest.decline')}</Text>
           )}
         </TouchableOpacity>
 
@@ -122,12 +124,12 @@ const FriendRequestNotification: React.FC<FriendRequestNotificationProps> = ({
           onPress={handleAccept}
           disabled={isHandling}
           accessibilityRole="button"
-          accessibilityLabel="Accept friend request"
+          accessibilityLabel={t('notifications.notificationComponents.friendRequest.acceptA11y')}
         >
           {isHandling ? (
             <ActivityIndicator size="small" color={colors.white} />
           ) : (
-            <Text style={styles.acceptButtonText}>Accept</Text>
+            <Text style={styles.acceptButtonText}>{t('notifications.notificationComponents.friendRequest.accept')}</Text>
           )}
         </TouchableOpacity>
       </View>

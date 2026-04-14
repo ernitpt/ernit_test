@@ -1,0 +1,2971 @@
+{
+  "common": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "tryAgain": "Try Again",
+    "save": "Save",
+    "close": "Close",
+    "back": "Go back",
+    "next": "Next",
+    "loading": "Loading...",
+    "error": "Error",
+    "ok": "OK",
+    "done": "Done",
+    "skip": "Skip",
+    "delete": "Delete",
+    "remove": "Remove",
+    "or": "or",
+    "send": "Send",
+    "copy": "Copy",
+    "copied": "Copied",
+    "login": "Login",
+    "logout": "Logout",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "stay": "Stay",
+    "leave": "Leave",
+    "discardChanges": "Discard Changes",
+    "discardMessage": "Are you sure you want to discard your changes?"
+  },
+  "time": {
+    "justNow": "Just now",
+    "minutesAgo_one": "{{count}}m ago",
+    "minutesAgo_other": "{{count}}m ago",
+    "hoursAgo_one": "{{count}}h ago",
+    "hoursAgo_other": "{{count}}h ago",
+    "daysAgo_one": "{{count}}d ago",
+    "daysAgo_other": "{{count}}d ago",
+    "weeksAgo_one": "{{count}}w ago",
+    "weeksAgo_other": "{{count}}w ago",
+    "monthsAgo_one": "{{count}}mo ago",
+    "monthsAgo_other": "{{count}}mo ago",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "startsToday": "Starts today",
+    "startsTomorrow": "Starts tomorrow",
+    "startedYesterday": "Started yesterday",
+    "startsInDays": "Starts in {{count}} days",
+    "startedDaysAgo": "Started {{count}} days ago"
+  },
+  "plurals": {
+    "weeks_one": "{{count}} week",
+    "weeks_other": "{{count}} weeks",
+    "sessions_one": "{{count}} session",
+    "sessions_other": "{{count}} sessions",
+    "friends_one": "{{count}} Friend",
+    "friends_other": "{{count}} Friends",
+    "items_one": "{{count}} item",
+    "items_other": "{{count}} items",
+    "users_one": "{{count}} user found",
+    "users_other": "{{count}} users found",
+    "goals_one": "{{count}} goal",
+    "goals_other": "{{count}} goals",
+    "motivations_one": "{{count}} motivation from friends",
+    "motivations_other": "{{count}} motivations from friends",
+    "comments_one": "{{count}} comment",
+    "comments_other": "{{count}} comments",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "minutes_one": "{{count}} minute",
+    "minutes_other": "{{count}} minutes",
+    "hours_one": "{{count}} hour",
+    "hours_other": "{{count}} hours"
+  },
+  "nav": {
+    "home": "Home",
+    "feed": "Feed",
+    "goals": "Goals",
+    "profile": "Profile",
+    "menu": "Menu",
+    "tabAccessibility": "{{label}} tab",
+    "badgeOverflow": "9+"
+  },
+  "accessibility": {
+    "closeMenu": "Close menu",
+    "goToProfile": "Go to profile",
+    "signIn": "Sign in",
+    "toggleDarkMode": "Toggle dark mode",
+    "toggleSessionReminders": "Toggle session reminders",
+    "changeReminderTime": "Change reminder time, currently {{time}}",
+    "confirmReminderTime": "Confirm reminder time",
+    "goBack": "Go back",
+    "shoppingCart": "Shopping cart",
+    "notifications": "Notifications",
+    "toggleDebugMode": "Toggle debug mode",
+    "dismissModal": "Dismiss modal",
+    "closeButton": "Close",
+    "dismissToast": "Dismiss",
+    "audioPlayer": {
+      "loading": "Loading",
+      "play": "Play",
+      "pause": "Pause"
+    },
+    "imageViewer": {
+      "imageFailedToLoad": "Image failed to load",
+      "close": "Close image viewer",
+      "previousImage": "Previous image",
+      "nextImage": "Next image"
+    },
+    "reactionBar": {
+      "reactWith": "React with {{type}}",
+      "doubleTapToReact": "Double tap to react",
+      "selectReaction": "Select {{type}} reaction",
+      "reactToPost": "React to this post",
+      "opensReactionPicker": "Opens reaction picker",
+      "reactionCount": "{{count}} {{type}} reactions"
+    }
+  },
+  "sideMenu": {
+    "brandName": "Ernit",
+    "brandTagline": "Experiences worth giving",
+    "signIn": "Sign In",
+    "sections": {
+      "actions": "ACTIONS",
+      "helpInfo": "HELP & INFO",
+      "settings": "SETTINGS"
+    },
+    "items": {
+      "installApp": "Install App",
+      "redeemCoupon": "Redeem Coupon",
+      "purchasedGifts": "Purchased Gifts",
+      "howItWorks": "How It Works",
+      "giveFeedback": "Give Feedback",
+      "getSupport": "Get Support",
+      "darkMode": "Dark Mode",
+      "reminders": "Reminders",
+      "login": "Login",
+      "logout": "Logout",
+      "loggingOut": "Logging out…"
+    },
+    "reminders": {
+      "sessionReminders": "Session reminders",
+      "remindMeAt": "Remind me at"
+    },
+    "timePicker": {
+      "title": "Set Reminder Time",
+      "hourLabel": "Hour",
+      "minuteLabel": "Minute",
+      "setTime": "Set Time"
+    },
+    "language": "Language",
+    "footer": "Ernit App v1.0.0",
+    "errors": {
+      "logoutFailed": "Failed to log out. Please try again.",
+      "reminderTimeFailed": "Failed to save reminder time. Please try again."
+    }
+  },
+  "loginPrompt": {
+    "title": "Login",
+    "defaultMessage": "Please log in to continue.",
+    "accessPage": "Please log in to access this page.",
+    "accessFeature": "Please log in to access this feature.",
+    "accessAccount": "Please log in to access your account.",
+    "accessWishlist": "Please log in to add items to your wishlist.",
+    "accessCheckout": "Please log in to proceed to checkout.",
+    "signUpFree": "Sign Up Free",
+    "logIn": "Log In",
+    "maybeLater": "Maybe Later"
+  },
+  "errors": {
+    "boundary": {
+      "title": "Something went wrong",
+      "messageCrashing": "This section keeps crashing.\nPlease restart the app.",
+      "messageLoadFailed": "We're having trouble loading this page.\nPlease try refreshing.",
+      "tryAgain": "Try Again"
+    },
+    "retry": {
+      "defaultMessage": "Something went wrong",
+      "tryAgain": "Try Again"
+    }
+  },
+  "auth": {
+    "welcomeBack": "Welcome Back",
+    "joinErnit": "Join Ernit",
+    "signInSubtitle": "Sign in to your account below",
+    "signUpSubtitle": "Create your account to start gifting experiences",
+    "continueWithGoogle": "Continue with Google",
+    "orDivider": "or",
+    "fields": {
+      "username": "Username",
+      "emailAddress": "Email address",
+      "password": "Password",
+      "confirmPassword": "Confirm password"
+    },
+    "passwordRequirements": {
+      "title": "Password Requirements:",
+      "minLength": "At least 8 characters",
+      "uppercase": "One uppercase letter",
+      "lowercase": "One lowercase letter",
+      "number": "One number",
+      "specialChar": "One special character"
+    },
+    "forgotPassword": "Forgot password?",
+    "buttons": {
+      "signIn": "Sign In",
+      "createAccount": "Create Account",
+      "signingIn": "Signing in...",
+      "creatingAccount": "Creating account...",
+      "success": "Success!"
+    },
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "showConfirmPassword": "Show confirm password",
+    "hideConfirmPassword": "Hide confirm password",
+    "toggleSignIn": "Already have an account? Sign In",
+    "toggleSignUp": "Don't have an account? Sign Up"
+  },
+  "authErrors": {
+    "fillAllFields": "Please fill in all fields",
+    "invalidEmail": "Please enter a valid email address",
+    "enterName": "Please enter your name",
+    "passwordRequirements": "Password does not meet security requirements",
+    "passwordsDoNotMatch": "Passwords do not match",
+    "unexpectedError": "An unexpected error occurred. Please try again.",
+    "emailNotFound": "No account found with this email address.",
+    "incorrectCredentials": "Incorrect email or password. Please check your credentials and try again.",
+    "emailOrPasswordIncorrect": "Email or password is incorrect.",
+    "invalidEmailAddress": "Invalid email address.",
+    "tooManyAttempts": "Too many failed attempts. Please try again later or reset your password.",
+    "emailAlreadyInUse": "An account with this email already exists.",
+    "weakPassword": "Password is too weak. Please choose a stronger password.",
+    "googleSignInCanceled": "The sign-in process was canceled or failed.",
+    "googleSignInFailed": "Unable to sign in with Google. Please try again.",
+    "accountExistsDifferentCredential": "An account with this email already exists. Both Google and email/password sign-in will be enabled for your account.",
+    "passwordResetEmailSent": "A password reset link has been sent to your email. Please check your spam folder.",
+    "passwordResetFailed": "Failed to send reset email.",
+    "passwordResetInvalidEmail": "Invalid email address.",
+    "passwordResetUserNotFound": "No account found with that email.",
+    "enterEmailFirst": "Please enter your email address first.",
+    "verificationEmailSent": "A verification email has been sent to {{email}}. Please verify your email to secure your account.",
+    "previousProgressLost": "Your previous progress could not be restored. Please start again."
+  },
+  "settings": {
+    "language": "Language",
+    "english": "English",
+    "portuguese": "Português"
+  },
+  "goals": {
+    "screenTitle": "My Goals",
+    "screenSubtitle": "Track your progress and stay motivated",
+    "toast": {
+      "goalDeleted": "Goal deleted successfully",
+      "goalUpdated": "Goal updated successfully",
+      "goalCreated": "Goal created successfully",
+      "sessionLogged": "Session logged!",
+      "goalCompleted": "Goal completed! Well done!",
+      "goalPaused": "Goal paused",
+      "goalResumed": "Goal resumed",
+      "copyLinkSuccess": "Link copied to clipboard",
+      "copyLinkFailed": "Failed to copy link",
+      "failedProgress": "Failed to update goal progress.",
+      "goalLimitReached": "You can have up to 3 active goals. Complete or remove a goal to create a new one.",
+      "upToDate": "Goals are up to date"
+    },
+    "error": {
+      "loadFailed": "Failed to load goals. Please try again.",
+      "deleteFailed": "Failed to delete goal. Please try again.",
+      "updateFailed": "Failed to update goal. Please try again.",
+      "sessionLogFailed": "Failed to log session. Please try again.",
+      "couldNotLoad": "Could not load goals"
+    },
+    "empty": {
+      "title": "No goals yet",
+      "subtitle": "Start your journey by creating your first goal",
+      "action": "Create Goal",
+      "message": "Set a goal, pick a dream reward, and challenge yourself to earn it.",
+      "actionLabel": "Create Your First Goal"
+    },
+    "emptyActive": {
+      "title": "No active goals",
+      "subtitle": "All your goals are completed or paused",
+      "action": "Create New Goal",
+      "actionLabel": "Start a New Challenge"
+    },
+    "completed": {
+      "title": "Completed Goals",
+      "empty": "No completed goals yet",
+      "emptySubtitle": "Complete your active goals to see them here",
+      "header": "Completed ({{count}})",
+      "hideAccessibility": "Hide {{count}} completed goals",
+      "showAccessibility": "Show {{count}} completed goals"
+    },
+    "fab": {
+      "label": "Create new goal",
+      "closeMenuAccessibility": "Close menu",
+      "createAccessibility": "Create new goal",
+      "createGoal": "Create New Goal",
+      "openMenuAccessibility": "Open menu to create goal or redeem coupon",
+      "redeemAccessibility": "Redeem your Ernit coupon",
+      "redeemErnit": "Redeem Your Ernit"
+    },
+    "goalCard": {
+      "sessions": "Sessions",
+      "streak": "Streak",
+      "progress": "Progress",
+      "daysLeft": "{{count}} days left",
+      "completed": "Completed",
+      "paused": "Paused",
+      "logSession": "Log Session",
+      "viewDetail": "View Details",
+      "menu": {
+        "edit": "Edit Goal",
+        "pause": "Pause Goal",
+        "resume": "Resume Goal",
+        "share": "Share Goal",
+        "delete": "Delete Goal"
+      },
+      "deleteConfirm": {
+        "title": "Delete Goal",
+        "message": "Are you sure you want to delete this goal? This action cannot be undone.",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      }
+    }
+  },
+  "feed": {
+    "screenTitle": "Activity Feed",
+    "screenSubtitle": "See what your friends are up to",
+    "filters": {
+      "all": "All",
+      "friends": "Friends",
+      "my": "My Activity",
+      "goals": "Goals",
+      "sessions": "Sessions",
+      "completed": "Completed"
+    },
+    "list": {
+      "loadMore": "Load more",
+      "loadingMore": "Loading more..."
+    },
+    "pullToRefresh": "Pull to refresh",
+    "toast": {
+      "motivationSent": "Motivation sent!",
+      "motivationFailed": "Failed to send motivation. Please try again.",
+      "commentPosted": "Comment posted!",
+      "commentFailed": "Failed to post comment. Please try again.",
+      "commentDeleted": "Comment deleted",
+      "commentDeleteFailed": "Failed to delete comment. Please try again.",
+      "copyLinkSuccess": "Link copied to clipboard",
+      "copyLinkFailed": "Failed to copy link"
+    },
+    "error": {
+      "loadFailed": "Failed to load feed. Please try again.",
+      "motivationFailed": "Failed to send motivation.",
+      "commentFailed": "Failed to post comment.",
+      "couldNotLoad": "Could not load your feed"
+    },
+    "empty": {
+      "title": "Nothing here yet",
+      "subtitle": "Add friends to see their activity, or start working on a goal!",
+      "action": "Find Friends",
+      "addFriends": "Add Friends",
+      "noActivityMessage": "Add friends to see their goal progress and celebrate together!",
+      "noActivityTitle": "No Activity Yet",
+      "noPostsMessage": "There are no posts matching this filter yet.",
+      "noPostsTitle": "No Posts Found"
+    },
+    "post": {
+      "loggedSession": "logged a session",
+      "completedGoal": "completed a goal",
+      "startedGoal": "started a new goal",
+      "achievedStreak": "achieved a {{count}}-day streak",
+      "sharedUpdate": "shared an update",
+      "typeInfo": {
+        "setNewGoal": "set a new goal",
+        "gotGoalApproved": "got goal approved!",
+        "completedSession": "completed",
+        "session": "session",
+        "completedChallenge": "completed their challenge!",
+        "completedGoalEarned": "completed their goal and earned:",
+        "completedGoal": "completed their goal!",
+        "madeProgress": "made progress"
+      },
+      "postTypes": {
+        "loggedSession": "logged a session",
+        "completedGoal": "completed a goal",
+        "setNewGoal": "set a new goal",
+        "madeProgress": "made progress",
+        "newGoalChip": "New Goal",
+        "approvedChip": "Approved",
+        "sessionChip": "Session",
+        "completedChip": "Completed!"
+      },
+      "accessibility": {
+        "loggedSession": "logged a session",
+        "completedGoal": "completed a goal",
+        "setNewGoal": "set a new goal",
+        "madeProgress": "made progress",
+        "viewSessionMedia": "View session media in fullscreen",
+        "commentCount_one": "View {{count}} comment",
+        "commentCount_other": "View {{count}} comments",
+        "viewGoal": "{{name}}'s goal: {{description}}"
+      }
+    },
+    "postHeader": {
+      "you": "You",
+      "menuAccessibility": "Post options",
+      "deletePost": "Delete Post",
+      "reportPost": "Report Post",
+      "deleteConfirm": {
+        "title": "Delete Post",
+        "message": "Are you sure you want to delete this post?",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      },
+      "viewProfile": "View {{userName}}'s profile"
+    },
+    "postContent": {
+      "sessionLogged": "Session Logged",
+      "goalCompleted": "Goal Completed!",
+      "streakAchieved": "Streak Achieved!",
+      "days": "days",
+      "viewGoal": "View Goal",
+      "sessionsThisWeek": "Sessions this week",
+      "weeksCompleted": "Weeks completed",
+      "mysteryExperience": "Mystery Experience",
+      "giftAnExperience": "Gift an Experience",
+      "goal": "Goal: {{description}}"
+    },
+    "empowerActions": {
+      "motivate": "Motivate",
+      "motivated": "Motivated",
+      "motivationSent": "Motivation sent",
+      "comment": "Comment",
+      "share": "Share",
+      "motivationCount_one": "{{count}} motivation",
+      "motivationCount_other": "{{count}} motivations",
+      "commentCount_one": "{{count}} comment",
+      "commentCount_other": "{{count}} comments",
+      "empower": "Empower",
+      "gift": "Gift",
+      "lovesCategory": "Loves {{category}} experiences",
+      "empowerA11y": "Empower {{name}} with this experience",
+      "motivateA11y": "Send motivation message to {{name}}"
+    },
+    "filtersAccessibility": "Filter posts by type",
+    "listAccessibility": "Activity feed",
+    "pullToRefreshAccessibility": "Pull to refresh feed"
+  },
+  "goalDetail": {
+    "header": {
+      "title": "Goal Details",
+      "editButton": "Edit"
+    },
+    "backButton": "Back to Goals",
+    "sections": {
+      "overview": "Overview",
+      "progress": "Progress",
+      "sessions": "Sessions",
+      "friends": "Friends Support",
+      "activity": "Recent Activity"
+    },
+    "calendar": {
+      "title": "Session Calendar",
+      "legend": {
+        "session": "Session",
+        "today": "Today",
+        "missed": "Missed"
+      },
+      "noSessions": "No sessions logged yet",
+      "friday": "Friday",
+      "monday": "Monday",
+      "saturday": "Saturday",
+      "sunday": "Sunday",
+      "thursday": "Thursday",
+      "todayLabel": "{{day}}, today",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "weekStartsHint": "Week starts when you log your first session"
+    },
+    "progress": {
+      "sessionsCompleted": "Sessions Completed",
+      "currentStreak": "Current Streak",
+      "longestStreak": "Longest Streak",
+      "totalDays": "Total Days",
+      "completionRate": "Completion Rate",
+      "daysRemaining": "Days Remaining"
+    },
+    "completedBanner": "Goal Completed! Enjoy your reward!",
+    "back": "Back",
+    "overall": "Overall",
+    "progressAccessibility": "{{pct}}% complete",
+    "screenTitle": "Goal Details",
+    "thisWeek": "This Week"
+  },
+  "profile": {
+    "tabs": {
+      "goals": "Goals",
+      "achievements": "Achievements",
+      "wishlist": "Wishlist"
+    },
+    "stats": {
+      "goals": "Goals",
+      "friends": "Friends",
+      "streak": "Streak",
+      "sessions": "Sessions",
+      "active": "Active",
+      "completed": "Completed",
+      "wishlist": "Favorites",
+      "weeks": "weeks"
+    },
+    "achievements": {
+      "completed": "Completed",
+      "claimExperience": "Claim Experience",
+      "selfAchievement": "Self-Achievement"
+    },
+    "viewFriends": "View Friends",
+    "editProfile": {
+      "title": "Edit Profile",
+      "name": "Name",
+      "username": "Username",
+      "bio": "Bio",
+      "bioPlaceholder": "Tell us about yourself...",
+      "saveButton": "Save Changes",
+      "savingButton": "Saving...",
+      "changePhoto": "Change Photo",
+      "removePhoto": "Remove Photo",
+      "photoOptions": "Profile Photo",
+      "camera": "Take Photo",
+      "gallery": "Choose from Gallery"
+    },
+    "validation": {
+      "nameRequired": "Name is required",
+      "nameTooShort": "Name must be at least 2 characters",
+      "nameTooLong": "Name cannot exceed 50 characters",
+      "usernameRequired": "Username is required",
+      "usernameTooShort": "Username must be at least 3 characters",
+      "usernameTooLong": "Username cannot exceed 30 characters",
+      "usernameInvalid": "Username can only contain letters, numbers, and underscores",
+      "usernameTaken": "This username is already taken",
+      "bioTooLong": "Bio cannot exceed 150 characters",
+      "descriptionTooLong": "Maximum 300 characters"
+    },
+    "toast": {
+      "profileUpdated": "Profile updated successfully",
+      "profileUpdateFailed": "Failed to update profile. Please try again.",
+      "photoUpdated": "Profile photo updated",
+      "photoUpdateFailed": "Failed to update photo. Please try again.",
+      "photoRemoved": "Profile photo removed",
+      "photoRemoveFailed": "Failed to remove photo. Please try again.",
+      "wishlistAdded": "Added to wishlist",
+      "wishlistRemoved": "Removed from wishlist",
+      "wishlistFailed": "Failed to update wishlist. Please try again.",
+      "copyLinkSuccess": "Profile link copied",
+      "copyLinkFailed": "Failed to copy link",
+      "cameraPermission": "We need camera roll permissions to upload photos!",
+      "couldNotLoad": "Could not load profile. Please try again.",
+      "couldNotOpenImage": "Could not open profile image.",
+      "couldNotUploadImage": "Could not upload profile image. Please try again.",
+      "failedToRemoveWishlist": "Failed to remove item from favorites. Please try again.",
+      "failedToUpdate": "Failed to update profile. Please try again.",
+      "imageTooLarge": "Image must be under 5MB",
+      "loginToManageWishlist": "Please log in to manage favorites.",
+      "notLoggedIn": "Not logged in"
+    },
+    "emptyGoals": {
+      "title": "No goals yet",
+      "subtitle": "This user hasn't created any goals yet"
+    },
+    "emptyAchievements": {
+      "title": "No achievements yet",
+      "subtitle": "Complete goals to earn achievements"
+    },
+    "emptyWishlist": {
+      "title": "Wishlist is empty",
+      "subtitle": "Browse experiences and add them to your wishlist"
+    },
+    "error": {
+      "loadFailed": "Failed to load profile. Please try again.",
+      "notFound": "User not found",
+      "couldNotLoad": "Could not load profile data"
+    },
+    "wishlist": {
+      "removeConfirm": "Remove",
+      "removeAccessibility": "Remove {{title}} from favorites",
+      "removeMessage": "Are you sure you want to remove this experience from your favorites?",
+      "removeTitle": "Remove from Favorites",
+      "viewDetailsAccessibility": "View {{title}} experience details"
+    },
+    "goalCard": {
+      "sessionsLabel": "sessions",
+      "streakLabel": "day streak",
+      "progressLabel": "progress"
+    },
+    "achievementCard": {
+      "completedOn": "Completed on {{date}}",
+      "viewDetails": "View Details"
+    },
+    "experienceCard": {
+      "viewDetails": "View Details",
+      "giftThis": "Gift This"
+    },
+    "editModal": {
+      "aboutLabel": "About You ({{count}}/300)",
+      "aboutPlaceholder": "Tell us about yourself...",
+      "cancel": "Cancel",
+      "nameLabel": "Name",
+      "namePlaceholder": "Enter your name",
+      "save": "Save",
+      "saving": "Saving…",
+      "tapToChangePhoto": "Tap to change photo",
+      "title": "Edit Profile"
+    },
+    "empty": {
+      "achievementsMessage": "Complete goals to earn achievements!",
+      "achievementsTitle": "No Achievements Yet",
+      "goalsAction": "Start a Goal",
+      "goalsMessage": "Start a goal to track your progress!",
+      "goalsTitle": "Your Journey Starts Here",
+      "wishlistMessage": "Add experiences to your favorites!",
+      "wishlistTitle": "No Favorites Yet"
+    },
+    "friendsButtonAccessibility": "View friends list",
+    "goals": {
+      "addReward": "Add a Reward",
+      "sessionsThisWeek": "Sessions this week",
+      "weeksCompleted": "Weeks completed"
+    },
+    "tabAccessibility": "View {{label}} tab"
+  },
+  "notifications": {
+    "screenTitle": "Notifications",
+    "header": {
+      "title": "Notifications",
+      "markAllRead": "Mark all read",
+      "clearAll": "Clear All",
+      "markRead": "Mark Read"
+    },
+    "toast": {
+      "markedAllRead": "All notifications marked as read",
+      "markAllReadFailed": "Failed to mark notifications as read",
+      "cleared": "Notification cleared",
+      "clearFailed": "Failed to clear notification",
+      "allCleared": "All notifications have been cleared.",
+      "failedClear": "Failed to clear notification. Please try again.",
+      "failedClearAll": "Failed to clear notifications. Please try again.",
+      "failedMarkRead": "Failed to mark all as read.",
+      "missingId": "Cannot clear notification: missing ID",
+      "notAuthenticated": "User not authenticated",
+      "upToDate": "Notifications are up to date"
+    },
+    "error": {
+      "loadFailed": "Failed to load notifications. Please try again.",
+      "couldNotLoad": "Could not load notifications"
+    },
+    "empty": {
+      "title": "No notifications",
+      "subtitle": "You're all caught up! Check back later.",
+      "message": "You'll see updates here when friends interact with your goals"
+    },
+    "clearAll": {
+      "button": "Clear All",
+      "confirm": {
+        "title": "Clear All Notifications",
+        "message": "Are you sure you want to clear all notifications?",
+        "confirm": "Clear All",
+        "cancel": "Cancel"
+      }
+    },
+    "clearOne": {
+      "button": "Clear"
+    },
+    "card": {
+      "justNow": "Just now",
+      "unread": "Unread"
+    },
+    "notificationComponents": {
+      "dismissNotification": "Dismiss notification",
+      "freeGoal": {
+        "challengeCompleted": "Challenge Completed!",
+        "milestonePercent": "{{milestone}}% Complete",
+        "alreadyEmpowered": "Already Empowered",
+        "empower": "Empower",
+        "motivate": "Motivate",
+        "motivationSent": "Motivation sent",
+        "lovesCategory": "Loves {{category}} experiences"
+      },
+      "friendRequest": {
+        "accept": "Accept",
+        "decline": "Decline",
+        "acceptA11y": "Accept friend request",
+        "declineA11y": "Decline friend request",
+        "nowFriends": "You are now friends with {{name}}!",
+        "declined": "Friend request from {{name}} has been declined.",
+        "acceptFailed": "Failed to accept friend request. Please try again.",
+        "declineFailed": "Failed to decline friend request. Please try again."
+      },
+      "goalApproval": {
+        "approve": "Approve",
+        "suggestChange": "Suggest Change",
+        "approveModal": {
+          "title": "Approve Goal",
+          "subtitle": "Add an optional message (optional)",
+          "placeholder": "Your message...",
+          "cancel": "Cancel",
+          "cancelA11y": "Cancel goal approval",
+          "confirm": "Approve",
+          "confirmA11y": "Confirm goal approval"
+        },
+        "suggestModal": {
+          "title": "Suggest Goal Change",
+          "currentLabel": "Current: {{weeks}} weeks, {{sessions}} sessions/week",
+          "weeksLabel": "Weeks",
+          "sessionsLabel": "Sessions/Week",
+          "messagePlaceholder": "Your message (optional)...",
+          "cancel": "Cancel",
+          "cancelA11y": "Cancel change suggestion",
+          "suggest": "Suggest",
+          "suggestA11y": "Submit change suggestion"
+        },
+        "errors": {
+          "recipientMissing": "Recipient information is missing.",
+          "invalidNumbers": "Please enter valid numbers for weeks and sessions.",
+          "cannotReduce": "Suggested goal cannot be less than the original goal.",
+          "noChanges": "No changes made. Please adjust the values before submitting.",
+          "maxWeeks": "The maximum duration is 5 weeks.",
+          "maxSessions": "The maximum is 7 sessions per week.",
+          "approveFailed": "Failed to approve goal. Please try again.",
+          "suggestFailed": "Failed to suggest goal change. Please try again.",
+          "notifyFailed": "Failed to notify recipient."
+        }
+      },
+      "goalChangeSuggestion": {
+        "accept": "Accept",
+        "change": "Change",
+        "suggestedLabel": "Suggested: {{weeks}} weeks, {{sessions}} sessions per week",
+        "messageFrom": "Message from {{name}}:",
+        "errors": {
+          "loadFailed": "Could not load goal. Please try again.",
+          "missingUser": "Goal is missing user information. Please try again.",
+          "unauthorized": "You are not authorized to accept this suggestion.",
+          "acceptFailed": "Failed to accept suggestion. Please try again."
+        }
+      },
+      "goalEditApproval": {
+        "approve": "Approve",
+        "decline": "Decline",
+        "requested": "Requested: {{weeks}} week{{weekPlural}}, {{sessions}} session{{sessionPlural}}/week",
+        "messageLabel": "Message:",
+        "errors": {
+          "approveFailed": "Failed to approve. Please try again.",
+          "declineFailed": "Failed to decline. Please try again."
+        }
+      },
+      "goalProgress": {
+        "leaveHint": "Leave Hint For Next Session",
+        "hintAlreadySet": "✓ Hint Already Set",
+        "loading": "Loading...",
+        "viewHintHistory": "View Hint History",
+        "clearA11y": "Clear this notification",
+        "hintHistoryModal": {
+          "title": "Hint History",
+          "emptyText": "No hints have been sent yet.",
+          "sessionLabel": "Session {{number}}"
+        }
+      }
+    },
+    "components": {
+      "motivationReceived": {
+        "title": "New Motivation!",
+        "body": "{{senderName}} motivated your goal: {{goalName}}"
+      },
+      "commentReceived": {
+        "title": "New Comment",
+        "body": "{{senderName}} commented on your goal: {{goalName}}"
+      },
+      "friendRequestReceived": {
+        "title": "Friend Request",
+        "body": "{{senderName}} sent you a friend request"
+      },
+      "friendRequestAccepted": {
+        "title": "Friend Request Accepted",
+        "body": "{{senderName}} accepted your friend request"
+      },
+      "goalCompleted": {
+        "title": "Goal Completed!",
+        "body": "Congratulations! You completed your goal: {{goalName}}"
+      },
+      "streakAchieved": {
+        "title": "Streak Achievement!",
+        "body": "You've achieved a {{count}}-day streak on {{goalName}}"
+      },
+      "giftReceived": {
+        "title": "Gift Received!",
+        "body": "{{senderName}} sent you a gift experience"
+      },
+      "rewardUnlocked": {
+        "title": "Reward Unlocked!",
+        "body": "You've unlocked a reward for completing {{goalName}}"
+      },
+      "sessionReminder": {
+        "title": "Time to Train!",
+        "body": "Don't forget to log your session for {{goalName}}"
+      },
+      "weeklyReport": {
+        "title": "Weekly Summary",
+        "body": "You logged {{sessions}} sessions this week. Keep it up!"
+      }
+    },
+    "attachGift": {
+      "aFriend": "a friend",
+      "cancel": "Cancel",
+      "confirm": "Attach Gift",
+      "message": "This will link the gift to your active goal. You can't undo this.",
+      "mysterySuccess": "{{name}} gifted you a mystery experience! Complete your challenge to reveal it.",
+      "success": "{{name}} gifted you an experience!",
+      "title": "Attach Gift to Goal?"
+    },
+    "dialog": {
+      "clearAllConfirm": "Clear All",
+      "clearAllMessage": "Are you sure you want to clear all notifications? This cannot be undone.",
+      "clearAllTitle": "Clear All Notifications",
+      "clearOneConfirm": "Clear",
+      "clearOneMessage": "Remove this notification?",
+      "clearOneTitle": "Clear Notification"
+    },
+    "giftReceived": {
+      "setupGoal": "Set up your goal →"
+    },
+    "hintLeft": {
+      "tapToView": "Tap to view goal"
+    },
+    "sharedSession": {
+      "defaultMessage": "Your partner logged a session!",
+      "defaultTitle": "Partner Activity"
+    },
+    "weeklyRecap": {
+      "defaultTitle": "Weekly Recap",
+      "sessions": "{{completed}}/{{required}} sessions"
+    }
+  },
+  "friends": {
+    "screenTitle": "Friends",
+    "count_one": "{{count}} Friend",
+    "count_other": "{{count}} Friends",
+    "friendsSince": "Friends since {{date}}",
+    "empty": {
+      "title": "No Friends Yet",
+      "message": "Start building your network by adding friends!",
+      "actionLabel": "Add Your First Friend"
+    },
+    "add": {
+      "screenTitle": "Add Friends",
+      "searchPlaceholder": "Search by name or username",
+      "searchButton": "Search",
+      "searching": "Searching...",
+      "sendRequest": "Add Friend",
+      "requestSent": "Request Sent",
+      "requestReceived": "Accept Request",
+      "alreadyFriends": "Friends",
+      "removeRequest": "Cancel Request",
+      "toast": {
+        "requestSent": "Friend request sent",
+        "requestSentFailed": "Failed to send friend request",
+        "requestAccepted": "Friend request accepted",
+        "requestAcceptedFailed": "Failed to accept friend request",
+        "requestCanceled": "Friend request canceled",
+        "requestCanceledFailed": "Failed to cancel friend request",
+        "failedRequest": "Failed to send friend request. Please try again.",
+        "failedSearch": "Failed to search users. Please try again."
+      },
+      "buttons": {
+        "friends": "Friends",
+        "pending": "Pending",
+        "addFriend": "Add Friend"
+      },
+      "empty": {
+        "title": "No users found",
+        "subtitle": "Try a different search term",
+        "message": "Try searching with a different name or email"
+      },
+      "error": {
+        "searchFailed": "Search failed. Please try again.",
+        "couldNotSearch": "Could not search users"
+      },
+      "minCharsHint": "Enter at least 2 characters to search",
+      "results_one": "{{count}} user found",
+      "results_other": "{{count}} users found",
+      "searchAccessibility": "Search for friends by name or email",
+      "searchLabel": "Search for friends"
+    },
+    "profile": {
+      "goals": "Goals",
+      "friends": "Friends",
+      "streak": "Streak",
+      "sessions": "Sessions",
+      "addFriend": "Add Friend",
+      "removeFriend": "Remove Friend",
+      "requestSent": "Request Sent",
+      "acceptRequest": "Accept Request",
+      "message": "Message",
+      "giftExperience": "Gift Experience",
+      "add": "Add",
+      "remove": "Remove",
+      "removing": "Removing...",
+      "sending": "Sending...",
+      "sent": "Sent",
+      "expired": "Expired",
+      "stats": {
+        "active": "Active",
+        "completed": "Completed",
+        "wishlist": "Favorites"
+      },
+      "tabs": {
+        "goals": "Goals",
+        "achievements": "Achievements",
+        "wishlist": "Favorites"
+      },
+      "emptyGoals": {
+        "title": "No goals yet",
+        "subtitle": "{{name}} hasn't created any goals yet"
+      },
+      "emptyAchievements": {
+        "title": "No achievements yet",
+        "subtitle": "{{name}} hasn't completed any goals yet"
+      },
+      "removeFriendConfirm": {
+        "title": "Remove Friend",
+        "message": "Are you sure you want to remove {{name}} from your friends?",
+        "confirm": "Remove",
+        "cancel": "Cancel"
+      },
+      "error": {
+        "loadFailed": "Failed to load profile. Please try again.",
+        "notFound": "User not found",
+        "couldNotLoad": "Could not load profile"
+      },
+      "toast": {
+        "friendRemoved": "Friend removed",
+        "friendRemoveFailed": "Failed to remove friend. Please try again.",
+        "failedLoad": "Failed to load profile. Please try again.",
+        "failedRemove": "Could not remove friend. Please try again.",
+        "failedRequest": "Could not send friend request. Please try again."
+      },
+      "daysLeft": "{{count}} days left!",
+      "empty": {
+        "achievementsMessage": "No achievements earned yet",
+        "achievementsTitle": "No Achievements",
+        "goalsMessage": "No active goals at the moment",
+        "goalsTitle": "No Goals",
+        "wishlistMessage": "No favorites yet",
+        "wishlistTitle": "No Favorites"
+      },
+      "experienceUnlocked": "Experience unlocked",
+      "expiresInDays": "Expires in {{count}} days",
+      "expiresTomorrow": "Expires tomorrow!",
+      "friendsSince": "Friends since {{date}}",
+      "goalLabel": "Goal: {{title}}",
+      "noHints": "No hints have been sent yet.",
+      "removeDialog": {
+        "cancel": "Cancel",
+        "confirm": "Yes, remove",
+        "message": "Are you sure you want to remove {{name}} from your friends list?",
+        "thisUser": "this user",
+        "title": "Remove Friend?"
+      },
+      "selfAchievement": "Self-Achievement",
+      "sessionsMeta": "{{sessions}} sessions completed • {{weeks}} weeks",
+      "sessionsThisWeek": "Sessions this week",
+      "viewHintHistory": "View Hint History",
+      "weeksCompleted": "Weeks completed"
+    },
+    "addFriendAccessibility": "Add a friend",
+    "error": {
+      "couldNotLoad": "Could not load friends"
+    }
+  },
+  "giver": {
+    "purchasedGifts": {
+      "screenTitle": "Purchased Gifts",
+      "filters": {
+        "all": "All",
+        "pending": "Pending",
+        "active": "Active",
+        "completed": "Completed",
+        "expired": "Expired"
+      },
+      "card": {
+        "recipient": "To: {{name}}",
+        "status": {
+          "pending": "Pending",
+          "active": "Active",
+          "completed": "Completed",
+          "expired": "Expired",
+          "claimed": "Claimed"
+        },
+        "purchasedOn": "Purchased {{date}}",
+        "expiresOn": "Expires {{date}}",
+        "viewDetails": "View Details",
+        "resend": "Resend Gift",
+        "cancel": "Cancel Gift"
+      },
+      "error": {
+        "loadFailed": "Failed to load purchased gifts. Please try again.",
+        "cancelFailed": "Failed to cancel gift. Please try again.",
+        "resendFailed": "Failed to resend gift. Please try again.",
+        "couldNotLoad": "Could not load gifts"
+      },
+      "empty": {
+        "title": "No purchased gifts",
+        "subtitle": "Gifts you purchase will appear here",
+        "action": "Browse Experiences",
+        "filteredMessage": "No gifts with this status",
+        "filteredTitle": "No {{status}} Gifts",
+        "message": "Purchase a gift to empower someone special!"
+      },
+      "cardAccessibility": "View gift details for {{title}}. Status: {{status}}",
+      "claimCode": "Claim Code: {{code}}",
+      "claimedBy": "Claimed by: {{name}}",
+      "created": "Created: {{date}}",
+      "experience": "Experience",
+      "filter": {
+        "all": "All ({{count}})",
+        "allAccessibility": "Show all {{count}} gifts",
+        "claimed": "Claimed ({{count}})",
+        "claimedAccessibility": "Show {{count}} claimed gifts",
+        "pending": "Pending ({{count}})",
+        "pendingAccessibility": "Show {{count}} pending gifts"
+      },
+      "na": "N/A",
+      "status": {
+        "expired": "Expired",
+        "pending": "PENDING"
+      },
+      "surpriseExperience": "Surprise Experience",
+      "unknown": "Unknown"
+    },
+    "purchaseCTA": {
+      "title": "Ready to Gift?",
+      "subtitle": "Give the gift of an unforgettable experience",
+      "button": "Buy Now",
+      "priceFrom": "From {{price}}",
+      "giftThis": "Gift This Experience",
+      "addToCart": "Add to Cart",
+      "addedToCart": "Added to Cart",
+      "viewCart": "View Cart",
+      "buyThisExperience": "Buy This Experience",
+      "maybeLater": "Maybe Later",
+      "dismissA11y": "Dismiss experience suggestion"
+    },
+    "cart": {
+      "screenTitle": "Your Cart",
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} items",
+      "empty": {
+        "title": "Your cart is empty",
+        "message": "Browse experiences to find the perfect gift",
+        "action": "Keep Shopping"
+      },
+      "loadError": "Could not load cart items",
+      "removeDialog": {
+        "title": "Remove Item",
+        "message": "Are you sure you want to remove this item from your cart?",
+        "confirm": "Remove",
+        "cancel": "Cancel"
+      },
+      "toast": {
+        "itemRemoved": "Item removed from cart",
+        "updateFailed": "Failed to update quantity. Please try again.",
+        "removeFailed": "Failed to remove item. Please try again."
+      },
+      "info": {
+        "maxQuantity": "You can add up to 10 items of each experience.",
+        "emptyCheckout": "Your cart is empty. Add items to cart first."
+      },
+      "total": "Total",
+      "proceedToCheckout": "Proceed to Checkout",
+      "keepShopping": "Keep Shopping",
+      "accessibility": {
+        "viewDetails": "View {{title}} details",
+        "image": "{{title}} image",
+        "removeItem": "Remove item from cart",
+        "decreaseQuantity": "Decrease quantity",
+        "increaseQuantity": "Increase quantity"
+      }
+    },
+    "category": {
+      "screenTitle": "Gift Experiences",
+      "screenSubtitle": "Empower your friends",
+      "searchPlaceholder": "Search experiences...",
+      "featured": "Most Popular",
+      "filters": {
+        "all": "All",
+        "adventure": "Adventure",
+        "wellness": "Wellness",
+        "creative": "Creative"
+      },
+      "empty": {
+        "noResults": "No results for \"{{query}}\"",
+        "noResultsMessage": "Try a different search term",
+        "noExperiences": "No Experiences Available",
+        "noExperiencesMessage": "Check back soon for new experiences!"
+      },
+      "error": {
+        "loadFailed": "Could not load experiences"
+      },
+      "toast": {
+        "wishlistFailed": "Failed to update wishlist. Please try again.",
+        "loginRequired": "Please log in to use wishlist."
+      },
+      "accessibility": {
+        "featured": "Most popular: {{title}}",
+        "view": "View {{title}}",
+        "coverImage": "{{title}} cover image",
+        "addToWishlist": "Add to wishlist",
+        "removeFromWishlist": "Remove from wishlist",
+        "search": "Search experiences",
+        "clearSearch": "Clear search",
+        "dismissEmpower": "Dismiss empower banner"
+      }
+    },
+    "experienceDetails": {
+      "whatToExpect": "What to expect",
+      "location": "Location",
+      "perPerson": "per person",
+      "quantity": "Quantity:",
+      "redirecting": "Redirecting...",
+      "addToCart": "Add to Cart",
+      "adding": "Adding...",
+      "buyNow": "Buy Now",
+      "howItWorks": "How it works",
+      "toast": {
+        "addedToCart": "Added {{count}} item(s) to cart!",
+        "wishlistFailed": "Failed to update wishlist. Please try again.",
+        "cartFailed": "Could not add item to cart. Please try again."
+      },
+      "accessibility": {
+        "goBack": "Go back",
+        "viewCart": "View cart, {{count}} items",
+        "addToWishlist": "Add to wishlist",
+        "removeFromWishlist": "Remove from wishlist",
+        "viewImage": "View full size image {{index}} of {{total}}",
+        "image": "{{title}} image {{index}}",
+        "howItWorks": "How it works",
+        "decreaseQuantity": "Decrease quantity",
+        "increaseQuantity": "Increase quantity",
+        "addToCart": "Add to cart",
+        "buyNow": "Buy now"
+      }
+    },
+    "checkout": {
+      "screenTitle": "Checkout",
+      "yourGifts": "Your Gifts",
+      "quantity": "Qty: {{count}}",
+      "totalAmount": "Total Amount",
+      "total": "Total",
+      "paymentDetails": "Payment Details",
+      "securityText": "Your payment information is encrypted and secure",
+      "completePurchase": "Complete Purchase",
+      "pay": "Pay {{amount}}",
+      "settingUp": "Setting up...",
+      "redirecting": "Redirecting...",
+      "errorInitPayment": "Could not initialize payment.",
+      "retry": "Retry",
+      "goBack": "Go Back",
+      "toast": {
+        "paymentSuccess": "Your payment was processed successfully!",
+        "paymentProcessing": "Your payment is being processed. You will receive a confirmation shortly.",
+        "paymentActionRequired": "Additional action is required to complete your payment.",
+        "verifyFailed": "Failed to verify payment status. Please contact support.",
+        "paymentSuccessCheckPurchased": "Your payment was successful! Check 'Purchased Gifts' to view your gifts.",
+        "loadFailed": "Could not load experiences for checkout.",
+        "setupFailed": "Could not set up payment. Please try again."
+      },
+      "accessibility": {
+        "goBack": "Go back"
+      }
+    },
+    "confirmation": {
+      "hero": {
+        "togetherTitle": "Challenge Created!",
+        "paymentTitle": "Payment Successful",
+        "togetherSubtitle": "Share the invite code with your partner to get started together!",
+        "empowerSubtitle": "Your gift has been sent to {{name}}!",
+        "selfGoalSubtitle": "You just set yourself for success. Now complete your challenge to unlock it!",
+        "giftSubtitle": "Your thoughtful gift is ready to share",
+        "surpriseExperience": "Surprise Experience",
+        "weWillFind": "We'll find the perfect reward as you progress"
+      },
+      "redirecting": "Redirecting...",
+      "personalMessage": {
+        "label": "Personal Message",
+        "subtitle": "Add a heartfelt message to make this gift extra special. It will show up when they redeem the gift.",
+        "placeholder": "Your message here...",
+        "attach": "Attach Message",
+        "sent": "Message sent!",
+        "error": "Please enter a message before sending.",
+        "saveFailed": "Failed to save message. Please try again.",
+        "saved": "Your personalized message has been saved!"
+      },
+      "giftCode": {
+        "title": "Gift Code",
+        "subtitle": "Share this code to unlock the experience",
+        "copy": "Copy Code",
+        "copied": "Copied!",
+        "share": "Share",
+        "copyFailed": "Could not copy to clipboard"
+      },
+      "howItWorks": {
+        "title": "How It Works",
+        "solo": {
+          "step1Title": "Share the Code",
+          "step1Desc": "Send the gift code to your recipient",
+          "step2Title": "Set Goals",
+          "step2Desc": "They create personal goals to earn the experience",
+          "step3Title": "Track Progress",
+          "step3Desc": "AI hints guide them as they work toward their goals",
+          "step4Title": "Unlock Reward",
+          "step4Desc": "Experience is revealed when goals are complete"
+        },
+        "together": {
+          "step1Title": "Share the Code",
+          "step1Desc": "Send the invite to your partner",
+          "step2Title": "They Join",
+          "step2Desc": "Your partner accepts and sets their own goal",
+          "step3Title": "Train Together",
+          "step3Desc": "Track each other's progress and stay motivated",
+          "step4Title": "Unlock Reward",
+          "step4Desc": "Both complete the challenge to unlock the experience"
+        }
+      },
+      "buttons": {
+        "startChallenge": "Start Your Challenge",
+        "backToFeed": "Back to Feed",
+        "goToGoals": "Go to My Goals",
+        "backToHome": "Back to Home"
+      },
+      "share": {
+        "together": "Join my fitness challenge on Ernit! Use code {{code}} or sign up at https://ernit.app/recipient/redeem/{{code}} to get started together",
+        "solo": "Hey! Got you an Ernit experience, a little boost for your goals.\n\nSign up and redeem your gift at https://ernit.app/recipient/redeem/{{code}} to set up your goals. Once you complete your goals, you'll see what I got you\n\nEarn it. Unlock it. Enjoy it",
+        "title": "Gift Code",
+        "togetherTitle": "Challenge Invite"
+      },
+      "toast": {
+        "loadFailed": "Could not load experience details.",
+        "messageSaved": "Your personalized message has been saved!",
+        "messageFailed": "Failed to save message. Please try again.",
+        "copyFailed": "Could not copy to clipboard",
+        "shareFailed": "Could not open share dialog. Try again or copy the code manually."
+      },
+      "accessibility": {
+        "image": "{{title}} experience image",
+        "personalMessage": "Personal message",
+        "copyCode": "Copy gift code",
+        "shareCode": "Share gift code"
+      }
+    },
+    "confirmationMultiple": {
+      "hero": {
+        "title": "Payment Successful!",
+        "subtitle_one": "{{count}} thoughtful gift ready to share",
+        "subtitle_other": "{{count}} thoughtful gifts ready to share",
+        "subtitle": "{{count}} thoughtful gift(s) ready to share"
+      },
+      "personalMessage": {
+        "label": "Personal Message",
+        "subtitle": "Add a heartfelt message to make this gift extra special. It will show up when they redeem the gift.",
+        "placeholder": "Your message here...",
+        "attach": "Attach Message",
+        "sent": "Message sent!"
+      },
+      "giftCode": {
+        "label": "Gift Code",
+        "copy": "Copy",
+        "share": "Share"
+      },
+      "howItWorks": {
+        "title": "How It Works",
+        "step1Title": "Share the Code",
+        "step1Desc": "Send the gift code to your recipient",
+        "step2Title": "Set Goals",
+        "step2Desc": "They create personal goals to earn the experience",
+        "step3Title": "Track Progress",
+        "step3Desc": "AI hints guide them as they work toward their goals",
+        "step4Title": "Unlock Reward",
+        "step4Desc": "Experience is revealed when goals are complete"
+      },
+      "buttons": {
+        "backToHome": "Back to Home"
+      },
+      "loadError": {
+        "title": "Could not load experience details",
+        "message": "Please check your connection and try again.",
+        "retry": "Retry"
+      },
+      "toast": {
+        "loadFailed": "Could not load experience details.",
+        "messageSaved": "Your personalized message has been saved!",
+        "messageFailed": "Failed to save message. Please try again.",
+        "codeCopied": "Gift code copied to clipboard",
+        "copyFailed": "Could not copy to clipboard",
+        "codeUnavailable": "Gift code is not available yet.",
+        "shareFailed": "Could not open share dialog. Try again or copy the code manually."
+      },
+      "accessibility": {
+        "image": "{{title}} experience image",
+        "personalMessage": "Personal message for {{title}}",
+        "copyCode": "Copy gift code for {{title}}",
+        "shareCode": "Share gift code for {{title}}",
+        "retry": "Retry loading experiences",
+        "backToHome": "Back to home"
+      }
+    },
+    "deferred": {
+      "screenTitle": "Secure Your Gift",
+      "infoCard": {
+        "title": "Zero charge until they succeed",
+        "subtitle": "Save your card now. We'll only charge you once your recipient completes their goal. You can remove it any time from Purchased Gifts."
+      },
+      "cardDetails": "Card Details",
+      "securityText": "Your payment information is encrypted and secure",
+      "saveCard": "Save Card & Continue",
+      "settingUp": "Setting up...",
+      "skipForNow": "Skip for now",
+      "toast": {
+        "skipInfo": "You can add payment details later from Purchased Gifts.",
+        "cardValidationFailed": "Card validation failed. Please check your card details and try again.",
+        "cardSaveFailed": "Could not save your card. Please verify your details and try again.",
+        "verificationIncomplete": "Card verification incomplete. Please try again.",
+        "genericError": "Something went wrong. Please try again.",
+        "setupFailed": "Could not set up card form. Please try again."
+      },
+      "accessibility": {
+        "goBack": "Go back",
+        "skipCard": "Skip card setup for now"
+      }
+    },
+    "mystery": {
+      "screenTitle": "Gift a Challenge",
+      "stepTitle": "How is the reward revealed?",
+      "stepSubtitle": "Should they know what they're working towards?",
+      "redirecting": "Redirecting...",
+      "options": {
+        "revealedLabel": "Revealed",
+        "revealedTagline": "They know the reward from day one. Full motivation to earn it.",
+        "secretLabel": "Secret",
+        "secretTagline": "The reward stays hidden. Ernit drops hints every session.",
+        "secretBadge": "Surprise factor"
+      },
+      "continue": "Continue",
+      "accessibility": {
+        "goBack": "Go back",
+        "selectReveal": "Select {{label}} reveal mode"
+      }
+    }
+  },
+  "landing": {
+    "appName": "Ernit",
+    "tagline": "Gamified Rewards & Experiences",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "challenge": {
+      "toggle": {
+        "self": "For myself",
+        "gift": "For a loved one"
+      },
+      "self": {
+        "titlePrefix": "I want to",
+        "titleSuffix": "",
+        "subtitle": "Set your goal. Commit to a reward.\nGo earn it.",
+        "stat": "People with a reward on the line are ",
+        "statHighlight": "2x more likely",
+        "statSuffix": " to build the habit.",
+        "statSource": "– University of California",
+        "cta": "Start My Challenge",
+        "badge": "100% Free",
+        "step1Title": "Pick Your Challenge",
+        "step1Desc": "Choose what you want to improve and for how long. Gym, yoga, running, reading, or anything you want",
+        "step2Title": "Stick to It",
+        "step2Desc": "Do your sessions, build streaks, and get motivated by friends who follow your journey, and can even reward you along the way",
+        "step3Title": "Earn it",
+        "step3Desc": "Finish your challenge and have the reward you deserve!",
+        "finalTitle": "Ready to challenge\nyourself?",
+        "finalSubtitle": "Join thousands building better habits with friends.",
+        "finalCta": "Create My Challenge"
+      },
+      "gift": {
+        "titlePrefix": "Help them",
+        "titleSuffix": "",
+        "subtitle": "Empower someone you care about.\nYou only pay when they succeed.",
+        "stat": "A reward + someone backing them makes them ",
+        "statHighlight": "2x more likely",
+        "statSuffix": " to succeed.",
+        "statSource": "– University of Pennsylvania",
+        "cta": "Gift an Experience",
+        "badge": "Pay only on success",
+        "step1Title": "Pick a Reward",
+        "step1Desc": "Choose an experience they'll earn once they achieve their goal",
+        "step2Title": "They Set the Goal",
+        "step2Desc": "They pick their challenge and work towards it, day by day",
+        "step3Title": "Pay When They Succeed",
+        "step3Desc": "You only pay when they achieve their goal. Zero risk. All reward.",
+        "finalTitle": "Ready to empower\nsomeone?",
+        "finalSubtitle": "Give the gift that actually means something.",
+        "finalCta": "Gift an Experience"
+      },
+      "howItWorks": {
+        "title": "How It Works",
+        "sectionTitle": "Three Simple Steps"
+      },
+      "team": {
+        "title": "The Team",
+        "coFounderCeo": "Co-Founder & CEO",
+        "coFounderCto": "Co-Founder & CTO"
+      },
+      "incubator": {
+        "incubatedAt": "Incubated at",
+        "visitWebsite": "Visit Unicorn Factory Lisboa website",
+        "logoAlt": "Unicorn Factory Lisboa logo"
+      },
+      "cards": {
+        "goalSelf": "Your goal",
+        "rewardSelf": "Your reward",
+        "goalGift": "The goal",
+        "rewardGift": "The reward"
+      },
+      "footer": {
+        "copyright": "{{year}} Ernit. All rights reserved.",
+        "linkedinAlt": "Visit Ernit on LinkedIn",
+        "instagramAlt": "Visit Ernit on Instagram",
+        "tiktokAlt": "Visit Ernit on TikTok"
+      },
+      "nav": {
+        "goToApp": "Go to App",
+        "logIn": "Log In",
+        "goToAppAlt": "Go to app",
+        "logInAlt": "Log in to your account",
+        "goBackAlt": "Go back"
+      },
+      "errors": {
+        "couldNotLoadRewardImages": "Could not load reward images."
+      }
+    }
+  },
+  "wizard": {
+    "challenge": {
+      "header": {
+        "title": "Create a Challenge"
+      },
+      "goalTypes": {
+        "gym": {
+          "tagline": "Build strength and endurance"
+        },
+        "yoga": {
+          "tagline": "Find balance and flexibility"
+        },
+        "dance": {
+          "tagline": "Move and express yourself"
+        },
+        "custom": {
+          "tagline": "Define your own path"
+        }
+      },
+      "stepTitles": {
+        "step1": "Pick your goal",
+        "step2": "Set your schedule",
+        "step3": "Session length",
+        "step4": "Pick your reward",
+        "step5": "Payment",
+        "step6": "Review"
+      },
+      "stepSubtitles": {
+        "step1": "What do you want to work on?",
+        "step2": "How often will you train?",
+        "step3": "How long is each session?",
+        "step4": "Choose an experience to unlock",
+        "step5": "How would you like to pay?",
+        "step6": "Everything looks good?"
+      },
+      "discard": {
+        "alertTitle": "Discard challenge?",
+        "alertMessage": "Your progress will be lost.",
+        "buttonStay": "Keep editing",
+        "buttonLeave": "Discard"
+      },
+      "toasts": {
+        "storageError": "Could not save your progress. Please try again.",
+        "createdPayNow": "Challenge created! Redirecting to payment...",
+        "createdPayLater": "Challenge created! Card saved for later.",
+        "created": "Challenge created!",
+        "goalLimitReached": "You've reached your active goal limit.",
+        "createFailed": "Could not create challenge. Please try again."
+      },
+      "validation": {
+        "selectGoalType": "Please select a goal type to continue.",
+        "enterCustomGoal": "Please enter your custom goal name.",
+        "sessionMaxTime": "Session time cannot exceed 8 hours.",
+        "setSessionTime": "Please set a session length to continue.",
+        "pickReward": "Please select a reward option to continue."
+      },
+      "customGoal": {
+        "label": "Goal name",
+        "placeholder": "e.g. Run a 5K, Read 20 books..."
+      },
+      "sliders": {
+        "duration": "Duration",
+        "chill": "Chill",
+        "intense": "Intense",
+        "week": "week",
+        "weeks": "weeks",
+        "weeklySessions": "Sessions per week",
+        "easy": "Easy",
+        "beast": "Beast mode"
+      },
+      "dial": {
+        "minutes": "MINUTES",
+        "min": "min",
+        "hr": "hr",
+        "useDial": "Use dial",
+        "customTime": "Enter custom time"
+      },
+      "calendar": {
+        "prevMonth": "Previous month",
+        "nextMonth": "Next month",
+        "selectDay": "Select {{date}}",
+        "finishLabel": "You'll finish around",
+        "from": "from"
+      },
+      "experience": {
+        "backToCategories": "Back to categories",
+        "loadError": "Could not load experiences. Tap to retry.",
+        "browseExperiences": "Browse experiences",
+        "pickRewardToEarn": "Pick a reward to earn",
+        "orSurprise": "or let us surprise you",
+        "categories": {
+          "adventure": "Adventure",
+          "wellness": "Wellness",
+          "creative": "Creative"
+        }
+      },
+      "payment": {
+        "lockIn": "Lock in now",
+        "lockInDesc": "Pay today and your reward is secured the moment you create the challenge.",
+        "lockInLabel": "Pay upfront option",
+        "recommended": "Recommended",
+        "payOnSuccess": "Pay on success",
+        "payOnSuccessDesc": "We save your card now and only charge it when you complete the challenge.",
+        "payOnSuccessLabel": "Pay on success option",
+        "statTitle": "Members who pay upfront are 2x more likely to complete their challenge.",
+        "statDesc": "Commitment drives results."
+      },
+      "footer": {
+        "weekLabel_one": "{{count}} week",
+        "weekLabel_other": "{{count}} weeks",
+        "viewDetails": "View details",
+        "createChallenge": "Create challenge",
+        "signUpCreate": "Sign up to create",
+        "continueNext": "Continue",
+        "next": "Next"
+      },
+      "confirm": {
+        "title": "Ready to commit?",
+        "subtitle": "Here's a summary of your challenge.",
+        "goalLabel": "Goal:",
+        "durationLabel": "Duration:",
+        "sessionsLabel": "Sessions/week:",
+        "perSessionLabel": "Per session:",
+        "rewardLabel": "Reward:",
+        "rewardPrefLabel": "Reward pref:",
+        "paymentLabel": "Payment:",
+        "payNowText": "Pay now",
+        "payLaterText": "Pay on completion",
+        "pledgePayNow": "By confirming, you agree to pay now and commit to your challenge.",
+        "pledgePayLater": "By confirming, you save your card and agree to be charged when you complete the challenge.",
+        "pledgeCategory": "By confirming, you commit to this challenge with no upfront cost.",
+        "pledgeFree": "By confirming, you commit to this challenge.",
+        "cancel": "Cancel",
+        "createAndPay": "Create and pay",
+        "letsGo": "Let's go"
+      },
+      "accessibility": {
+        "selectGoal": "Select {{name}} as your goal",
+        "customGoalName": "Custom goal name",
+        "hoursPerSession": "Hours per session",
+        "minutesPerSession": "Minutes per session",
+        "prevMonth": "Previous month",
+        "nextMonth": "Next month",
+        "selectDay": "Select {{date}}",
+        "selectExperience": "Select {{title}} for {{price}}",
+        "viewDetails": "View details for {{title}}",
+        "filterBy": "Filter by {{label}}",
+        "selectCategory": "Select category {{label}}",
+        "chooseExperience": "Choose experience",
+        "goBack": "Go back",
+        "viewExperienceDetails": "View experience details"
+      }
+    },
+    "gift": {
+      "header": {
+        "title": "Gift a Challenge"
+      },
+      "goalTypes": {
+        "gym": {
+          "tagline": "Build strength and endurance"
+        },
+        "yoga": {
+          "tagline": "Find balance and flexibility"
+        },
+        "dance": {
+          "tagline": "Move and express yourself"
+        },
+        "custom": {
+          "tagline": "Define your own path"
+        }
+      },
+      "challengeTypes": {
+        "solo": {
+          "label": "Solo challenge",
+          "tagline": "Your friend takes on the challenge alone and earns the reward when done."
+        },
+        "shared": {
+          "label": "Shared challenge",
+          "tagline": "You both take on the same challenge together and unlock the reward together."
+        }
+      },
+      "revealOptions": {
+        "secret": {
+          "label": "Keep it a surprise",
+          "title": "Keep it a surprise",
+          "tagline": "Your friend won't see the experience until they complete the challenge.",
+          "desc": "Your friend won't see the experience until they complete the challenge.",
+          "badge": "Recommended"
+        },
+        "revealed": {
+          "label": "Reveal the experience",
+          "tagline": "Your friend can see exactly what they're working toward."
+        },
+        "recommended": "Recommended",
+        "revealedActive": "Keep it a surprise instead",
+        "revealInstead": "Reveal the experience instead"
+      },
+      "stepTitles": {
+        "chooseType": "Choose challenge type",
+        "pickReward": "Pick a reward",
+        "revealMode": "Reveal mode",
+        "secureReward": "Secure the reward",
+        "confirmGift": "Confirm gift"
+      },
+      "stepSubtitles": {
+        "chooseType": "Solo or shared?",
+        "pickRewardSolo": "Choose an experience your friend will earn",
+        "pickRewardTogether": "Choose an experience you'll both earn",
+        "revealSolo": "Should your friend see the reward now?",
+        "revealTogether": "Should you both see the reward now?",
+        "secureReward": "How would you like to pay?",
+        "confirm": "Everything looks good?"
+      },
+      "togetherStepTitles": {
+        "step2": "Name your challenge",
+        "step3": "Set your schedule",
+        "step4": "Session length"
+      },
+      "togetherStepSubtitles": {
+        "step2": "What will you both work toward?",
+        "step3": "How often will you train together?",
+        "step4": "How long is each session?"
+      },
+      "discard": {
+        "alertTitle": "Discard gift?",
+        "alertMessage": "Your progress will be lost.",
+        "buttonStay": "Keep editing",
+        "buttonLeave": "Discard"
+      },
+      "toasts": {
+        "storageError": "Could not save your progress. Please try again.",
+        "paymentSetupFailed": "Payment setup failed. Please try again.",
+        "createFailed": "Could not create gift. Please try again."
+      },
+      "validation": {
+        "selectChallengeType": "Please select a challenge type.",
+        "enterCustomChallengeType": "Please enter a custom challenge name.",
+        "sessionMaxTime": "Session time cannot exceed 8 hours.",
+        "setSessionTime": "Please set a session length to continue.",
+        "selectSpecificExperience": "Please select a specific experience.",
+        "selectRewardOption": "Please select a reward option.",
+        "chooseChallengeType": "Choose a challenge type to get started.",
+        "pickReward": "Please select a reward option to continue.",
+        "choosePaymentOption": "Please choose a payment option."
+      },
+      "customGoal": {
+        "label": "Challenge name",
+        "placeholder": "e.g. Run a 5K, Read 20 books..."
+      },
+      "sliders": {
+        "duration": "Duration",
+        "chill": "Chill",
+        "intense": "Intense",
+        "week": "week",
+        "weeks": "weeks",
+        "weeklySessions": "Sessions per week",
+        "easy": "Easy",
+        "beast": "Beast mode"
+      },
+      "dial": {
+        "minutes": "MINUTES",
+        "min": "min",
+        "hr": "hr",
+        "useDial": "Use dial",
+        "customTime": "Enter custom time"
+      },
+      "experience": {
+        "backToCategories": "Back to categories",
+        "needHelp": "Need help choosing?",
+        "popularExperiences": "Here are some popular experiences to get you started.",
+        "chooseExperience": "Choose an experience",
+        "browseShared": "Browse shared experiences",
+        "orSurpriseThem": "or let us surprise them",
+        "categories": {
+          "adventure": "Adventure",
+          "wellness": "Wellness",
+          "creative": "Creative"
+        }
+      },
+      "payment": {
+        "lockIn": "Lock in now",
+        "lockInDesc": "Pay today and the reward is secured the moment you send the gift.",
+        "lockInLabel": "Pay upfront option",
+        "recommended": "Recommended",
+        "payOnSuccess": "Pay on success",
+        "payOnSuccessDesc": "We save your card now and only charge it when your friend completes the challenge.",
+        "payOnSuccessLabel": "Pay on success option",
+        "statTitle": "Givers who pay upfront see 2x completion rates.",
+        "statDesc": "Commitment drives results.",
+        "paidUpfront": "Paid upfront",
+        "payOnCompletion": "Pay on completion"
+      },
+      "footer": {
+        "weekLabel_one": "{{count}} week",
+        "weekLabel_other": "{{count}} weeks",
+        "viewDetails": "View details",
+        "sendGift": "Send gift",
+        "signUpSend": "Sign up to send",
+        "sendChallenge": "Send challenge",
+        "payAndSend": "Pay and send",
+        "commitAndSend": "Commit and send",
+        "sending": "Sending...",
+        "continueNext": "Continue",
+        "next": "Next"
+      },
+      "confirm": {
+        "title": "Send this gift?",
+        "subtitle": "Here's a summary of your gift.",
+        "typeLabel": "Challenge:",
+        "durationLabel": "Duration:",
+        "sessionsLabel": "Sessions/week:",
+        "perSessionLabel": "Per session:",
+        "rewardLabel": "Reward:",
+        "rewardPrefLabel": "Reward pref:",
+        "modeLabel": "Reveal mode:",
+        "modeRevealed": "Revealed",
+        "modeSecret": "Secret",
+        "paymentLabel": "Payment:",
+        "personalNoteLabel": "Personal note (optional)",
+        "personalNotePlaceholder": "Add a heartfelt message...",
+        "pledgePayNow": "By confirming, you agree to pay now and send this gift.",
+        "pledgePayLater": "By confirming, you save your card and agree to be charged when your friend completes the challenge.",
+        "pledgeCategory": "By confirming, you send this free gift challenge.",
+        "cancel": "Cancel"
+      },
+      "accessibility": {
+        "selectChallengeType": "Select {{label}} challenge type",
+        "selectGoalType": "Select {{name}} goal type",
+        "hoursPerSession": "Hours per session",
+        "minutesPerSession": "Minutes per session",
+        "selectExperience": "Select {{title}} for {{price}}",
+        "viewDetails": "View details for {{title}}",
+        "filterBy": "Filter by {{label}}",
+        "selectCategory": "Select category {{label}}",
+        "chooseSharedExperience": "Choose shared experience",
+        "keepSecret": "Keep experience secret",
+        "lockIn": "Lock in payment now",
+        "payOnSuccess": "Pay on success",
+        "goBack": "Go back",
+        "viewExperienceDetails": "View experience details"
+      }
+    },
+    "goal": {
+      "header": {
+        "title": "Set Your Goal"
+      },
+      "goalTypes": {
+        "gym": {
+          "tagline": "Build strength and endurance"
+        },
+        "yoga": {
+          "tagline": "Find balance and flexibility"
+        },
+        "dance": {
+          "tagline": "Move and express yourself"
+        },
+        "custom": {
+          "tagline": "Define your own path"
+        }
+      },
+      "stepTitles": {
+        "step1": "Pick your goal",
+        "step2": "Set your schedule",
+        "step3": "Session length",
+        "step4": "Review"
+      },
+      "stepSubtitles": {
+        "step1": "What do you want to work on?",
+        "step2": "How often will you train?",
+        "step3": "How long is each session?",
+        "step4": "Everything looks good?"
+      },
+      "discard": {
+        "alertTitle": "Discard goal?",
+        "alertMessage": "Your progress will be lost.",
+        "buttonStay": "Keep editing",
+        "buttonLeave": "Discard"
+      },
+      "toasts": {
+        "giftExpired": "This gift has expired. Please contact the sender.",
+        "loadExperienceError": "Could not load experience details.",
+        "signInRequired": "Please sign in to continue.",
+        "alreadyClaimed": "This gift has already been claimed.",
+        "claimFailed": "Could not claim this gift. Please try again.",
+        "revertFailed": "Could not revert. Please try again.",
+        "createFailed": "Could not create goal. Please try again.",
+        "firstHintMessage": "Your first hint will appear after your first session!"
+      },
+      "validation": {
+        "selectGoalType": "Please select a goal type to continue.",
+        "enterCustomGoal": "Please enter your custom goal name.",
+        "sessionMaxTime": "Session time cannot exceed 8 hours.",
+        "setSessionTime": "Please set a session length to continue."
+      },
+      "reward": {
+        "yourReward": "YOUR REWARD",
+        "completeToUnlock": "Complete your challenge to unlock this reward!"
+      },
+      "together": {
+        "banner": "{{name}} has challenged you to join them!",
+        "someone": "Someone",
+        "theirGoal": "Their goal: {{goalName}}",
+        "acceptSame": "Accept same challenge",
+        "acceptSameLabel": "Accept the same challenge as your partner",
+        "createOwn": "Create my own",
+        "createOwnLabel": "Create my own challenge instead"
+      },
+      "customGoal": {
+        "label": "Goal category",
+        "placeholder": "e.g. Running, Yoga, Cooking..."
+      },
+      "sliders": {
+        "duration": "Duration",
+        "chill": "Chill",
+        "intense": "Intense",
+        "week": "week",
+        "weeks": "weeks",
+        "weeklySessions": "Sessions per week",
+        "easy": "Easy",
+        "beast": "Beast mode"
+      },
+      "dial": {
+        "minutes": "MINUTES",
+        "min": "min",
+        "hr": "hr",
+        "useDial": "Use dial",
+        "customTime": "Enter custom time"
+      },
+      "calendar": {
+        "prevMonth": "Previous month",
+        "nextMonth": "Next month",
+        "selectDay": "Select {{date}}",
+        "finishLabel": "You'll finish around",
+        "from": "from"
+      },
+      "footer": {
+        "weekLabel_one": "{{count}} week",
+        "weekLabel_other": "{{count}} weeks",
+        "createGoal": "Set my goal",
+        "next": "Next"
+      },
+      "confirm": {
+        "title": "Ready to commit?",
+        "subtitle": "Here's a summary of your goal.",
+        "goalLabel": "Goal:",
+        "durationLabel": "Duration:",
+        "sessionsLabel": "Sessions/week:",
+        "perSessionLabel": "Per session:",
+        "startDateLabel": "Start date:",
+        "pledgeWithReward": "By confirming, you commit to this goal and your reward will be locked in.",
+        "pledgeNoReward": "By confirming, you commit to this goal.",
+        "cancel": "Cancel",
+        "letsGo": "Let's go"
+      },
+      "accessibility": {
+        "selectGoal": "Select {{name}} as your goal",
+        "customGoalCategory": "Custom goal category",
+        "hoursPerSession": "Hours per session",
+        "minutesPerSession": "Minutes per session",
+        "minutesPerSessionPreset": "{{m}} minutes per session",
+        "useTimeDial": "Use time dial",
+        "enterCustomTime": "Enter custom time",
+        "prevMonth": "Previous month",
+        "nextMonth": "Next month",
+        "selectDay": "Select {{date}}"
+      }
+    }
+  },
+  "recipient": {
+    "journey": {
+      "screenTitle": "My Journey",
+      "achievementTitle": "Achievement",
+      "tabs": {
+        "sessions": "Sessions",
+        "hints": "Hints",
+        "a11y": "{{label}} tab",
+        "active": "Active",
+        "completed": "Completed",
+        "all": "All"
+      },
+      "empty": {
+        "active": {
+          "title": "No active goals",
+          "subtitle": "Start a new challenge to begin your journey"
+        },
+        "completed": {
+          "title": "No completed goals yet",
+          "subtitle": "Complete your active goals to see them here"
+        },
+        "all": {
+          "title": "No goals yet",
+          "subtitle": "Begin your journey by creating your first goal"
+        },
+        "sessions": "No sessions recorded yet. Complete your first session to see it here.",
+        "hints": "No hints yet. Start your first session to get personalized hints.",
+        "hintsSubtitle": "Hints will appear here as you progress through your sessions.",
+        "hintsTitle": "No hints revealed yet",
+        "sessionsSubtitle": "Complete your first session and it will show up here.",
+        "sessionsTitle": "No sessions yet"
+      },
+      "error": {
+        "loadFailed": "Failed to load journey. Please try again."
+      },
+      "sessionCard": {
+        "weekBadge": "Week {{week}}",
+        "privateA11y": "Session marked as private",
+        "viewPhotoA11y": "View session photo",
+        "notesLabel": "Notes",
+        "shareText": "Shared to feed",
+        "shareA11y": "Shared to feed",
+        "hideMotivationsA11y": "Hide motivations",
+        "showMotivationsA11y": "Show motivations",
+        "week": "Week {{number}}"
+      },
+      "statsBar": {
+        "sessions": "Sessions",
+        "avg": "Avg",
+        "longest": "Longest",
+        "total": "Total",
+        "streak": "Streak"
+      },
+      "hint": {
+        "sessionLabel": "Session {{number}}",
+        "imageA11y": "Hint image for session {{session}}",
+        "sent": "sent {{time}}",
+        "viewImageA11y": "View hint image"
+      },
+      "completedSection": {
+        "goalCompleted": "Goal Completed!",
+        "sessions": "Sessions",
+        "weeks": "Weeks",
+        "streak": "Streak",
+        "completedOn": "Completed {{date}}",
+        "yourReward": "Your Reward",
+        "couponLabel": "Your Redemption Code",
+        "copyCode": "Copy Code",
+        "generatingCode": "Generating your code...",
+        "partnerContact": "Contact to Schedule",
+        "phoneLabel": "Phone",
+        "copyPhoneA11y": "Copy phone number",
+        "buyTitle": "Book Your Experience",
+        "buySubtext": "Tap below to purchase and lock in your experience",
+        "buyButton": "Buy for {{price}}",
+        "expired": "Purchase window has expired",
+        "shareButton": "Share Achievement",
+        "recommended": "Recommended for you",
+        "browseAll": "Browse all",
+        "mysteryReward": "Mystery Reward",
+        "revealPrompt": "Complete your goal to reveal your reward",
+        "yourRewardLabel": "Your Reward",
+        "dreamRewardLabel": "Your Dream Reward"
+      },
+      "milestones": {
+        "weekComplete": "Week {{week}} Complete!",
+        "sessionMilestone": "{{count}} Sessions Done!"
+      },
+      "completed": {
+        "title": "Goal Completed",
+        "buyCTASubtext": "Buy your reward now and redeem it instantly.",
+        "buyCTATitle": "You've earned this!",
+        "buyNowWithPrice": "Buy Now · {{price}}",
+        "completedOn": "Completed {{date}}",
+        "copyCode": "Copy Code",
+        "copyCouponA11y": "Copy coupon code",
+        "copyEmailA11y": "Copy email address",
+        "copyPhoneA11y": "Copy phone number",
+        "couponLabel": "Your Redemption Code",
+        "emailLabel": "Email",
+        "generatingCode": "Generating your code...",
+        "getExperience": "Get This Experience",
+        "partnerContact": "Partner Contact",
+        "phoneLabel": "Phone (WhatsApp)",
+        "purchaseWindowExpired": "Purchase window has expired",
+        "shareAchievement": "Share Achievement",
+        "statSessions": "Sessions",
+        "statStreak": "Streak",
+        "statWeeks": "Weeks",
+        "yourReward": "Your Reward"
+      },
+      "sections": {
+        "sessions": "Sessions",
+        "hints": "Hints"
+      },
+      "stats": {
+        "sessions": "Sessions",
+        "avg": "Avg",
+        "longest": "Longest",
+        "total": "Total",
+        "streak": "Streak"
+      },
+      "active": {
+        "browseAll": "Browse all {{category}} experiences",
+        "mysteryRevealPrompt": "Complete your challenge to reveal it!",
+        "mysteryReward": "Mystery Reward",
+        "recommendedTitle": "Recommended for you",
+        "sessionsToEarn": "{{done}}/{{total}} sessions to earn this",
+        "sessionsToReveal": "{{done}}/{{total}} sessions to reveal",
+        "yourDreamReward": "Your Dream Reward",
+        "yourReward": "Your Reward"
+      },
+      "milestone": {
+        "sessions": "{{count}} Sessions",
+        "weekComplete": "Week {{number}} Complete"
+      }
+    },
+    "achievement": {
+      "screenTitle": "Achievement",
+      "goalCompleted": "Goal Completed!",
+      "completedOn": "Completed on {{date}}",
+      "duration": "Duration: {{weeks}} weeks",
+      "totalSessions": "Total Sessions: {{count}}",
+      "longestStreak": "Longest Streak: {{count}} days",
+      "reward": "Your Reward",
+      "yourReward": "Your Reward",
+      "claimReward": "Claim Experience",
+      "alreadyClaimed": "Experience Claimed",
+      "shareAchievement": "Share Achievement",
+      "sessionsChip": "Sessions",
+      "weeksChip": "Weeks",
+      "streakChip": "Streak",
+      "couponLabel": "Your Redemption Code",
+      "copyCouponA11y": "Copy redemption code",
+      "copyCode": "Copy Code",
+      "partnerContact": "Contact to Schedule",
+      "phoneLabel": "Phone",
+      "emailLabel": "Email",
+      "copyPhoneA11y": "Copy phone number",
+      "copyEmailA11y": "Copy email address",
+      "whatsappButton": "WhatsApp",
+      "whatsappA11y": "Schedule via WhatsApp",
+      "emailButton": "Email",
+      "emailA11y": "Schedule via Email",
+      "shareButton": "Share Achievement",
+      "sessionsHeader": "Sessions",
+      "noSessions": "No sessions recorded",
+      "hintsHeader": "Hints",
+      "streakLabel": "session streak",
+      "ctaKeepStreak": "Keep your {{count}}-session streak alive!",
+      "ctaNextChallenge": "Ready for your next challenge?",
+      "ctaStreakMessage": "Start a new goal to keep it going — your streak resets after 7 days of inactivity",
+      "ctaStreakContinues": "Your {{count}}-session streak continues!",
+      "ctaActiveGoals": "You still have active goals — keep going!",
+      "ctaStreakContinuesMessage": "Keep going with your other goals to build it even higher",
+      "browseButton": "Browse Experiences",
+      "browseA11y": "Browse experiences",
+      "backToGoals": "Back to Goals",
+      "backToGoalsA11y": "Back to goals",
+      "celebration": {
+        "incredible": "You did something incredible.",
+        "crushedIt": "You absolutely crushed it.",
+        "legend": "You're a legend.",
+        "hardWork": "Hard work pays off.",
+        "newYou": "This is the new you.",
+        "deserved": "You earned every bit of this.",
+        "proud": "Be proud of yourself.",
+        "milestone": "This is a milestone moment."
+      },
+      "error": {
+        "loadFailed": "Failed to load achievement. Please try again.",
+        "claimFailed": "Failed to claim reward. Please try again.",
+        "partnerPhoneUnavailable": "Partner phone number is not available.",
+        "partnerEmailUnavailable": "Partner email is not available.",
+        "whatsappError": "Unable to open WhatsApp. Please try another contact method.",
+        "emailFallback": "Unable to open email client. Please try another contact method."
+      },
+      "toast": {
+        "rewardClaimed": "Reward claimed! Check your email for details.",
+        "shareSuccess": "Achievement shared!",
+        "shareFailed": "Failed to share achievement"
+      },
+      "statSessions": "Sessions",
+      "statStreak": "Streak",
+      "statWeeks": "Weeks"
+    },
+    "couponEntry": {
+      "screenTitle": "Redeem Gift",
+      "headingLine1": "Enter Your",
+      "headingLine2": "Gift Code",
+      "subtitle": "Enter the code you received to start your journey",
+      "codePlaceholder": "e.g. ERNIT-XXXX-XXXX",
+      "claimButton": "Claim Your Gift",
+      "logoA11y": "Ernit logo",
+      "howItWorksTitle": "How It Works",
+      "howItWorksStep1": "Enter the code you received from your giver",
+      "howItWorksStep2": "Set your personal goal to earn the experience",
+      "howItWorksStep3": "Complete your sessions and collect AI-powered hints",
+      "howItWorksStep4": "Unlock your reward when you finish!",
+      "messageModal": {
+        "title": "A Message for You",
+        "from": "From your giver",
+        "continueButton": "Continue to Set Your Goal"
+      },
+      "title": "Enter Your Coupon Code",
+      "subtitle2": "Redeem a coupon code to unlock an experience",
+      "redeemButton": "Redeem",
+      "redeemingButton": "Redeeming...",
+      "success": {
+        "title": "Coupon Redeemed!",
+        "subtitle": "Your experience has been unlocked"
+      },
+      "error": {
+        "emptyCode": "Please enter your gift code",
+        "invalidFormat": "Gift codes should be in the format ERNIT-XXXX-XXXX",
+        "loginRequired": "Please log in to redeem your gift",
+        "invalidOrClaimed": "This code is invalid or has already been claimed",
+        "expiredCode": "This gift code has expired",
+        "genericError": "Something went wrong. Please try again.",
+        "invalidCode": "Invalid coupon code. Please check and try again.",
+        "alreadyUsed": "This coupon has already been used.",
+        "redeemFailed": "Failed to redeem coupon. Please try again."
+      }
+    },
+    "share": {
+      "screenTitle": "Share",
+      "cardStatSessions": "SESSIONS",
+      "cardStatWeeks": "WEEKS",
+      "cardStatStreak": "STREAK",
+      "cardStatTotalTime": "TOTAL TIME",
+      "cardGoalCompleted": "GOAL COMPLETED",
+      "formatStory": "Story 9:16",
+      "formatPost": "Post 1:1",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "statsSectionLabel": "STATS",
+      "rewardSectionLabel": "REWARD",
+      "toggleSessions": "Sessions",
+      "toggleWeeks": "Weeks",
+      "toggleStreak": "Streak",
+      "toggleTotalTime": "Total Time",
+      "toggleReward": "Show Reward",
+      "shareButton": "Share",
+      "sharingButton": "Sharing...",
+      "imageSaved": "Image saved!",
+      "shareDialogTitle": "Share your achievement",
+      "error": {
+        "saveFailed": "Failed to save image",
+        "shareFailed": "Failed to share image",
+        "renderFailed": "Failed to render share card"
+      },
+      "goalProgress": "Check out my progress on {{goalName}}! I'm {{progress}}% of the way there.",
+      "goalCompleted": "I just completed my goal: {{goalName}}! {{sessions}} sessions in {{weeks}} weeks.",
+      "achievement": "I earned an achievement on Ernit! {{goalName}} - completed in {{weeks}} weeks.",
+      "inviteFriend": "Join me on Ernit and let's challenge each other! Download the app: {{link}}",
+      "formatLabel": "Format",
+      "shareError": "Could not share. Please try again.",
+      "sharingUnavailable": "Sharing is not available on this device.",
+      "showReward": "Show Reward",
+      "statSessions": "SESSIONS",
+      "statStreak": "STREAK",
+      "statTotalTime": "TOTAL TIME",
+      "statWeeks": "WEEKS",
+      "themeLabel": "Theme"
+    },
+    "detailedGoal": {
+      "header": {
+        "editButton": "Edit",
+        "menuButton": "Options"
+      },
+      "sections": {
+        "thisWeek": "This Week",
+        "progress": "Progress",
+        "reward": "Your Reward",
+        "friends": "Friends Supporting You",
+        "activity": "Activity"
+      },
+      "thisWeek": {
+        "sessionsLogged": "{{logged}} of {{target}} sessions logged",
+        "logSession": "Log Session",
+        "sessionLogged": "Session logged today",
+        "allSessionsDone": "All sessions done this week!"
+      },
+      "progress": {
+        "weeksCompleted": "{{completed}} of {{total}} weeks",
+        "sessionsTotal": "{{completed}} of {{total}} sessions",
+        "currentStreak": "{{count}}-day streak",
+        "noStreak": "Start your streak!"
+      },
+      "reward": {
+        "locked": "Complete your goal to unlock",
+        "unlocked": "Reward unlocked!",
+        "claim": "Claim Now",
+        "viewDetails": "View Details"
+      },
+      "menu": {
+        "editGoal": "Edit Goal",
+        "requestChange": "Request a Goal Change",
+        "removeGoal": "Remove Goal",
+        "edit": "Edit Goal",
+        "pause": "Pause Goal",
+        "resume": "Resume Goal",
+        "abandon": "Abandon Goal",
+        "share": "Share Goal"
+      },
+      "removeDialog": {
+        "title": "Remove Goal?",
+        "message": "This will permanently remove your goal and all session history. This cannot be undone.",
+        "sharedSuffix": "This is a shared challenge — your partner's challenge will also be affected.",
+        "pendingSuffix": "Your supporter is waiting to review this goal.",
+        "confirm": "Remove",
+        "cancel": "Keep Goal"
+      },
+      "abandonConfirm": {
+        "title": "Abandon Goal",
+        "message": "Are you sure you want to abandon this goal? Your progress will be lost.",
+        "confirm": "Abandon",
+        "cancel": "Cancel"
+      },
+      "empoweredBy": "Empowered by {{name}}",
+      "withPartner": "with {{firstName}}",
+      "mysteryGift": "Mystery Gift",
+      "waitingPartnerFinish": "You've completed your challenge! Waiting for your partner to finish.",
+      "waitingPartnerAccept": "Waiting for your partner to accept the challenge",
+      "partnerProgress": "Partner: {{current}}/{{total}} sessions",
+      "resendInvite": "Resend Invite",
+      "goalRemoved": "Goal removed",
+      "goalUpdated": "Goal updated!",
+      "discoveryMatch": "We found the perfect experience for you!",
+      "workingOnMyOwn": "Working out on my own",
+      "yourGiver": "your giver",
+      "yourVenue": "your venue",
+      "cancelSessionMessage": "Are you sure you want to cancel this session? Progress won't be saved.",
+      "notification": {
+        "sessionUpTitle": "Session Time's Up!",
+        "sessionUpBody": "Great job! You can now finish your session and log your progress."
+      },
+      "error": {
+        "loadFailed": "Failed to load goal details. Please try again.",
+        "sessionLogFailed": "Failed to log session. Please try again.",
+        "updateFailed": "Failed to update goal. Please try again.",
+        "cameraPermission": "Camera access is required to capture session media.",
+        "galleryPermission": "Gallery access is required to select session media.",
+        "startSession": "Failed to start session. Please try again.",
+        "sessionWait": "Please wait {{seconds}} seconds between sessions.",
+        "gpsDistance": "You seem to be {{distance}}km from {{venue}}. Are you nearby? Starting session anyway.",
+        "suggestedChangeStart": "{{name}} has suggested a goal change. Please review and accept or modify the suggestion before starting a session.",
+        "suggestedChangeStartAnother": "{{name}} has suggested a goal change. Please review and accept or modify the suggestion before starting another session.",
+        "suggestedChangeContinue": "{{name}} has suggested a goal change. Please review and accept or modify the suggestion before continuing.",
+        "suggestedChangeContinueMore": "{{name}} has suggested a goal change. Please review and accept or modify the suggestion before continuing with more sessions.",
+        "lockedSingleSession": "Goals with only 1 day and 1 session per week cannot be completed until giver's approval.",
+        "waitingApprovalStart": "Waiting for {{name}}'s approval! You can start with the first session, but the remaining sessions will unlock after {{name}} approves your goal (or automatically in 24 hours).",
+        "offline": "You appear to be offline. Your session is saved — please try again when connected.",
+        "updateProgress": "Could not update goal progress. Please try again.",
+        "discoveryPersist": "Failed to save your discovery. Please try again.",
+        "venueSave": "Failed to save venue. Please try again.",
+        "inviteCode": "Could not find invite code"
+      },
+      "toast": {
+        "sessionLogged": "Session logged!",
+        "goalPaused": "Goal paused",
+        "goalResumed": "Goal resumed",
+        "goalAbandoned": "Goal abandoned"
+      }
+    },
+    "completedGoal": {
+      "banner": {
+        "title": "Goal Completed!",
+        "subtitle": "Congratulations on your achievement"
+      },
+      "completed": "Completed",
+      "weeks_one": "{{count}} week",
+      "weeks_other": "{{count}} weeks",
+      "sessions_one": "{{count}} session",
+      "sessions_other": "{{count}} sessions",
+      "selfAchievement": "Self-Achievement",
+      "stats": {
+        "duration": "Duration",
+        "totalSessions": "Total Sessions",
+        "longestStreak": "Longest Streak",
+        "completionRate": "Completion Rate"
+      },
+      "reward": {
+        "title": "Your Reward",
+        "claim": "Claim Experience",
+        "claimed": "Experience Claimed",
+        "viewDetails": "View Experience Details"
+      },
+      "share": "Share Achievement",
+      "viewJourney": "View My Journey"
+    },
+    "goalCardModals": {
+      "pauseGoal": {
+        "title": "Pause Goal",
+        "message": "Pausing your goal will stop your streak counter. You can resume anytime.",
+        "confirm": "Pause Goal",
+        "cancel": "Keep Going"
+      },
+      "resumeGoal": {
+        "title": "Resume Goal",
+        "message": "Ready to get back on track?",
+        "confirm": "Resume Goal",
+        "cancel": "Not Yet"
+      },
+      "abandonGoal": {
+        "title": "Abandon Goal",
+        "message": "Are you sure? Your progress and streak will be lost permanently.",
+        "confirm": "Abandon",
+        "cancel": "Keep Going"
+      },
+      "deleteGoal": {
+        "title": "Delete Goal",
+        "message": "This will permanently delete your goal and all progress. This cannot be undone.",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      },
+      "cancelSession": {
+        "title": "Cancel Session?",
+        "no": "No",
+        "yesCancel": "Yes, cancel"
+      },
+      "celebration": {
+        "sessionComplete": "Session Complete",
+        "weekComplete": "Week Complete!",
+        "week1Title": "First Week Done!",
+        "week1Subtitle": "Amazing start, keep it up!",
+        "week2Title": "Two Weeks Strong!",
+        "week2Subtitle": "You're building a real habit!",
+        "week3Title": "Three Weeks! Unstoppable!",
+        "week3Subtitle": "You're in the zone now!",
+        "weekNTitle": "Week {{n}} Champion!",
+        "weekNSubtitle": "Your consistency is incredible!",
+        "you": "You",
+        "completedSession": "completed session",
+        "justNow": "Just now",
+        "sessionsThisWeek": "Sessions this week",
+        "weeksCompleted": "Weeks completed",
+        "shareToFeed": "Share to Feed",
+        "skip": "Skip",
+        "close": "Close"
+      }
+    },
+    "pledgedExperience": {
+      "title": "Your Reward Experience",
+      "locked": "Complete your goal to unlock this experience",
+      "daysLeft": "{{count}} days to go",
+      "sessionsLeft": "{{count}} sessions remaining",
+      "almostThere": "Almost there!",
+      "readyToClaim": "Ready to claim!",
+      "claimed": "Claimed",
+      "bookNow": "Book Now",
+      "viewDetails": "View Details",
+      "giftReceived": "Gift received",
+      "yourReward": "Your reward"
+    },
+    "sessionAction": {
+      "logSession": "Log Today's Session",
+      "alreadyLogged": "Session logged today",
+      "logAnother": "Log Another Session",
+      "sessionCount_one": "{{count}} session logged today",
+      "sessionCount_other": "{{count}} sessions logged today",
+      "notes": "Add notes (optional)",
+      "notesPlaceholder": "How did it go?",
+      "confirm": "Confirm Session",
+      "confirming": "Logging...",
+      "startSession": "Start Session",
+      "loading": "Loading...",
+      "weekCompleted": "You've completed this week!",
+      "nextWeekStarts": "Next week starts on {{date}}",
+      "waitingForApproval": "Waiting for approval",
+      "greatJobToday": "Great job today!",
+      "sessionsToReward_one": "Only {{count}} session to your reward!",
+      "sessionsToReward_other": "Only {{count}} sessions to your reward!",
+      "sessionsToReward": "Only {{count}} sessions to your reward!",
+      "weekComplete": "Week complete! Enjoy the rest",
+      "sessionsRemainingThisWeek_one": "{{count}} more session this week — see you tomorrow!",
+      "sessionsRemainingThisWeek_other": "{{count}} more sessions this week — see you tomorrow!",
+      "sessionsRemainingThisWeek": "{{count}} more sessions this week — see you tomorrow!",
+      "error": {
+        "logFailed": "Failed to log session. Please try again."
+      },
+      "toast": {
+        "sessionLogged": "Session logged!",
+        "streakContinued": "Streak continued! {{count}} days",
+        "streakStarted": "Streak started! Keep going!"
+      }
+    },
+    "sessionMedia": {
+      "addPhoto": "Add Photo",
+      "addVideo": "Add Video",
+      "photoAdded": "Photo added",
+      "videoAdded": "Video added",
+      "remove": "Remove",
+      "captureSession": "Capture your session",
+      "lookingGood": "Looking good!",
+      "shareWithFriends": "Share this with your friends on the feed?",
+      "takePhotoOrVideo": "Take a photo or video to remember this session",
+      "camera": "Camera",
+      "gallery": "Gallery",
+      "change": "Change",
+      "continue": "Continue",
+      "skip": "Skip",
+      "skipWithoutPhoto": "Skip without photo",
+      "takePhoto": "Take photo",
+      "chooseFromGallery": "Choose from gallery",
+      "options": {
+        "camera": "Take Photo",
+        "gallery": "Choose from Gallery",
+        "video": "Record Video"
+      },
+      "error": {
+        "uploadFailed": "Failed to upload media. Please try again.",
+        "sizeTooLarge": "File is too large. Please choose a smaller file.",
+        "invalidType": "Invalid file type. Please choose a photo or video."
+      }
+    },
+    "streak": {
+      "current": "Current Streak",
+      "longest": "Best Streak",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "noStreak": "No streak yet",
+      "streakLost": "Streak lost",
+      "keepItUp": "Keep it up!",
+      "newRecord": "New record!",
+      "sessionStreak": "Session Streak!",
+      "resetWarning": "Keep it up! Your streak resets after 7 days of inactivity",
+      "thisWeek": "This week: {{done}}/{{target}} sessions",
+      "compact": {
+        "zeroTitle": "Start your streak today!",
+        "zeroSubtitle": "Complete a session to light the flame",
+        "oneTitle": "1 day streak!",
+        "oneSubtitle": "Keep it going — come back tomorrow!",
+        "twoTitle": "2 days strong!",
+        "twoSubtitle": "One more day and your streak is on fire!"
+      }
+    },
+    "timer": {
+      "start": "Start Timer",
+      "pause": "Pause",
+      "resume": "Resume",
+      "stop": "Stop & Log Session",
+      "elapsed": "Elapsed",
+      "running": "Timer running",
+      "paused": "Timer paused",
+      "almostThere": "Almost there!",
+      "timesUp": "Time's up!",
+      "holdToFinish": "Hold to Finish",
+      "holding": "Hold...",
+      "keepGoing": "Keep Going...",
+      "cancel": "Cancel",
+      "cancelSession": "Cancel session",
+      "confirmStop": {
+        "title": "Stop Timer",
+        "message": "Stop the timer and log this session?",
+        "confirm": "Log Session",
+        "cancel": "Keep Going"
+      }
+    },
+    "weeklyCalendar": {
+      "title": "This Week",
+      "today": "today",
+      "sessionLogged": "session logged",
+      "days": {
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat",
+        "sun": "Sun"
+      },
+      "legend": {
+        "done": "Done",
+        "today": "Today",
+        "missed": "Missed",
+        "upcoming": "Upcoming"
+      }
+    },
+    "goalStatus": {
+      "active": "Active",
+      "paused": "Paused",
+      "completed": "Completed",
+      "abandoned": "Abandoned",
+      "expired": "Expired",
+      "pending": "Pending",
+      "yourGiver": "your giver",
+      "goalChangeSuggested": "Goal Change Suggested",
+      "goalChangeSuggestedMessage": "{{giverName}} has suggested a goal change. Please review and accept or modify the suggestion in your notifications.",
+      "goalChangeSuggestedAfterFirst": "Congrats on your first session! {{giverName}} has suggested a goal change. Please review and accept or modify the suggestion in your notifications to continue.",
+      "goalChangeSuggestedContinue": "{{giverName}} has suggested a goal change. Please review and accept or modify the suggestion before continuing.",
+      "goalNotApproved": "Goal Not Approved",
+      "oneDayOneSessionBlocked": "Goals with only 1 day and 1 session per week cannot be completed until giver's approval.",
+      "firstSessionDone": "First Session Done",
+      "firstSessionDoneMessage": "Congrats on your first session! The remaining sessions will unlock after {{giverName}} approves this goal (or automatically in 24 hours).",
+      "waitingApprovalFirstDone": "Waiting for {{giverName}}'s approval! You can start with the first session, but the remaining sessions will unlock after {{giverName}} approves your goal (or automatically in 24 hours).",
+      "waitingForApproval": "Waiting for Approval",
+      "waitingApprovalBanner": "Waiting for {{giverName}}'s approval! You can start with the first session, but the remaining sessions will unlock after {{giverName}} approves your goal (or automatically in 24 hours)."
+    },
+    "goalProgress": {
+      "onTrack": "On track",
+      "aheadOfSchedule": "Ahead of schedule",
+      "behindSchedule": "Behind schedule",
+      "justStarted": "Just getting started",
+      "almostThere": "Almost there!",
+      "completed": "Completed!",
+      "startsToday": "Starts today",
+      "startsTomorrow": "Starts tomorrow",
+      "startedYesterday": "Started yesterday",
+      "startedDaysAgo": "Started {{days}} days ago",
+      "startsInDays": "Starts in {{days}} days",
+      "startsOn": "Starts {{date}}",
+      "projectedFinish": "If you keep it up, you'll finish by {{date}}!"
+    }
+  },
+  "booking": {
+    "whatsapp": {
+      "message": "Hi! I'd like to book the experience: {{experienceName}}. I received this as a gift on Ernit.",
+      "buttonLabel": "Book via WhatsApp",
+      "error": "Unable to open WhatsApp. Please try another contact method.",
+      "defaultPartnerName": "there",
+      "earliestConvenience": "at your earliest convenience",
+      "scheduleMessage": "Hi {{partnerName}}!\n\nI'm {{userName}} and I've completed my Ernit goal and earned {{experienceTitle}}!\n\nI'd like to schedule my experience for {{date}}.\n\nLooking forward to it!"
+    },
+    "email": {
+      "subject": "Experience Booking - {{experienceName}}",
+      "body": "Hi,\n\nI'd like to book the following experience:\n\nExperience: {{experienceName}}\nGift Code: {{giftCode}}\n\nPlease let me know your available dates.\n\nThank you!",
+      "buttonLabel": "Book via Email",
+      "error": "Unable to open email client. Please try another contact method.",
+      "defaultPartnerName": "there",
+      "earliestConvenience": "at your earliest convenience",
+      "scheduleBody": "Hi {{partnerName}}!\n\nI've completed my Ernit goal and earned {{experienceTitle}}!\n\nI'd like to schedule my experience for {{date}}.\n\nLooking forward to it!\n{{userName}}"
+    }
+  },
+  "modals": {
+    "logoutConfirmation": {
+      "title": "Logout Confirmation",
+      "message": "Are you sure you want to log out? You'll need to sign in again to access your account.",
+      "cancel": "Cancel",
+      "logout": "Logout",
+      "confirm": "Logout"
+    },
+    "howItWorks": {
+      "title": "How Ernit Works",
+      "exampleTitle": "Example: Sarah's Rock Climbing Gift",
+      "step1Title": "Mike buys the experience",
+      "step1Description": "Mike chooses a rock climbing session for Sarah and purchases it as a gift. Sarah will know what the gift is once she completes her goal.",
+      "step2Title": "Sarah sets a goal",
+      "step2Description": "Sarah receives a code and sets her challenge: \"Go to the gym 3x per week for 4 weeks\"",
+      "step3Title": "Hints reveal clues",
+      "step3Description": "Each gym session, Sarah gets AI generated motivational hints.",
+      "step4Title": "Goal complete = Surprise unlocked!",
+      "step4Description": "Sarah completes her goal and unlocks the surprise: a rock climbing session!",
+      "cta": "Motivation meets reward. That's Ernit!",
+      "close": "Got it, let's start!",
+      "learnMore": "Learn More"
+    },
+    "claimExperience": {
+      "title": "Claim Your Experience",
+      "subtitle": "You've earned it — pick your reward!",
+      "claimButton": "Claim \"{{title}}\"",
+      "browseCategory": "Browse {{category}} Experiences",
+      "browseOther": "Browse Other Experiences",
+      "cancel": "Cancel",
+      "loading": "Taking you there...",
+      "error": {
+        "loadFailed": "Failed to load experience details. Please try again.",
+        "bookingFailed": "Failed to initiate booking. Please try again."
+      }
+    },
+    "empowerChoice": {
+      "title": "Gift an Experience",
+      "subtitle": "Celebrate {{name}}'s progress",
+      "giftButton": "Gift \"{{title}}\"",
+      "browseCategory": "Browse {{category}} Experiences",
+      "browseOther": "Choose Another Experience",
+      "cancel": "Cancel",
+      "error": {
+        "sendFailed": "Failed to send motivation. Please try again."
+      }
+    },
+    "motivation": {
+      "title": "Send Motivation",
+      "headerSubtitle": "Leave an encouraging message for {{name}}",
+      "tabText": "Text & Photo",
+      "tabVoice": "Voice Memo",
+      "tabTextA11y": "Text and photo message",
+      "tabVoiceA11y": "Voice memo message",
+      "placeholder": "You've got this! Keep going...",
+      "charRemaining": "{{count}} characters remaining",
+      "addPhoto": "Add Photo",
+      "needInspiration": "Need inspiration?",
+      "recordingStatus": "Recording...",
+      "tapToRecord": "Tap to Record",
+      "voiceNote": "Max 30 seconds. Voice motivations are audio only.",
+      "cancel": "Cancel",
+      "send": "Send",
+      "sending": "Sending...",
+      "successText": "Message sent!",
+      "successSubtext": "{{name}} will see it in their next session",
+      "errorAlreadySent": "You have already sent motivation for this session.",
+      "errorGeneric": "Failed to send motivation. Please try again.",
+      "errorEmpty": "Please enter a message or attach an image",
+      "closeModal": "Close motivation modal",
+      "hideExamples": "Hide inspiration examples",
+      "showExamples": "Show inspiration examples"
+    },
+    "experienceDetail": {
+      "location": "Location",
+      "whatToExpect": "What to expect",
+      "perPerson": "per person",
+      "dismissModal": "Dismiss modal",
+      "selectReward": "Select this reward",
+      "selected": "Selected"
+    },
+    "experienceReveal": {
+      "revealedHeadline": "Your reward has\nbeen revealed!",
+      "progressReached": "{{pct}}% of your goal reached",
+      "perPerson": "per person",
+      "claimButton": "Claim This Experience  {{price}}",
+      "browseOthers": "Browse other options",
+      "browseOthersA11y": "Browse other experience options",
+      "dismissReveal": "Dismiss reveal"
+    },
+    "goalEdit": {
+      "title": "Edit Goal",
+      "titleRequest": "Request a Goal Change",
+      "requestSentTitle": "Request Sent",
+      "requestSentEmoji": "📬",
+      "requestSentHeading": "Request sent!",
+      "requestSentBody": "Your giver has been notified and can approve or decline your edit request.",
+      "done": "Done",
+      "giftedGoalInfo": "Since this is a gifted goal, your edit will be sent as a request to your giver for approval.",
+      "currentGoalLabel": "Current goal:",
+      "currentGoalValue_one": "{{weeks}} week, {{sessions}} session/week",
+      "currentGoalValue_other": "{{weeks}} weeks, {{sessions}} sessions/week",
+      "requestedGoalLabel": "Requested goal:",
+      "newGoalLabel": "New goal:",
+      "weeksLabel": "Weeks (max 5):",
+      "sessionsLabel": "Sessions per week (max 7):",
+      "decreaseWeeks": "Decrease weeks",
+      "increaseWeeks": "Increase weeks",
+      "weeksValue": "Weeks value",
+      "decreaseSessions": "Decrease sessions",
+      "increaseSessions": "Increase sessions",
+      "sessionsValue": "Sessions value",
+      "minWeeksNote_one": "Min {{count}} week (already completed {{completed}})",
+      "minWeeksNote_other": "Min {{count}} weeks (already completed {{completed}})",
+      "minSessionsNote_one": "Min {{count}} session (already logged {{logged}} this week)",
+      "minSessionsNote_other": "Min {{count}} sessions (already logged {{logged}} this week)",
+      "messagePlaceholder": "Add a message to your giver (optional)...",
+      "cancel": "Cancel",
+      "sendRequest": "Send Request",
+      "saveChanges": "Save Changes",
+      "error": {
+        "missingGoal": "Goal information is missing.",
+        "saveFailed": "Failed to save. Please try again."
+      },
+      "minWeeksNote": "Min {{count}} weeks (already completed {{completed}})",
+      "minSessionsNote": "Min {{count}} sessions (already logged {{logged}} this week)"
+    },
+    "goalChangeSuggestion": {
+      "title": "Goal Change Suggestion",
+      "messageFrom": "Message from {{name}}:",
+      "originalGoal": "Your original goal:",
+      "giverSuggestion": "{{name}}'s suggestion:",
+      "chooseGoal": "Choose your goal:",
+      "range": "Range: {{minWeeks}}-{{maxWeeks}} weeks, {{minSessions}}-{{maxSessions}} sessions/week",
+      "weeksLabel": "Weeks:",
+      "sessionsLabel": "Sessions per week:",
+      "decreaseWeeks": "Decrease weeks",
+      "increaseWeeks": "Increase weeks",
+      "decreaseSessions": "Decrease sessions per week",
+      "increaseSessions": "Increase sessions per week",
+      "messagePlaceholder": "Your message to {{name}} (optional)...",
+      "cancel": "Cancel",
+      "acceptChanges": "Accept Changes",
+      "error": {
+        "missingGoal": "Goal information is missing. Please try again.",
+        "maxWeeks": "The maximum duration is 5 weeks.",
+        "maxSessions": "The maximum is 7 sessions per week.",
+        "updateFailed": "Failed to update goal. Please try again."
+      }
+    },
+    "discoveryQuiz": {
+      "firstQuestion": "Quick question! ✨",
+      "nextQuestion": "One more question! 🎯",
+      "skipForNow": "Skip for now",
+      "adventure": {
+        "adv_1": {
+          "text": "Beach or mountains?",
+          "opt0": "Beach",
+          "opt1": "Mountains"
+        },
+        "adv_2": {
+          "text": "Morning or evening?",
+          "opt0": "Morning",
+          "opt1": "Evening"
+        },
+        "adv_3": {
+          "text": "Solo thrill or group adventure?",
+          "opt0": "Solo thrill",
+          "opt1": "Group adventure"
+        },
+        "adv_4": {
+          "text": "Water or sky?",
+          "opt0": "Water",
+          "opt1": "Sky"
+        },
+        "adv_5": {
+          "text": "Gentle discovery or adrenaline rush?",
+          "opt0": "Gentle discovery",
+          "opt1": "Adrenaline rush"
+        }
+      },
+      "wellness": {
+        "wel_1": {
+          "text": "Indoor or outdoor?",
+          "opt0": "Indoor",
+          "opt1": "Outdoor"
+        },
+        "wel_2": {
+          "text": "Active or restorative?",
+          "opt0": "Active",
+          "opt1": "Restorative"
+        },
+        "wel_3": {
+          "text": "Silence or music?",
+          "opt0": "Silence",
+          "opt1": "Music"
+        },
+        "wel_4": {
+          "text": "Heat or cold?",
+          "opt0": "Heat",
+          "opt1": "Cold"
+        },
+        "wel_5": {
+          "text": "Hands-on treatment or self-guided?",
+          "opt0": "Hands-on treatment",
+          "opt1": "Self-guided"
+        }
+      },
+      "creative": {
+        "cre_1": {
+          "text": "Hands-on or observing?",
+          "opt0": "Hands-on",
+          "opt1": "Observing"
+        },
+        "cre_2": {
+          "text": "Solo creation or collaborative?",
+          "opt0": "Solo creation",
+          "opt1": "Collaborative"
+        },
+        "cre_3": {
+          "text": "Traditional or modern?",
+          "opt0": "Traditional",
+          "opt1": "Modern"
+        },
+        "cre_4": {
+          "text": "Structured class or free exploration?",
+          "opt0": "Structured class",
+          "opt1": "Free exploration"
+        },
+        "cre_5": {
+          "text": "Visual arts or performing arts?",
+          "opt0": "Visual arts",
+          "opt1": "Performing arts"
+        }
+      }
+    },
+    "comment": {
+      "title": "Comments",
+      "editPlaceholder": "Edit your comment...",
+      "writePlaceholder": "Write a comment...",
+      "noComments": "No comments yet",
+      "noCommentsFirst": "Be the first to comment!",
+      "charCount": "{{count}}/300",
+      "commentOptions": "Comment options",
+      "edit": "Edit",
+      "delete": "Delete",
+      "edited": "edited",
+      "closeComments": "Close comments",
+      "cancelEdit": "Cancel edit",
+      "deleteConfirm": {
+        "title": "Delete Comment",
+        "message": "Are you sure you want to delete this comment?",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      },
+      "error": {
+        "postFailed": "Could not send comment. Please try again.",
+        "deleteFailed": "Could not delete comment. Please try again."
+      }
+    },
+    "commentSection": {
+      "viewAll": "View all {{count}} comments"
+    },
+    "hintPopup": {
+      "title": "Your Hint!",
+      "giverHint": "{{name}} left you a hint",
+      "swipeToReveal": "Swipe below to reveal your hint",
+      "awesome": "Awesome!",
+      "dismissHint": "Dismiss hint",
+      "hintImageA11y": "Hint image"
+    },
+    "hintHistory": {
+      "title": "Hint History",
+      "sessionLabel": "Session {{number}}",
+      "voiceMessage": "Voice message",
+      "voiceMessageDuration": "Voice message ({{duration}}s)",
+      "noHintsTitle": "No hints sent yet",
+      "noHintsMessage": "Hints you send will appear here for future reference",
+      "hintImageA11y": "Hint image"
+    },
+    "personalizedHint": {
+      "title": "Leave a Hint",
+      "sessionSubtitle": "For session #{{number}}",
+      "tabText": "Text & Photo",
+      "tabVoice": "Voice Memo",
+      "tabTextA11y": "Text and photo hint",
+      "tabVoiceA11y": "Voice memo hint",
+      "placeholder": "Your encouraging hint...",
+      "charRemaining": "{{count}} characters remaining",
+      "addPhoto": "Add Photo",
+      "needInspiration": "Need inspiration?",
+      "recordingStatus": "Recording...",
+      "tapToRecord": "Tap to Record",
+      "voiceNote": "Max 30 seconds. Voice hints are audio only.",
+      "cancel": "Cancel",
+      "sendHint": "Send Hint",
+      "sending": "Sending...",
+      "closeHintModal": "Close hint modal",
+      "hideExamples": "Hide hint examples",
+      "showExamples": "Show hint examples",
+      "errorEmpty": "Please enter a hint message",
+      "errorSendFailed": "Failed to send hint. Please try again."
+    },
+    "contact": {
+      "titleFeedback": "Give Feedback",
+      "titleSupport": "Get Support",
+      "subjectLabel": "Subject",
+      "subjectPlaceholderFeedback": "Feature request, UI improvement, etc.",
+      "subjectPlaceholderSupport": "Bug report, payment issue, etc.",
+      "messageLabel": "Message",
+      "messagePlaceholderFeedback": "Tell us about your idea, suggestion, or what you love about Ernit...",
+      "messagePlaceholderSupport": "Describe the issue you're experiencing (bug, payment problem, progression issue, etc.)...",
+      "respondInfo": "We'll respond to {{email}}",
+      "sendButton": "Send Message",
+      "fillAllFields": "Please fill in all fields",
+      "sendFailed": "Failed to send. Please try again.",
+      "successTitle": "Message Sent!",
+      "successMessageFeedback": "Thank you for your feedback. We'll get back to you at {{email}} within 24-48 hours.",
+      "successMessageSupport": "Thank you for your message. We'll get back to you at {{email}} within 24-48 hours.",
+      "closeButton": "Close",
+      "closeA11y": "Close contact form"
+    },
+    "venueSelection": {
+      "title": "Where will you train?",
+      "subtitle": "Tag your gym or studio so we can verify your sessions.",
+      "webPlaceholder": "Type your gym or studio name",
+      "nativePlaceholder": "Search for a gym or studio",
+      "confirmVenue": "Confirm venue",
+      "noVenuesFound": "No venues found. Try a different search.",
+      "skipText": "I'll work out on my own",
+      "dismissA11y": "Dismiss venue selector",
+      "closeA11y": "Close",
+      "clearA11y": "Clear input",
+      "clearSearchA11y": "Clear search",
+      "venueInputA11y": "Venue name input",
+      "searchInputA11y": "Gym search input",
+      "loadingA11y": "Loading venues",
+      "resultsA11y": "Venue search results",
+      "skipA11y": "Skip venue selection",
+      "errorLoadFailed": "Could not load venue details. Please try again or skip.",
+      "errorGeneric": "Something went wrong. Please try again or skip."
+    },
+    "bookingCalendar": {
+      "title": "When do you want to do your experience?",
+      "prevMonthA11y": "Previous month",
+      "nextMonthA11y": "Next month",
+      "cancel": "Cancel",
+      "bookFor": "Book for {{date}}"
+    },
+    "pwa": {
+      "installTitle": "Install Ernit",
+      "iosSubtitle": "Get the full app experience with push notifications",
+      "androidSubtitle": "Get the full app experience",
+      "step1Title": "Tap the Share button",
+      "step1Description": "Look for the share icon in your Safari toolbar (bottom of screen)",
+      "step2Title": "Select \"Add to Home Screen\"",
+      "step2Description": "Scroll down and tap \"Add to Home Screen\"",
+      "step3Title": "Tap \"Add\"",
+      "step3Description": "Confirm by tapping \"Add\" in the top-right corner",
+      "benefitsTitle": "You'll get:",
+      "benefit1": "✓ Push notifications for goals & hints",
+      "benefit2": "✓ Faster app launch",
+      "benefit3": "✓ Full-screen experience",
+      "benefit4": "✓ Faster app launch from home screen",
+      "maybeLater": "Maybe Later",
+      "installApp": "Install App",
+      "notNow": "Not Now",
+      "closeA11y": "Close install prompt"
+    },
+    "popupMenu": {
+      "moreOptions": "More options"
+    },
+    "offlineBanner": {
+      "message": "You're offline — some features may not work"
+    },
+    "animationPreview": {
+      "title": "Animation Preview",
+      "subtitle": "Advance sessions to preview streak animations",
+      "sessions": "Sessions: {{count}}",
+      "tierLabel": "Streak Banner (tier: {{tier}})",
+      "noStreak": "No streak yet (0 sessions)",
+      "play": "Play",
+      "pause": "Pause"
+    },
+    "reactionViewer": {
+      "allTab": "All",
+      "allTabWithCount": "All ({{count}})",
+      "allReactions": "All reactions",
+      "reactionType": "{{emoji}} reactions",
+      "noReactionsTitle": "No reactions yet",
+      "noReactionsMessage": "Be the first to react!"
+    },
+    "journeyDemo": {
+      "replayA11y": "Replay journey demo",
+      "replay": "Replay",
+      "rewardUnlocked": "You unlocked your reward!",
+      "youveEarned": "You've earned",
+      "scheduleText": "You're ready to schedule your experience",
+      "phases": {
+        "setGoal": "Set Goal",
+        "buildHabit": "Build Habit",
+        "getReward": "Get Reward"
+      }
+    }
+  }
+}

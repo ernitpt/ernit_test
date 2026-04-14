@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Goal } from '../../../types';
 import { isoDay, rollingWeek } from '../goalCardUtils';
 import { DateHelper } from '../../../utils/DateHelper';
 import { PartnerGoalData } from '../goalCardUtils';
+import { formatLocalDate } from '../../../utils/i18nHelpers';
 
 interface UseGoalProgressOptions {
   goal: Goal;
@@ -17,6 +19,7 @@ export function useGoalProgress({
   partnerGoalData,
   debugTimeKey,
 }: UseGoalProgressOptions) {
+  const { t } = useTranslation();
   // Displayed values based on selected view (user or partner)
   const displayedWeekStart = selectedView === 'user'
     ? goal.weekStartAt
@@ -108,13 +111,13 @@ export function useGoalProgress({
     const diffMs = planned.getTime() - today.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return 'Starts today';
-    if (diffDays === 1) return 'Starts tomorrow';
-    if (diffDays === -1) return 'Started yesterday';
-    if (diffDays < 0) return `Started ${Math.abs(diffDays)} days ago`;
-    if (diffDays <= 7) return `Starts in ${diffDays} days`;
-    return `Starts ${planned.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-  }, [goal.plannedStartDate]);
+    if (diffDays === 0) return t('recipient.goalProgress.startsToday');
+    if (diffDays === 1) return t('recipient.goalProgress.startsTomorrow');
+    if (diffDays === -1) return t('recipient.goalProgress.startedYesterday');
+    if (diffDays < 0) return t('recipient.goalProgress.startedDaysAgo', { days: Math.abs(diffDays) });
+    if (diffDays <= 7) return t('recipient.goalProgress.startsInDays', { days: diffDays });
+    return t('recipient.goalProgress.startsOn', { date: formatLocalDate(planned, { month: 'short', day: 'numeric' }) });
+  }, [goal.plannedStartDate, t]);
 
   // Projected finish date (dynamic based on current pace)
   const projectedFinishText = useMemo(() => {
@@ -124,9 +127,9 @@ export function useGoalProgress({
     if (remaining <= 0) return null;
     const projectedDate = new Date();
     projectedDate.setDate(projectedDate.getDate() + remaining * 7);
-    const dateStr = projectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-    return `If you keep it up, you'll finish by ${dateStr}!`;
-  }, [goal.isCompleted, goal.weekStartAt, displayedTargetCount, completedWeeks]);
+    const dateStr = formatLocalDate(projectedDate, { month: 'long', day: 'numeric' });
+    return t('recipient.goalProgress.projectedFinish', { date: dateStr });
+  }, [goal.isCompleted, goal.weekStartAt, displayedTargetCount, completedWeeks, t]);
 
   return {
     weekDates,

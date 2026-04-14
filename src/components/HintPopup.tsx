@@ -1,5 +1,6 @@
 // components/HintPopup.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, Animated, Pressable, StyleSheet, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
@@ -33,6 +34,7 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const commonStyles = useMemo(() => createCommonStyles(colors), [colors]);
+  const { t } = useTranslation();
 
   const confettiRef = useRef<ConfettiCannonType>(null);
   const [isRevealed, setIsRevealed] = useState(false);
@@ -283,18 +285,18 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
                 </Animated.View>
 
                 <Animated.View style={{ opacity: headerOpacity, alignItems: 'center' }}>
-                  <Text style={styles.h1}>Your Hint!</Text>
+                  <Text style={styles.h1}>{t('modals.hintPopup.title')}</Text>
 
                   {giverName && (
                     <Text style={styles.subHeader}>
-                      {giverName} left you a hint
+                      {t('modals.hintPopup.giverHint', { name: giverName })}
                     </Text>
                   )}
 
                   {/* Instruction text that disappears when revealed - only for image hints */}
                   {!isRevealed && requiresScratch && (
                     <Text style={styles.instructionText}>
-                      Swipe below to reveal your hint
+                      {t('modals.hintPopup.swipeToReveal')}
                     </Text>
                   )}
                 </Animated.View>
@@ -324,7 +326,7 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
                             style={styles.hintImage}
                             contentFit="cover"
                             cachePolicy="memory-disk"
-                            accessibilityLabel="Hint image"
+                            accessibilityLabel={t('modals.hintPopup.hintImageA11y')}
                           />
                         )}
 
@@ -379,9 +381,9 @@ const HintPopup: React.FC<Props> = ({ visible, hint, sessionNumber, totalSession
                     ]}
                     onPress={onClose}
                     accessibilityRole="button"
-                    accessibilityLabel="Dismiss hint"
+                    accessibilityLabel={t('modals.hintPopup.dismissHint')}
                   >
-                    <Text style={styles.btnText}>Awesome!</Text>
+                    <Text style={styles.btnText}>{t('modals.hintPopup.awesome')}</Text>
                   </Pressable>
                 </Animated.View>
 
@@ -526,12 +528,19 @@ const createStyles = (colors: typeof Colors) =>
       borderRadius: BorderRadius.lg,
       paddingVertical: Spacing.lg,
       alignItems: 'center',
-      shadowColor: colors.primary,
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 4,
-    },
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.primary,
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 4 },
+        },
+        android: {
+          boxShadow: `0 4 8 0 ${colors.primary}4D`,
+        },
+        default: {},
+      }),
+    } as any,
     btnText: {
       color: colors.white,
       fontWeight: '700',

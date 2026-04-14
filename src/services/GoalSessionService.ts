@@ -27,6 +27,7 @@ import { logger } from '../utils/logger';
 import { config } from '../config/environment';
 import { analyticsService } from './AnalyticsService';
 import { AppError } from '../utils/AppError';
+import { formatLocalDate } from '../utils/i18nHelpers';
 
 const TIMER_STORAGE_KEY = 'global_timer_state';
 
@@ -256,7 +257,7 @@ export class GoalSessionService {
         // Calculate next week start for friendlier message
         const nextWeekStart = new Date(g.weekStartAt!);
         nextWeekStart.setDate(nextWeekStart.getDate() + 7);
-        const nextWeekStr = nextWeekStart.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        const nextWeekStr = formatLocalDate(nextWeekStart, { weekday: 'long', month: 'short', day: 'numeric' });
         throw new AppError('WEEK_COMPLETE', `All sessions done this week! Your next week starts on ${nextWeekStr}.`, 'business');
       }
 

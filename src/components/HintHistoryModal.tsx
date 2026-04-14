@@ -1,4 +1,6 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatLocalDate } from '../utils/i18nHelpers';
 import {
     View,
     Text,
@@ -29,6 +31,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = React.memo(({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const hints = goal.hints || [];
 
     const formatDate = (date: Date | { toDate(): Date } | number | string | null | undefined) => {
@@ -51,7 +54,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = React.memo(({
             d = new Date(date as string);
         }
 
-        return d.toLocaleDateString('en-US', {
+        return formatLocalDate(d, {
             month: 'short',
             day: 'numeric',
             year: 'numeric',
@@ -79,7 +82,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = React.memo(({
                             )}
                         </View>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.sessionLabel}>Session {pHint.forSessionNumber}</Text>
+                            <Text style={styles.sessionLabel}>{t('modals.hintHistory.sessionLabel', { number: pHint.forSessionNumber })}</Text>
                             <Text style={styles.dateText}>{formatDate(pHint.createdAt)}</Text>
                         </View>
                         <View style={[styles.typeBadge, { backgroundColor: getTypeBadgeColor(pHint.type) }]}>
@@ -92,14 +95,16 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = React.memo(({
                     )}
 
                     {pHint.imageUrl && (
-                        <Image source={{ uri: pHint.imageUrl }} style={styles.hintImage} contentFit="cover" cachePolicy="memory-disk" accessibilityRole="image" accessibilityLabel="Hint image" />
+                        <Image source={{ uri: pHint.imageUrl }} style={styles.hintImage} contentFit="cover" cachePolicy="memory-disk" accessibilityRole="image" accessibilityLabel={t('modals.hintHistory.hintImageA11y')} />
                     )}
 
                     {pHint.audioUrl && (
                         <View style={styles.audioIndicator}>
                             <Mic size={16} color={colors.textSecondary} />
                             <Text style={styles.audioText}>
-                                Voice message{pHint.duration ? ` (${pHint.duration}s)` : ''}
+                                {pHint.duration
+                                    ? t('modals.hintHistory.voiceMessageDuration', { duration: pHint.duration })
+                                    : t('modals.hintHistory.voiceMessage')}
                             </Text>
                         </View>
                     )}
@@ -115,7 +120,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = React.memo(({
                             <MessageCircle size={16} color={colors.primary} />
                         </View>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.sessionLabel}>Session {legacyHint.session}</Text>
+                            <Text style={styles.sessionLabel}>{t('modals.hintHistory.sessionLabel', { number: legacyHint.session })}</Text>
                             <Text style={styles.dateText}>{formatDate(legacyHint.date)}</Text>
                         </View>
                         <View style={[styles.typeBadge, { backgroundColor: colors.infoLight }]}>
@@ -142,7 +147,7 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = React.memo(({
     };
 
     return (
-        <BaseModal visible={visible} onClose={onClose} title="Hint History" variant="bottom" noPadding>
+        <BaseModal visible={visible} onClose={onClose} title={t('modals.hintHistory.title')} variant="bottom" noPadding>
             <Text style={styles.subtitle}>
                 {goal.title}
             </Text>
@@ -151,8 +156,8 @@ export const HintHistoryModal: React.FC<HintHistoryModalProps> = React.memo(({
                 {hints.length === 0 ? (
                     <EmptyState
                         icon="💡"
-                        title="No hints sent yet"
-                        message="Hints you send will appear here for future reference"
+                        title={t('modals.hintHistory.noHintsTitle')}
+                        message={t('modals.hintHistory.noHintsMessage')}
                     />
                 ) : (
                     hints.map((hint, index) => renderHint(hint, index))

@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Image,
@@ -26,6 +27,7 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -49,7 +51,7 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
     <BaseModal
       visible={visible}
       onClose={handleClose}
-      title="Logout Confirmation"
+      title={t('modals.logoutConfirmation.title')}
       variant="center"
     >
       {/* Icon */}
@@ -62,20 +64,20 @@ const LogoutConfirmation: React.FC<LogoutConfirmationProps> = ({
       </View>
 
       <Text style={styles.message}>
-        Are you sure you want to log out? You'll need to sign in again to access your account.
+        {t('modals.logoutConfirmation.message')}
       </Text>
 
       {/* Buttons */}
       <View style={styles.buttonContainer}>
         <Button
-          title="Cancel"
+          title={t('modals.logoutConfirmation.cancel')}
           variant="secondary"
           size="lg"
           fullWidth
           onPress={handleClose}
         />
         <Button
-          title="Logout"
+          title={t('modals.logoutConfirmation.confirm')}
           variant="primary"
           size="lg"
           fullWidth

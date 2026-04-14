@@ -2,6 +2,7 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 import Button from './Button';
 import { BaseModal } from './BaseModal';
 import { Notification, Goal, PersonalizedHint } from '../types';
@@ -31,6 +32,7 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const { state } = useApp();
     const { showError } = useToast();
     const [showHintModal, setShowHintModal] = useState(false);
@@ -199,10 +201,10 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
                         <Button
                             title={
                                 !isLatest || hasPersonalizedHint
-                                    ? '✓ Hint Already Set'
+                                    ? t('notifications.notificationComponents.goalProgress.hintAlreadySet')
                                     : loading
-                                        ? 'Loading...'
-                                        : 'Leave Hint For Next Session'
+                                        ? t('notifications.notificationComponents.goalProgress.loading')
+                                        : t('notifications.notificationComponents.goalProgress.leaveHint')
                             }
                             variant="primary"
                             size="sm"
@@ -215,7 +217,7 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
 
                     {isActualProgress && !goal?.isCompleted && (
                         <Button
-                            title="View Hint History"
+                            title={t('notifications.notificationComponents.goalProgress.viewHintHistory')}
                             variant="ghost"
                             size="sm"
                             onPress={handleViewHistory}
@@ -229,7 +231,7 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
                     style={styles.clearNotificationButton}
                     onPress={handleClear}
                     accessibilityRole="button"
-                    accessibilityLabel="Clear this notification"
+                    accessibilityLabel={t('notifications.notificationComponents.goalProgress.clearA11y')}
                     hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
                     <X size={14} color={colors.textMuted} />
@@ -251,7 +253,7 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
             )}
 
             {/* Hint History Modal */}
-            <BaseModal visible={showHistoryModal} onClose={() => setShowHistoryModal(false)} title="Hint History">
+            <BaseModal visible={showHistoryModal} onClose={() => setShowHistoryModal(false)} title={t('notifications.notificationComponents.goalProgress.hintHistoryModal.title')}>
                 <ScrollView style={styles.historyScrollView}>
                     {goal?.hints && goal.hints.length > 0 ? (
                         [...goal.hints].reverse().map((hint, index: number) => {
@@ -267,7 +269,7 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
                                 <View key={hint.id || index} style={styles.historyHintItem}>
                                     <View style={styles.historyHintHeader}>
                                         <Text style={styles.historySessionLabel}>
-                                            Session {hint.session || index + 1}
+                                            {t('notifications.notificationComponents.goalProgress.hintHistoryModal.sessionLabel', { number: hint.session || index + 1 })}
                                         </Text>
                                         <Text style={styles.historyDateLabel}>
                                             {new Date(dateMs).toLocaleDateString()}
@@ -301,7 +303,7 @@ const GoalProgressNotificationComponent: React.FC<GoalProgressNotificationProps>
                         })
                     ) : (
                         <Text style={styles.historyEmptyText}>
-                            No hints have been sent yet.
+                            {t('notifications.notificationComponents.goalProgress.hintHistoryModal.emptyText')}
                         </Text>
                     )}
                 </ScrollView>

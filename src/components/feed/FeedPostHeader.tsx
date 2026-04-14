@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Colors, useColors, Typography, Spacing, BorderRadius } from '../../config';
 import { Avatar } from '../Avatar';
 
@@ -24,13 +25,14 @@ const FeedPostHeader: React.FC<FeedPostHeaderProps> = ({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     return (
         <View style={styles.header}>
             <TouchableOpacity
                 onPress={onUserPress}
                 style={styles.clickableHeader}
                 accessibilityRole="button"
-                accessibilityLabel={`View ${userName}'s profile`}
+                accessibilityLabel={t('feed.postHeader.viewProfile', { userName })}
             >
                 <Avatar
                     uri={userProfileImageUrl}

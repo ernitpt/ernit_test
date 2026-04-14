@@ -8,6 +8,7 @@ import {
   Pressable,
   Platform,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -85,6 +86,7 @@ interface DetailedGoalCardProps {
 // ─── Main Component ─────────────────────────────────────────────────
 
 const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const isWeb = Platform.OS === 'web';
   const styles = useMemo(() => createStyles(colors, isWeb), [colors, isWeb]);
@@ -118,9 +120,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     completedWeekNumber: number;
   } | null>(null);
   const [debugTimeKey, setDebugTimeKey] = useState(0);
-  const [cancelMessage] = useState(
-    "Are you sure you want to cancel this session? Progress won't be saved."
-  );
+  const cancelMessage = t('recipient.detailedGoal.cancelSessionMessage');
 
   // Media capture state
   const [sessionMediaUri, setSessionMediaUri] = useState<string | null>(null);
@@ -347,8 +347,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       if (elapsed >= progress.totalGoalSeconds && progress.totalGoalSeconds > 0) {
         if (Platform.OS === 'web' && 'Notification' in window && Notification.permission === 'granted') {
           try {
-            const notification = new Notification("Session Time's Up!", {
-              body: "Great job! You can now finish your session and log your progress.",
+            const notification = new Notification(t('recipient.detailedGoal.notification.sessionUpTitle'), {
+              body: t('recipient.detailedGoal.notification.sessionUpBody'),
               icon: '/icon-192.png',
               badge: '/icon-192.png',
               tag: `session-${currentGoal.id}`,
@@ -362,8 +362,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             logger.warn('Failed to create browser notification:', e);
             if ('serviceWorker' in navigator) {
               navigator.serviceWorker.ready.then(registration => {
-                registration.showNotification("Session Time's Up!", {
-                  body: "Great job! You can now finish your session and log your progress.",
+                registration.showNotification(t('recipient.detailedGoal.notification.sessionUpTitle'), {
+                  body: t('recipient.detailedGoal.notification.sessionUpBody'),
                   icon: '/icon-192.png',
                   badge: '/icon-192.png',
                   tag: `session-${currentGoal.id}`,
@@ -429,7 +429,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        showInfo('Camera access is required to capture session media.');
+        showInfo(t('recipient.detailedGoal.error.cameraPermission'));
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
@@ -452,7 +452,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        showInfo('Gallery access is required to select session media.');
+        showInfo(t('recipient.detailedGoal.error.galleryPermission'));
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -481,15 +481,15 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     // Approval checks
     if (isGoalLocked(currentGoal) && currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
       const message = currentGoal.approvalStatus === 'suggested_change'
-        ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before starting a session.`
-        : "Goals with only 1 day and 1 session per week cannot be completed until giver's approval.";
+        ? t('recipient.detailedGoal.error.suggestedChangeStart', { name: empoweredName || t('recipient.detailedGoal.yourGiver') })
+        : t('recipient.detailedGoal.error.lockedSingleSession');
       showError(message);
       return;
     }
     if (isGoalLocked(currentGoal) && currentGoal.targetCount >= 1 && currentGoal.weeklyCount >= 1) {
       const message = currentGoal.approvalStatus === 'suggested_change'
-        ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before starting another session.`
-        : `Waiting for ${empoweredName || 'your giver'}'s approval! You can start with the first session, but the remaining sessions will unlock after ${empoweredName || 'your giver'} approves your goal (or automatically in 24 hours).`;
+        ? t('recipient.detailedGoal.error.suggestedChangeStartAnother', { name: empoweredName || t('recipient.detailedGoal.yourGiver') })
+        : t('recipient.detailedGoal.error.waitingApprovalStart', { name: empoweredName || t('recipient.detailedGoal.yourGiver') });
       showError(message);
       return;
     }
@@ -521,7 +521,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           const timeSince = Date.now() - parseInt(lastSessionTs, 10);
           if (timeSince > 0 && timeSince < MIN_SESSION_INTERVAL_MS) {
             const secondsRemaining = Math.ceil((MIN_SESSION_INTERVAL_MS - timeSince) / 1000);
-            showInfo(`Please wait ${secondsRemaining} seconds between sessions.`);
+            showInfo(t('recipient.detailedGoal.error.sessionWait', { seconds: secondsRemaining }));
             setLoading(false);
             return;
           }
@@ -542,7 +542,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         const check = await locationService.isAtVenue(currentGoal.venueLocation);
         if (!check.isNearby) {
           const distKm = (check.distanceMeters / 1000).toFixed(1);
-          showInfo(`You seem to be ${distKm}km from ${currentGoal.venueName || 'your venue'}. Are you nearby? Starting session anyway.`);
+          showInfo(t('recipient.detailedGoal.error.gpsDistance', { distance: distKm, venue: currentGoal.venueName || t('recipient.detailedGoal.yourVenue') }));
           // Don't block — just inform. User can still start.
         }
       }
@@ -610,7 +610,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       }
     } catch (err: unknown) {
       logger.error('Failed to start session:', err);
-      showError('Failed to start session. Please try again.');
+      showError(t('recipient.detailedGoal.error.startSession'));
     } finally {
       setLoading(false);
     }
@@ -789,7 +789,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               }));
             } catch (e) {
               logger.error('Failed to persist discovery:', e);
-              showError('Failed to save your discovery. Please try again.');
+              showError(t('recipient.detailedGoal.error.discoveryPersist'));
             }
           }
         } catch (err: unknown) {
@@ -847,16 +847,16 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       const sessionsDoneBeforeFinish = (currentGoal.currentCount * currentGoal.sessionsPerWeek) + currentGoal.weeklyCount;
       if (currentGoal.targetCount === 1 && currentGoal.sessionsPerWeek === 1) {
         const message = currentGoal.approvalStatus === 'suggested_change'
-          ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before continuing.`
-          : "Goals with only 1 day and 1 session per week cannot be completed until giver's approval.";
+          ? t('recipient.detailedGoal.error.suggestedChangeContinue', { name: empoweredName || t('recipient.detailedGoal.yourGiver') })
+          : t('recipient.detailedGoal.error.lockedSingleSession');
         showError(message);
         finishLock.current = false;
         return;
       }
       if (sessionsDoneBeforeFinish >= 1) {
         const message = currentGoal.approvalStatus === 'suggested_change'
-          ? `${empoweredName || 'Your giver'} has suggested a goal change. Please review and accept or modify the suggestion before continuing with more sessions.`
-          : `Waiting for ${empoweredName || 'your giver'}'s approval! You can start with the first session, but the remaining sessions will unlock after ${empoweredName || 'your giver'} approves your goal (or automatically in 24 hours).`;
+          ? t('recipient.detailedGoal.error.suggestedChangeContinueMore', { name: empoweredName || t('recipient.detailedGoal.yourGiver') })
+          : t('recipient.detailedGoal.error.waitingApprovalStart', { name: empoweredName || t('recipient.detailedGoal.yourGiver') });
         showError(message);
         finishLock.current = false;
         return;
@@ -989,9 +989,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       });
       const errWithCode = err as Error & { code?: string };
       if (errWithCode?.code === 'unavailable' || errWithCode?.message?.includes('network') || errWithCode?.message?.includes('offline')) {
-        showError('You appear to be offline. Your session is saved — please try again when connected.');
+        showError(t('recipient.detailedGoal.error.offline'));
       } else {
-        showError('Could not update goal progress. Please try again.');
+        showError(t('recipient.detailedGoal.error.updateProgress'));
       }
     } finally {
       setLoading(false);
@@ -1183,7 +1183,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     try {
       await goalService.deleteGoal(currentGoal.id!);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      showSuccess('Goal removed');
+      showSuccess(t('recipient.detailedGoal.goalRemoved'));
     } catch (err: unknown) {
       showError(getUserMessage(err, 'Could not remove goal. Please try again.'));
       setIsRemoving(false);
@@ -1210,70 +1210,31 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   }, [selectedView, viewFadeAnim]);
 
   const removeDialogMessage = useMemo(() => {
-    let msg = 'This will permanently remove your goal and all session history. This cannot be undone.';
+    let msg = t('recipient.detailedGoal.removeDialog.message');
     if (currentGoal.partnerGoalId) {
-      msg += '\n\nThis is a shared challenge — your partner\'s challenge will also be affected.';
+      msg += '\n\n' + t('recipient.detailedGoal.removeDialog.sharedSuffix');
     }
     if (currentGoal.approvalStatus === 'pending') {
-      msg += '\n\nYour supporter is waiting to review this goal.';
+      msg += '\n\n' + t('recipient.detailedGoal.removeDialog.pendingSuffix');
     }
     return msg;
-  }, [currentGoal.partnerGoalId, currentGoal.approvalStatus]);
-
-  // ─── Deadline urgency warning ──────────────────────────────────────
-  const deadlineWarning = useMemo(() => {
-    if (currentGoal.isCompleted) return null;
-    const sessionsRemaining = currentGoal.sessionsPerWeek - currentGoal.weeklyCount;
-    if (sessionsRemaining <= 0) return null; // week already done — no warning needed
-
-    let daysLeftInWeek = 7;
-    if (currentGoal.weekStartAt) {
-      const weekStart = toJSDate(currentGoal.weekStartAt);
-      if (weekStart) {
-        const now = new Date();
-        const startMs = weekStart.getTime();
-        const msElapsed = now.getTime() - startMs;
-        const daysElapsed = Math.floor(msElapsed / 86400000);
-        daysLeftInWeek = Math.max(0, 7 - daysElapsed);
-      }
-    }
-
-    if (daysLeftInWeek <= 0) {
-      // Week is over — this is a catch for edge cases; normally the week would have reset
-      return null;
-    }
-
-    if (sessionsRemaining > daysLeftInWeek) {
-      // Mathematically impossible to complete all sessions this week
-      return { level: 'error' as const, message: `Not enough days left — ${sessionsRemaining} session${sessionsRemaining !== 1 ? 's' : ''} needed in ${daysLeftInWeek} day${daysLeftInWeek !== 1 ? 's' : ''}. Log now!` };
-    }
-
-    if (daysLeftInWeek === 1 && sessionsRemaining > 0) {
-      return { level: 'warning' as const, message: `Last day — ${sessionsRemaining} session${sessionsRemaining !== 1 ? 's' : ''} left to complete this week!` };
-    }
-
-    if (daysLeftInWeek <= 2 && sessionsRemaining >= 2) {
-      return { level: 'warning' as const, message: `${sessionsRemaining} sessions left, ${daysLeftInWeek} days remaining — you've got this!` };
-    }
-
-    return null;
-  }, [currentGoal.isCompleted, currentGoal.sessionsPerWeek, currentGoal.weeklyCount, currentGoal.weekStartAt]);
+  }, [currentGoal.partnerGoalId, currentGoal.approvalStatus, t]);
 
   const goalMenuItems: PopupMenuItem[] = useMemo(() => [
     {
       key: 'edit',
-      label: (currentGoal.empoweredBy && currentGoal.empoweredBy !== appState.user?.id) ? 'Request a Goal Change' : 'Edit Goal',
+      label: (currentGoal.empoweredBy && currentGoal.empoweredBy !== appState.user?.id) ? t('recipient.detailedGoal.menu.requestChange') : t('recipient.detailedGoal.menu.editGoal'),
       onPress: () => setShowGoalEditModal(true),
       disabled: isTimerRunning || currentGoal.isCompleted,
     },
     {
       key: 'remove',
-      label: 'Remove Goal',
+      label: t('recipient.detailedGoal.menu.removeGoal'),
       onPress: () => setShowRemoveDialog(true),
       variant: 'danger' as const,
       disabled: isTimerRunning,
     },
-  ], [isTimerRunning, currentGoal.empoweredBy, currentGoal.isCompleted, appState.user?.id]);
+  ], [isTimerRunning, currentGoal.empoweredBy, currentGoal.isCompleted, appState.user?.id, t]);
 
   // ─── Render ───────────────────────────────────────────────────────
 
@@ -1297,14 +1258,14 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             {currentGoal.title}
           </Text>
           {currentGoal.challengeType === 'shared' && partnerProfile && (
-            <Text style={styles.titlePartnerSuffix}>with {partnerProfile.name.split(' ')[0]}</Text>
+            <Text style={styles.titlePartnerSuffix}>{t('recipient.detailedGoal.withPartner', { firstName: partnerProfile.name.split(' ')[0] })}</Text>
           )}
           {!!empoweredName && !isSelfGift && !currentGoal.isFreeGoal && currentGoal.challengeType !== 'shared' && (
-            <Text style={styles.empoweredText}>Empowered by {empoweredName}</Text>
+            <Text style={styles.empoweredText}>{t('recipient.detailedGoal.empoweredBy', { name: empoweredName })}</Text>
           )}
           {currentGoal.isMystery && (
             <View style={styles.mysteryBadge}>
-              <Text style={styles.mysteryBadgeText}>Mystery Gift</Text>
+              <Text style={styles.mysteryBadgeText}>{t('recipient.detailedGoal.mysteryGift')}</Text>
             </View>
           )}
           {/* Extra spacing when no subtitle elements are shown */}
@@ -1365,34 +1326,18 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             />
           </Animated.View>
 
-          {/* Deadline urgency warning */}
-          {deadlineWarning && (
-            <View style={[
-              styles.deadlineWarning,
-              deadlineWarning.level === 'error' ? styles.deadlineWarningError : styles.deadlineWarningYellow,
-            ]}>
-              <Text style={[
-                styles.deadlineWarningText,
-                deadlineWarning.level === 'error' ? { color: colors.error } : { color: colors.warningDark },
-              ]}>
-                {deadlineWarning.level === 'error' ? '🔴 ' : '🟡 '}
-                {deadlineWarning.message}
-              </Text>
-            </View>
-          )}
-
           {/* M4: "Waiting for partner to finish" — goal completed but partner hasn't unlocked yet */}
           {(currentGoal.isCompleted === true || currentGoal.isReadyToComplete === true) &&
             !currentGoal.isUnlocked &&
             !!currentGoal.partnerGoalId && (
             <View style={styles.waitingBanner}>
               <Text style={styles.waitingBannerText}>
-                You've completed your challenge! Waiting for your partner to finish.
+                {t('recipient.detailedGoal.waitingPartnerFinish')}
               </Text>
               {partnerGoalData && (
                 <View style={styles.waitingBannerProgress}>
                   <Text style={styles.waitingBannerProgressLabel}>
-                    Partner: {partnerGoalData.currentCount ?? 0}/{partnerGoalData.targetCount ?? 0} sessions
+                    {t('recipient.detailedGoal.partnerProgress', { current: partnerGoalData.currentCount ?? 0, total: partnerGoalData.targetCount ?? 0 })}
                   </Text>
                   <View style={styles.waitingBannerProgressTrack}>
                     <View
@@ -1415,7 +1360,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           {currentGoal.challengeType === 'shared' && !currentGoal.partnerGoalId && (
             <View style={styles.waitingBanner}>
               <Text style={styles.waitingBannerText}>
-                Waiting for your partner to accept the challenge
+                {t('recipient.detailedGoal.waitingPartnerAccept')}
               </Text>
               <TouchableOpacity
                 style={styles.resendInviteButton}
@@ -1427,7 +1372,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                       giftData = await experienceGiftService.getExperienceGiftById(currentGoal.experienceGiftId);
                     }
                     if (!giftData?.claimCode && !currentGoal.claimCode) {
-                      showError('Could not find invite code');
+                      showError(t('recipient.detailedGoal.error.inviteCode'));
                       return;
                     }
                     navigation.navigate('Confirmation', {
@@ -1442,7 +1387,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={styles.resendInviteText}>Resend Invite</Text>
+                <Text style={styles.resendInviteText}>{t('recipient.detailedGoal.resendInvite')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -1598,16 +1543,16 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         onGoalUpdated={(updated) => {
           setCurrentGoal(updated);
           setShowGoalEditModal(false);
-          showSuccess('Goal updated!');
+          showSuccess(t('recipient.detailedGoal.goalUpdated'));
         }}
       />
 
       <ConfirmationDialog
         visible={showRemoveDialog}
-        title="Remove Goal?"
+        title={t('recipient.detailedGoal.removeDialog.title')}
         message={removeDialogMessage}
-        confirmLabel="Remove"
-        cancelLabel="Keep Goal"
+        confirmLabel={t('recipient.detailedGoal.removeDialog.confirm')}
+        cancelLabel={t('recipient.detailedGoal.removeDialog.cancel')}
         variant="danger"
         loading={isRemoving}
         onConfirm={handleRemoveGoal}
@@ -1684,7 +1629,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
                       discoveredExperience,
                       discoveredAt,
                     }));
-                    showSuccess('We found the perfect experience for you!');
+                    showSuccess(t('recipient.detailedGoal.discoveryMatch'));
                   } catch (e) {
                     logger.error('Failed to persist discovery:', e);
                     showError('Failed to save your discovery. Please try again.');
@@ -1732,7 +1677,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         }}
         onBrowseOthers={() => {
           setShowExperienceReveal(false);
-          navigation.navigate('CategorySelection');
+          navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection' } });
         }}
       />
 
@@ -1767,7 +1712,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
             }));
           } catch (err: unknown) {
             logger.error('Failed to save venue:', err);
-            showError('Failed to save venue. Please try again.');
+            showError(t('recipient.detailedGoal.error.venueSave'));
             setLoading(false);
           }
         }}
@@ -1775,14 +1720,14 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
           setShowVenueModal(false);
           try {
             await goalService.updateGoal(currentGoal.id, {
-              venueName: 'Working out on my own',
+              venueName: t('recipient.detailedGoal.workingOnMyOwn'),
             });
             // Update state — the useEffect watching venueId/venueName will resume handleStart
             if (pendingStartAfterVenue) {
               shouldResumeStartRef.current = true;
               setPendingStartAfterVenue(false);
             }
-            setCurrentGoal(prev => ({ ...prev, venueName: 'Working out on my own' }));
+            setCurrentGoal(prev => ({ ...prev, venueName: t('recipient.detailedGoal.workingOnMyOwn') }));
           } catch (err: unknown) {
             logger.error('Failed to save venue skip:', err);
             setLoading(false);
@@ -1910,25 +1855,6 @@ const createStyles = (colors: typeof Colors, isWeb = false) => StyleSheet.create
     ...Typography.captionBold,
   },
   // M4: Waiting for partner banners
-  deadlineWarning: {
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.sm,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
-    borderLeftWidth: 3,
-  },
-  deadlineWarningError: {
-    backgroundColor: colors.errorLight,
-    borderLeftColor: colors.error,
-  },
-  deadlineWarningYellow: {
-    backgroundColor: colors.warningLight,
-    borderLeftColor: colors.warning,
-  },
-  deadlineWarningText: {
-    ...Typography.smallBold,
-  },
   waitingBanner: {
     marginTop: Spacing.md,
     marginBottom: Spacing.md,

@@ -9,6 +9,7 @@ import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 import { useApp } from '../context/AppContext';
 import { logger } from '../utils/logger';
+import { useTranslation } from 'react-i18next';
 
 const ErnitLogo = require('../assets/favicon.png');
 
@@ -31,6 +32,7 @@ const safeRemoveItem = (key: string): void => {
 export const PWAInstaller: React.FC = () => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
 
     const [showIOSPrompt, setShowIOSPrompt] = useState(false);
     const [showAndroidPrompt, setShowAndroidPrompt] = useState(false);
@@ -160,7 +162,7 @@ export const PWAInstaller: React.FC = () => {
                             style={styles.closeButton}
                             onPress={handleIOSDismiss}
                             accessibilityRole="button"
-                            accessibilityLabel="Close install prompt"
+                            accessibilityLabel={t('modals.pwa.closeA11y')}
                         >
                             <X size={24} color={colors.textMuted} />
                         </TouchableOpacity>
@@ -168,8 +170,8 @@ export const PWAInstaller: React.FC = () => {
                         {/* Header */}
                         <View style={styles.header}>
                             <Image source={ErnitLogo} style={{ width: 80, height: 80 }} resizeMode="contain" accessible={false} />
-                            <Text style={styles.title}>Install Ernit</Text>
-                            <Text style={styles.subtitle}>Get the full app experience with push notifications</Text>
+                            <Text style={styles.title}>{t('modals.pwa.installTitle')}</Text>
+                            <Text style={styles.subtitle}>{t('modals.pwa.iosSubtitle')}</Text>
                         </View>
 
                         {/* Instructions */}
@@ -179,12 +181,12 @@ export const PWAInstaller: React.FC = () => {
                                     <Text style={styles.stepNumberText}>1</Text>
                                 </View>
                                 <View style={styles.stepContent}>
-                                    <Text style={styles.stepTitle}>Tap the Share button</Text>
+                                    <Text style={styles.stepTitle}>{t('modals.pwa.step1Title')}</Text>
                                     <View style={styles.shareIconDemo}>
                                         <Share size={20} color={colors.accent} />
                                     </View>
                                     <Text style={styles.stepDescription}>
-                                        Look for the share icon in your Safari toolbar (bottom of screen)
+                                        {t('modals.pwa.step1Description')}
                                     </Text>
                                 </View>
                             </View>
@@ -194,9 +196,9 @@ export const PWAInstaller: React.FC = () => {
                                     <Text style={styles.stepNumberText}>2</Text>
                                 </View>
                                 <View style={styles.stepContent}>
-                                    <Text style={styles.stepTitle}>Select "Add to Home Screen"</Text>
+                                    <Text style={styles.stepTitle}>{t('modals.pwa.step2Title')}</Text>
                                     <Text style={styles.stepDescription}>
-                                        Scroll down and tap "Add to Home Screen"
+                                        {t('modals.pwa.step2Description')}
                                     </Text>
                                 </View>
                             </View>
@@ -206,9 +208,9 @@ export const PWAInstaller: React.FC = () => {
                                     <Text style={styles.stepNumberText}>3</Text>
                                 </View>
                                 <View style={styles.stepContent}>
-                                    <Text style={styles.stepTitle}>Tap "Add"</Text>
+                                    <Text style={styles.stepTitle}>{t('modals.pwa.step3Title')}</Text>
                                     <Text style={styles.stepDescription}>
-                                        Confirm by tapping "Add" in the top-right corner
+                                        {t('modals.pwa.step3Description')}
                                     </Text>
                                 </View>
                             </View>
@@ -216,16 +218,16 @@ export const PWAInstaller: React.FC = () => {
 
                         {/* Benefits */}
                         <View style={styles.benefits}>
-                            <Text style={styles.benefitsTitle}>You'll get:</Text>
-                            <Text style={styles.benefit}>✓ Push notifications for goals & hints</Text>
-                            <Text style={styles.benefit}>✓ Faster app launch</Text>
-                            <Text style={styles.benefit}>✓ Full-screen experience</Text>
+                            <Text style={styles.benefitsTitle}>{t('modals.pwa.benefitsTitle')}</Text>
+                            <Text style={styles.benefit}>{t('modals.pwa.benefit1')}</Text>
+                            <Text style={styles.benefit}>{t('modals.pwa.benefit2')}</Text>
+                            <Text style={styles.benefit}>{t('modals.pwa.benefit3')}</Text>
                         </View>
 
                         {/* Dismiss button */}
                         <Button
                             variant="ghost"
-                            title="Maybe Later"
+                            title={t('modals.pwa.maybeLater')}
                             onPress={handleIOSDismiss}
                             style={styles.dismissButton}
                             fullWidth
@@ -247,7 +249,7 @@ export const PWAInstaller: React.FC = () => {
                             style={styles.closeButton}
                             onPress={handleAndroidDismiss}
                             accessibilityRole="button"
-                            accessibilityLabel="Close install prompt"
+                            accessibilityLabel={t('modals.pwa.closeA11y')}
                         >
                             <X size={24} color={colors.textMuted} />
                         </TouchableOpacity>
@@ -255,21 +257,21 @@ export const PWAInstaller: React.FC = () => {
                         {/* Header */}
                         <View style={styles.header}>
                             <Image source={ErnitLogo} style={{ width: 80, height: 80 }} resizeMode="contain" accessible={false} />
-                            <Text style={styles.title}>Install Ernit</Text>
-                            <Text style={styles.subtitle}>Get the full app experience</Text>
+                            <Text style={styles.title}>{t('modals.pwa.installTitle')}</Text>
+                            <Text style={styles.subtitle}>{t('modals.pwa.androidSubtitle')}</Text>
                         </View>
 
                         {/* Benefits */}
                         <View style={styles.benefits}>
-                            <Text style={styles.benefit}>✓ Push notifications for goals & hints</Text>
-                            <Text style={styles.benefit}>✓ Faster app launch from home screen</Text>
-                            <Text style={styles.benefit}>✓ Full-screen experience</Text>
+                            <Text style={styles.benefit}>{t('modals.pwa.benefit1')}</Text>
+                            <Text style={styles.benefit}>{t('modals.pwa.benefit4')}</Text>
+                            <Text style={styles.benefit}>{t('modals.pwa.benefit3')}</Text>
                         </View>
 
                         {/* Install button */}
                         <Button
                             variant="primary"
-                            title="Install App"
+                            title={t('modals.pwa.installApp')}
                             onPress={handleAndroidInstall}
                             style={styles.installButton}
                             fullWidth
@@ -278,7 +280,7 @@ export const PWAInstaller: React.FC = () => {
                         {/* Dismiss button */}
                         <Button
                             variant="ghost"
-                            title="Not Now"
+                            title={t('modals.pwa.notNow')}
                             onPress={handleAndroidDismiss}
                             style={styles.dismissButton}
                             fullWidth

@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NavigationContainer, NavigationContainerRef, LinkingOptions, NavigationState, PartialState } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef, LinkingOptions, NavigationState, PartialState, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList, GiverStackParamList, RecipientStackParamList } from '../types';
 import { Platform, Image, ActivityIndicator, StyleSheet } from 'react-native';
@@ -44,13 +44,18 @@ import ChallengeLandingScreen from '../screens/ChallengeLandingScreen';
 import ChallengeSetupScreen from '../screens/ChallengeSetupScreen';
 import MysteryChoiceScreen from '../screens/giver/MysteryChoiceScreen';
 import AchievementDetailScreen from '../screens/recipient/AchievementDetailScreen';
+import ShareScreen from '../screens/recipient/ShareScreen';
 import AnimationPreviewScreen from '../screens/AnimationPreviewScreen';
 import HeroPreviewScreen from '../screens/HeroPreviewScreen';
 // GiftLanding now uses ChallengeLandingScreen with mode='gift' param
 import GiftFlowScreen from '../screens/GiftFlowScreen';
 import DeferredSetupScreen from '../screens/giver/DeferredSetupScreen';
+import MainTabNavigator from './MainTabNavigator';
+import { NotificationBadgeProvider } from '../context/NotificationBadgeContext';
+import { useLanguageSync } from '../context/LanguageContext';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
+import { identifyClarity, setClarityTag } from '../utils/clarity';
 import { config } from '../config/environment';
 import * as Notifications from 'expo-notifications';
 
@@ -73,23 +78,29 @@ const isIncognitoMode = () => {
 };
 
 // Giver
-const GiverNavigator = () => (
-  <GiverStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: 'fade' }}>
-    <GiverStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
-    <GiverStack.Screen name="ExperienceDetails" component={ExperienceDetailsScreen} />
-    <GiverStack.Screen name="ExperienceCheckout" component={ExperienceCheckoutScreen} />
-    <GiverStack.Screen name="Cart" component={CartScreen} />
-    <GiverStack.Screen name="Confirmation" component={ConfirmationScreen} />
-  </GiverStack.Navigator>
-);
+const GiverNavigator = () => {
+  const colors = useColors();
+  return (
+    <GiverStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: colors.surface } }}>
+      <GiverStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
+      <GiverStack.Screen name="ExperienceDetails" component={ExperienceDetailsScreen} />
+      <GiverStack.Screen name="ExperienceCheckout" component={ExperienceCheckoutScreen} />
+      <GiverStack.Screen name="Cart" component={CartScreen} />
+      <GiverStack.Screen name="Confirmation" component={ConfirmationScreen} />
+    </GiverStack.Navigator>
+  );
+};
 
 // Recipient
-const RecipientNavigator = () => (
-  <RecipientStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: 'fade' }}>
-    <RecipientStack.Screen name="CouponEntry" component={CouponEntryScreen} />
-    <RecipientStack.Screen name="Profile" component={UserProfileScreen} />
-  </RecipientStack.Navigator>
-);
+const RecipientNavigator = () => {
+  const colors = useColors();
+  return (
+    <RecipientStack.Navigator id={undefined} screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: colors.surface } }}>
+      <RecipientStack.Screen name="CouponEntry" component={CouponEntryScreen} />
+      <RecipientStack.Screen name="Profile" component={UserProfileScreen} />
+    </RecipientStack.Navigator>
+  );
+};
 
 // -------------------------------------------------------------------
 // MAIN APP NAVIGATOR
@@ -98,9 +109,25 @@ const RecipientNavigator = () => (
 // Inner component that uses useAuthGuard - must be inside AuthGuardProvider
 const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackParamList }) => {
   const { showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
+  const colors = useColors();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const pendingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isNavigationReady, setIsNavigationReady] = useState(false);
+
+  // Custom navigation theme — overrides DefaultTheme's gray/white background which
+  // causes a flash during back navigation on web (visible during the display:none→flex swap).
+  const navTheme = useMemo(() => ({
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      background: colors.surface,
+      card: colors.surface,
+      primary: colors.primary,
+      text: colors.textPrimary,
+      border: colors.border,
+      notification: colors.error,
+    },
+  }), [colors]);
 
   // Reset URL to root on web refresh (except for checkout and URLs with query params)
   useEffect(() => {
@@ -151,7 +178,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
       const navigate = () => {
         if (!navigationRef.current) return;
         if (typeof data.goalId === 'string') {
-          navigationRef.current.navigate('GoalDetail', { goalId: data.goalId });
+          navigationRef.current.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'GoalDetail', params: { goalId: data.goalId } } });
         } else if (data.type === 'friend_request') {
           navigationRef.current.navigate('Notification');
         } else {
@@ -203,33 +230,53 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
             },
           },
         },
-        CategorySelection: 'browse',
+        MainTabs: {
+          screens: {
+            HomeTab: {
+              screens: {
+                CategorySelection: 'browse',
+                ExperienceDetails: 'experience/:id',
+                Cart: 'cart',
+              },
+            },
+            GoalsTab: {
+              screens: {
+                Goals: 'goals',
+                GoalDetail: 'goal/:goalId',
+                Journey: 'journey',
+                GoalSetting: 'goal-setting',
+                AchievementDetail: 'achievement',
+              },
+            },
+            FeedTab: {
+              screens: {
+                Feed: 'feed',
+                FriendProfile: 'friend/:userId',
+              },
+            },
+            ProfileTab: {
+              screens: {
+                Profile: 'profile',
+                FriendsList: 'friends',
+                AddFriend: 'add-friend',
+                PurchasedGifts: 'purchased-gifts',
+              },
+            },
+          },
+        },
+        Notification: 'notifications',
         Landing: 'landing',
         Auth: 'auth',
-        ExperienceDetails: 'experience/:id',
-        Cart: 'cart',
         GiverFlow: 'giver',
-        Profile: 'profile',
-        Goals: 'goals',
-        GoalDetail: 'goal/:goalId',
-        Journey: 'journey',
         ExperienceCheckout: 'checkout',
         Confirmation: 'confirmation',
         ConfirmationMultiple: 'confirmation-multiple',
-        Notification: 'notifications',
-        Feed: 'feed',
-        AddFriend: 'add-friend',
-        FriendProfile: 'friend/:userId',
-        FriendsList: 'friends',
-        PurchasedGifts: 'purchased-gifts',
-        GoalSetting: 'goal-setting',
         GiftLanding: 'gift',
         GiftFlow: 'gift/create',
         DeferredSetup: 'gift/setup-payment',
         ChallengeSetup: 'challenge/create',
         ChallengeLanding: '',
         MysteryChoice: 'mystery-choice',
-        AchievementDetail: 'achievement',
         AnimationPreview: 'animation-preview',
         HeroPreview: 'hero-preview',
       },
@@ -238,6 +285,7 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
 
   return (
     <NavigationContainer
+      theme={navTheme}
       linking={linking}
       ref={navigationRef}
       onReady={() => {
@@ -265,21 +313,27 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
       <RootStack.Navigator
         id={undefined}
         initialRouteName={initialRoute}
-        screenOptions={{ headerShown: false, animation: 'fade' }}
+        screenOptions={{
+          headerShown: false,
+          animation: 'fade',
+          contentStyle: { backgroundColor: colors.surface },
+        }}
       >
 
-        {/* PUBLIC ROUTES */}
+        {/* TAB NAVIGATOR — main app shell */}
+        <RootStack.Screen name="MainTabs" component={MainTabNavigator} />
+
+        {/* PUBLIC ROUTES (no tabs) */}
         <RootStack.Screen name="ChallengeLanding" component={ChallengeLandingScreen} />
-        <RootStack.Screen name="CategorySelection" component={CategorySelectionScreen} />
         <RootStack.Screen name="Landing" component={LandingScreen} />
         <RootStack.Screen name="Auth" component={AuthScreen} />
-        <RootStack.Screen name="ExperienceDetails" component={ExperienceDetailsScreen} />
-        <RootStack.Screen name="Cart" component={CartScreen} />
         <RootStack.Screen name="ChallengeSetup" component={ChallengeSetupScreen} />
-        <RootStack.Screen name="MysteryChoice" component={MysteryChoiceScreen} />
         <RootStack.Screen name="GiftLanding" component={ChallengeLandingScreen} initialParams={{ mode: 'gift' }} />
         <RootStack.Screen name="GiftFlow" component={GiftFlowScreen} />
+        <RootStack.Screen name="HeroPreview" component={HeroPreviewScreen} />
+        <RootStack.Screen name="MysteryChoice" component={MysteryChoiceScreen} />
 
+        {/* PROTECTED NON-TAB ROUTES */}
         <RootStack.Screen name="DeferredSetup">
           {() => (
             <ProtectedRoute>
@@ -288,7 +342,6 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
           )}
         </RootStack.Screen>
 
-        {/* PROTECTED ROUTES */}
         <RootStack.Screen name="GiverFlow">
           {() => (
             <ProtectedRoute>
@@ -301,38 +354,6 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
           {() => (
             <ProtectedRoute>
               <RecipientNavigator />
-            </ProtectedRoute>
-          )}
-        </RootStack.Screen>
-
-        <RootStack.Screen name="Profile">
-          {() => (
-            <ProtectedRoute>
-              <UserProfileScreen />
-            </ProtectedRoute>
-          )}
-        </RootStack.Screen>
-
-        <RootStack.Screen name="Goals">
-          {() => (
-            <ProtectedRoute>
-              <GoalsScreen />
-            </ProtectedRoute>
-          )}
-        </RootStack.Screen>
-
-        <RootStack.Screen name="GoalDetail">
-          {() => (
-            <ProtectedRoute>
-              <GoalDetailScreen />
-            </ProtectedRoute>
-          )}
-        </RootStack.Screen>
-
-        <RootStack.Screen name="Journey">
-          {() => (
-            <ProtectedRoute>
-              <JourneyScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
@@ -369,58 +390,10 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
           )}
         </RootStack.Screen>
 
-        <RootStack.Screen name="Feed">
+        <RootStack.Screen name="ShareGoal" options={{ presentation: 'modal' }}>
           {() => (
             <ProtectedRoute>
-              <FeedScreen />
-            </ProtectedRoute>
-          )}
-        </RootStack.Screen>
-
-        <RootStack.Screen name="AddFriend">
-          {() => (
-            <ProtectedRoute>
-              <AddFriendScreen />
-            </ProtectedRoute>
-          )}
-        </RootStack.Screen>
-
-        <RootStack.Screen name="FriendProfile">
-          {() => (
-            <ProtectedRoute>
-              <FriendProfileScreen />
-            </ProtectedRoute>
-          )}
-        </RootStack.Screen>
-
-        <RootStack.Screen name="FriendsList">
-          {() => (
-            <ProtectedRoute>
-              <FriendsListScreen />
-            </ProtectedRoute>
-          )}
-        </RootStack.Screen>
-
-        <RootStack.Screen name="PurchasedGifts">
-          {() => (
-            <ProtectedRoute>
-              <PurchasedGiftsScreen />
-            </ProtectedRoute>
-          )}
-        </RootStack.Screen>
-
-        <RootStack.Screen name="GoalSetting">
-          {() => (
-            <ProtectedRoute>
-              <GoalSettingScreen />
-            </ProtectedRoute>
-          )}
-        </RootStack.Screen>
-
-        <RootStack.Screen name="AchievementDetail">
-          {() => (
-            <ProtectedRoute>
-              <AchievementDetailScreen />
+              <ShareScreen />
             </ProtectedRoute>
           )}
         </RootStack.Screen>
@@ -434,8 +407,6 @@ const AppNavigatorContent = ({ initialRoute }: { initialRoute: keyof RootStackPa
             )}
           </RootStack.Screen>
         )}
-
-        <RootStack.Screen name="HeroPreview" component={HeroPreviewScreen} />
 
         {/* 🔥 LOGIN PROMPT MODAL SHOULD BE LAST */}
         <RootStack.Screen
@@ -466,6 +437,9 @@ const AppNavigator = () => {
   const { state, dispatch } = useApp();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
+  // Sync app language from the authenticated user's profile preference
+  useLanguageSync(state.user?.profile?.preferredLanguage as 'en' | 'pt' | undefined);
+
   // -----------------------------
   // Restore Authentication
   // -----------------------------
@@ -487,6 +461,19 @@ const AppNavigator = () => {
             if (JSON.stringify(mergedCart) !== JSON.stringify(persisted.cart ?? [])) {
               await userService.updateCart(firebaseUser.uid, mergedCart);
             }
+
+            // Set GA4 user properties for audience segmentation
+            analyticsService.setUserProperties({
+              user_type: persisted.userType || 'giver',
+              account_age_days: Math.floor(
+                (Date.now() - (persisted.createdAt instanceof Date ? persisted.createdAt.getTime() : new Date(persisted.createdAt).getTime())) / 86_400_000
+              ),
+              has_goals: (persisted.goalCount ?? 0) > 0,
+            });
+
+            // Identify user in Clarity for session attribution
+            identifyClarity(firebaseUser.uid, persisted.displayName);
+            setClarityTag('user_type', persisted.userType || 'giver');
 
             dispatch({
               type: 'SET_USER',
@@ -562,12 +549,14 @@ const AppNavigator = () => {
   // -----------------------------
   // RENDER — logged-in users go straight to Goals, guests see landing
   // -----------------------------
-  const initialRoute = state.user?.id ? 'Goals' : 'ChallengeLanding';
+  const initialRoute = state.user?.id ? 'MainTabs' : 'ChallengeLanding';
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthGuardProvider>
-        <AppNavigatorContent initialRoute={initialRoute} />
+        <NotificationBadgeProvider>
+          <AppNavigatorContent initialRoute={initialRoute} />
+        </NotificationBadgeProvider>
       </AuthGuardProvider>
     </GestureHandlerRootView>
   );

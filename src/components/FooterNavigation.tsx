@@ -1,10 +1,10 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  Animated,
   Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -32,7 +32,7 @@ import MenuIcon from '../assets/icons/sidemenu.svg';
 import type { SvgProps } from 'react-native-svg';
 
 import { useAuthGuard } from '../context/AuthGuardContext';
-import { MotiView, MotiText } from 'moti';
+
 
 export const FOOTER_HEIGHT = 72;
 
@@ -54,27 +54,12 @@ const NavButton = React.memo<{
 }>(({ icon: Icon, activeIcon: IconActive, label, isActive, onPress, badgeCount }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
 
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress();
-
-    Animated.sequence([
-      Animated.spring(scaleAnim, {
-        toValue: 0.9,
-        useNativeDriver: true,
-        speed: 20,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        friction: 3,
-        tension: 40,
-      }),
-    ]).start();
-  };
+  }, [onPress]);
 
   const SelectedIcon = isActive ? IconActive : Icon;
 
@@ -82,61 +67,45 @@ const NavButton = React.memo<{
     <TouchableOpacity
       onPress={handlePress}
       style={styles.navButton}
-      activeOpacity={0.8}
+      activeOpacity={0.7}
       accessibilityRole="tab"
       accessibilityState={{ selected: isActive }}
       accessibilityLabel={`${label} tab`}
     >
-      <Animated.View
-        style={[
-          styles.navButtonContent,
-          { transform: [{ scale: scaleAnim }] },
-        ]}
-      >
+      <View style={styles.navButtonContent}>
         <View style={styles.iconWrapper}>
           {/* Soft circular glow behind icon */}
-          <MotiView
-            from={{ opacity: 0, scale: 0.4 }}
-            animate={{
-              opacity: isActive ? 0.3 : 0,
-              scale: isActive ? 1 : 0.4,
-            }}
-            transition={{
-              type: 'timing',
-              duration: isActive ? 400 : 250,
-            }}
-            style={[
-              styles.iconGlow,
-              { backgroundColor: colors.secondary },
-            ]}
-          />
+          {isActive && (
+            <View
+              style={[
+                styles.iconGlow,
+                { backgroundColor: colors.secondary, opacity: 0.3 },
+              ]}
+            />
+          )}
           <SelectedIcon width={28} height={28} />
         </View>
 
         {badgeCount !== undefined && badgeCount > 0 && (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>
-              {badgeCount > 9 ? '9+' : badgeCount}
+              {badgeCount > 9 ? t('nav.badgeOverflow') : badgeCount}
             </Text>
           </View>
         )}
 
-        <MotiText
-          animate={{
-            color: isActive ? colors.primary : colors.textMuted,
-          }}
-          transition={{
-            type: 'timing',
-            duration: 250,
-          }}
+        <Text
           style={[
             styles.navLabel,
-            { fontWeight: isActive ? '700' : '600' },
+            {
+              color: isActive ? colors.primary : colors.textMuted,
+              fontWeight: isActive ? '700' : '600',
+            },
           ]}
         >
           {label}
-        </MotiText>
-      </Animated.View>
+        </Text>
+      </View>
     </TouchableOpacity>
   );
 });
@@ -150,19 +119,20 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
 
   const navigation = useRootNavigation();
   const insets = useSafeAreaInsets();
   const { requireAuth } = useAuthGuard();
 
-  const handleNavigation = (route: string) => {
+  const handleNavigation = useCallback((route: string) => {
     if (route === 'Home') {
       navigation.navigate('CategorySelection');
       return;
     }
 
     if (route === 'Goals' || route === 'Feed' || route === 'Profile') {
-      if (!requireAuth('Please log in to access this feature.', route as keyof RootStackParamList)) {
+      if (!requireAuth(t('loginPrompt.accessFeature'), route as keyof RootStackParamList)) {
         return;
       }
 
@@ -170,7 +140,12 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
       if (route === 'Feed') navigation.navigate('Feed');
       if (route === 'Profile') navigation.navigate('Profile');
     }
-  };
+  }, [navigation, requireAuth]);
+
+  const onPressHome = useCallback(() => handleNavigation('Home'), [handleNavigation]);
+  const onPressFeed = useCallback(() => handleNavigation('Feed'), [handleNavigation]);
+  const onPressGoals = useCallback(() => handleNavigation('Goals'), [handleNavigation]);
+  const onPressProfile = useCallback(() => handleNavigation('Profile'), [handleNavigation]);
 
   const footerHeight = FOOTER_HEIGHT;
   const safeAreaSpacer = Math.max(insets.bottom, Spacing.sm);
@@ -178,45 +153,47 @@ const FooterNavigation: React.FC<FooterNavigationProps> = ({
   return (
     <View style={styles.outerWrapper}>
       <View style={[styles.container, { height: footerHeight }]}>
-        <BlurView intensity={8} tint="default" style={StyleSheet.absoluteFill} />
+        {Platform.OS !== 'android' && (
+          <BlurView intensity={8} tint="default" style={StyleSheet.absoluteFill} />
+        )}
         <View style={styles.navContainer}>
           <NavButton
             icon={HomeIcon}
             activeIcon={HomeIconActive}
-            label="Home"
+            label={t('nav.home')}
             isActive={activeRoute === 'Home'}
-            onPress={() => handleNavigation('Home')}
+            onPress={onPressHome}
           />
 
           <NavButton
             icon={FeedIcon}
             activeIcon={FeedIconActive}
-            label="Feed"
+            label={t('nav.feed')}
             isActive={activeRoute === 'Feed'}
-            onPress={() => handleNavigation('Feed')}
+            onPress={onPressFeed}
             badgeCount={notificationBadgeCount}
           />
 
           <NavButton
             icon={GoalsIcon}
             activeIcon={GoalsIconActive}
-            label="Goals"
+            label={t('nav.goals')}
             isActive={activeRoute === 'Goals'}
-            onPress={() => handleNavigation('Goals')}
+            onPress={onPressGoals}
           />
 
           <NavButton
             icon={ProfileIcon}
             activeIcon={ProfileIconActive}
-            label="Profile"
+            label={t('nav.profile')}
             isActive={activeRoute === 'Profile'}
-            onPress={() => handleNavigation('Profile')}
+            onPress={onPressProfile}
           />
 
           <NavButton
             icon={MenuIcon}
             activeIcon={MenuIcon}
-            label="Menu"
+            label={t('nav.menu')}
             isActive={false}
             onPress={onMenuPress}
           />

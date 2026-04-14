@@ -1,5 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Heart } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import type { Comment as CommentType } from '../types';
@@ -29,6 +30,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
 
     const { state } = useApp();
     const currentUserId = state.user?.id || '';
@@ -105,10 +107,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                     onPress={onViewAll}
                     style={styles.viewAllButton}
                     accessibilityRole="button"
-                    accessibilityLabel={`View all ${totalComments} comments`}
+                    accessibilityLabel={t('modals.commentSection.viewAll', { count: totalComments })}
                 >
                     <Text style={styles.viewAllText}>
-                        View all {totalComments} comments
+                        {t('modals.commentSection.viewAll', { count: totalComments })}
                     </Text>
                 </TouchableOpacity>
             )}

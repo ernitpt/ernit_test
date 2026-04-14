@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet } from 'react-native';
 import { AlertCircle, RefreshCw } from 'lucide-react-native';
 import { Colors, useColors } from '../config';
@@ -12,17 +13,19 @@ type ErrorRetryProps = {
 };
 
 const ErrorRetry: React.FC<ErrorRetryProps> = ({
-  message = 'Something went wrong',
+  message,
   onRetry,
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
+  const displayMessage = message ?? t('errors.retry.defaultMessage');
   return (
     <View style={styles.container} accessibilityRole="alert" accessibilityLiveRegion="assertive">
       <AlertCircle size={32} color={colors.textMuted} />
-      <Text style={styles.message}>{message}</Text>
+      <Text style={styles.message}>{displayMessage}</Text>
       <Button
-        title="Try Again"
+        title={t('errors.retry.tryAgain')}
         onPress={onRetry}
         variant="primary"
         size="sm"

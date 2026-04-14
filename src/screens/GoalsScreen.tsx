@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -25,9 +26,6 @@ import { experienceGiftService } from '../services/ExperienceGiftService';
 import DetailedGoalCard from './recipient/DetailedGoalCard';
 import StreakBanner from './recipient/components/StreakBanner';
 import CompletedGoalCard from './recipient/CompletedGoalCard';
-import MainScreen from './MainScreen';
-import { FOOTER_HEIGHT } from '../components/FooterNavigation';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SharedHeader from '../components/SharedHeader';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -36,6 +34,7 @@ import { serializeNav } from '../utils/serializeNav';
 import { vh } from '../utils/responsive';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { logErrorToFirestore } from '../utils/errorLogger';
+import { analyticsService } from '../services/AnalyticsService';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
@@ -45,10 +44,13 @@ import ErrorRetry from '../components/ErrorRetry';
 
 import { EmptyState } from '../components/EmptyState';
 import * as Haptics from 'expo-haptics';
+import { FOOTER_HEIGHT } from '../components/CustomTabBar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 
 const GoalsScreen: React.FC = () => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
@@ -96,6 +98,10 @@ const GoalsScreen: React.FC = () => {
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
+    analyticsService.trackEvent('screen_view', 'navigation', {
+      activeGoals: currentGoals.length,
+      completedGoals: completedGoals.length,
+    }, 'GoalsScreen');
     return () => { mountedRef.current = false; };
   }, []);
 
@@ -150,13 +156,13 @@ const GoalsScreen: React.FC = () => {
         if (isRefreshingRef.current) {
           isRefreshingRef.current = false;
           setRefreshing(false);
-          showInfo('Goals are up to date');
+          showInfo(t('goals.toast.upToDate'));
         }
       } catch (error: unknown) {
         logger.error('Error processing goals in GoalsScreen:', error);
         if (!mountedRef.current) return;
         setError(true);
-        showError('Could not load goals. Please try again.');
+        showError(t('goals.error.couldNotLoad'));
         // Show whatever goals we can rather than crashing
         setRawGoals([]);
         if (isRefreshingRef.current) {
@@ -276,7 +282,7 @@ const GoalsScreen: React.FC = () => {
         userId,
         additionalData: { goalId: updatedGoal.id }
       });
-      showError('Failed to update goal progress.');
+      showError(t('goals.toast.failedProgress'));
     }
   }, [navigation, showError, userId]);
 
@@ -286,7 +292,7 @@ const GoalsScreen: React.FC = () => {
       from={{ opacity: 0, translateY: 16 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'timing', duration: 400 }}
-      style={[styles.cardWrapper, { backgroundColor: 'transparent' }]}
+      style={styles.cardWrapper}
     >
       <ErrorBoundary screenName={`GoalCard-${item.id}`} userId={userId}>
         <DetailedGoalCard
@@ -299,11 +305,11 @@ const GoalsScreen: React.FC = () => {
   ), [handleFinishGoal, userId]);
   return (
     <ErrorBoundary screenName="GoalsScreen" userId={userId}>
-      <MainScreen activeRoute="Goals">
+      <View style={{ flex: 1, backgroundColor: colors.surface }}>
         <StatusBar style="light" />
         <SharedHeader
-          title="Current Goals"
-          subtitle="Tap goal for more details"
+          title={t('goals.screenTitle')}
+          subtitle={t('goals.screenSubtitle')}
         />
         <View accessibilityLiveRegion="polite" style={{ flex: 1 }}>
         {isInitialLoading ? (
@@ -312,16 +318,22 @@ const GoalsScreen: React.FC = () => {
             <GoalCardSkeleton />
           </ScrollView>
         ) : error && currentGoals.length === 0 && completedGoals.length === 0 ? (
-          <ErrorRetry message="Could not load goals" onRetry={loadGoals} />
+          <ErrorRetry message={t('goals.error.couldNotLoad')} onRetry={loadGoals} />
         ) : currentGoals.length === 0 && completedGoals.length === 0 ? (
           /* ── Empty State ── */
           <View style={styles.emptyContainer}>
             <EmptyState
               icon="🎯"
-              title="Your journey starts here"
-              message="Set a goal, pick a dream reward, and challenge yourself to earn it."
-              actionLabel="Create Your First Goal"
-              onAction={() => navigation.navigate('ChallengeSetup')}
+              title={t('goals.empty.title')}
+              message={t('goals.empty.message')}
+              actionLabel={t('goals.empty.actionLabel')}
+              onAction={() => {
+                analyticsService.trackEvent('goal_creation_started', 'conversion', {
+                  source: 'empty_state',
+                  activeGoals: 0,
+                }, 'GoalsScreen');
+                navigation.navigate('ChallengeSetup');
+              }}
             />
           </View>
         ) : (
@@ -353,9 +365,15 @@ const GoalsScreen: React.FC = () => {
             ListEmptyComponent={
               <View style={{ flex: 1, justifyContent: 'center', minHeight: vh(50) }}>
                 <EmptyState
-                  title="No active goals right now"
-                  actionLabel="Start a New Challenge"
-                  onAction={() => navigation.navigate('ChallengeSetup')}
+                  title={t('goals.emptyActive.title')}
+                  actionLabel={t('goals.emptyActive.actionLabel')}
+                  onAction={() => {
+                    analyticsService.trackEvent('goal_creation_started', 'conversion', {
+                      source: 'empty_active_goals',
+                      activeGoals: 0,
+                    }, 'GoalsScreen');
+                    navigation.navigate('ChallengeSetup');
+                  }}
                 />
               </View>
             }
@@ -368,12 +386,12 @@ const GoalsScreen: React.FC = () => {
                     setShowCompleted((v) => !v);
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={`${showCompleted ? 'Hide' : 'Show'} ${completedGoals.length} completed goals`}
+                  accessibilityLabel={showCompleted ? t('goals.completed.hideAccessibility', { count: completedGoals.length }) : t('goals.completed.showAccessibility', { count: completedGoals.length })}
                 >
                   <View style={styles.completedHeaderLeft}>
                     <Trophy color={colors.primary} size={18} strokeWidth={2.5} />
                     <Text style={styles.completedHeaderText}>
-                      Completed ({completedGoals.length})
+                      {t('goals.completed.header', { count: completedGoals.length })}
                     </Text>
                   </View>
                   {showCompleted ? (
@@ -384,7 +402,7 @@ const GoalsScreen: React.FC = () => {
                 </TouchableOpacity>
 
                 {showCompleted && (
-                  <Animated2.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(150)}>
+                  <Animated2.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(150)} style={{ backgroundColor: colors.surface }}>
                     {completedGoals.map((goal, idx) => (
                       <CompletedGoalCard key={goal.id} goal={goal} index={idx} />
                     ))}
@@ -442,18 +460,27 @@ const GoalsScreen: React.FC = () => {
                   onPress={() => {
                     toggleFabMenu();
                     if (currentGoals.length >= 3) {
-                      showInfo('You can have up to 3 active goals. Complete or remove a goal to create a new one.');
+                      analyticsService.trackEvent('goal_creation_started', 'conversion', {
+                        blocked: true,
+                        reason: 'goal_limit_reached',
+                        activeGoals: currentGoals.length,
+                      }, 'GoalsScreen');
+                      showInfo(t('goals.toast.goalLimitReached'));
                       return;
                     }
+                    analyticsService.trackEvent('goal_creation_started', 'conversion', {
+                      source: 'fab_menu',
+                      activeGoals: currentGoals.length,
+                    }, 'GoalsScreen');
                     navigation.navigate('ChallengeSetup');
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel="Create new goal"
+                  accessibilityLabel={t('goals.fab.createAccessibility')}
                 >
                   <View style={[styles.fabMenuIconBg, { backgroundColor: colors.primarySurface }]}>
                     <Target color={colors.primary} size={20} strokeWidth={2.5} />
                   </View>
-                  <Text style={styles.fabMenuText}>Create New Goal</Text>
+                  <Text style={styles.fabMenuText}>{t('goals.fab.createGoal')}</Text>
                 </TouchableOpacity>
               </MotiView>
 
@@ -468,15 +495,18 @@ const GoalsScreen: React.FC = () => {
                   activeOpacity={0.85}
                   onPress={() => {
                     toggleFabMenu();
+                    analyticsService.trackEvent('coupon_redeemed', 'conversion', {
+                      source: 'fab_menu',
+                    }, 'GoalsScreen');
                     navigation.navigate('RecipientFlow', { screen: 'CouponEntry' });
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel="Redeem your Ernit coupon"
+                  accessibilityLabel={t('goals.fab.redeemAccessibility')}
                 >
                   <View style={styles.fabMenuIconBg}>
                     <Image source={require('../assets/icon.png')} style={styles.fabMenuLogo} accessible={false} />
                   </View>
-                  <Text style={styles.fabMenuText}>Redeem Your Ernit</Text>
+                  <Text style={styles.fabMenuText}>{t('goals.fab.redeemErnit')}</Text>
                 </TouchableOpacity>
               </MotiView>
             </MotiView>
@@ -499,7 +529,7 @@ const GoalsScreen: React.FC = () => {
             activeOpacity={0.85}
             onPress={toggleFabMenu}
             accessibilityRole="button"
-            accessibilityLabel={fabMenuOpen ? "Close menu" : "Open menu to create goal or redeem coupon"}
+            accessibilityLabel={fabMenuOpen ? t('goals.fab.closeMenuAccessibility') : t('goals.fab.openMenuAccessibility')}
           >
             <MotiView
               animate={{ rotate: fabMenuOpen ? '45deg' : '0deg' }}
@@ -510,7 +540,7 @@ const GoalsScreen: React.FC = () => {
           </TouchableOpacity>
         </MotiView>
 
-      </MainScreen>
+      </View>
     </ErrorBoundary>
   );
 };

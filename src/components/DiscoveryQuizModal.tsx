@@ -15,6 +15,8 @@ import {
     Platform,
     Animated,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import * as Haptics from 'expo-haptics';
 import { MotiView, AnimatePresence } from 'moti';
 import { BaseModal } from './BaseModal';
@@ -51,136 +53,138 @@ export interface DiscoveryQuizModalProps {
 
 // ─── Questions Bank ───────────────────────────────────────────────────────────
 
-const QUESTIONS: Record<QuizCategory, QuizQuestion[]> = {
-    adventure: [
-        {
-            id: 'adv_1',
-            text: 'Beach or mountains?',
-            options: [
-                { value: 'beach', label: 'Beach', emoji: '🏖️' },
-                { value: 'mountains', label: 'Mountains', emoji: '⛰️' },
-            ],
-        },
-        {
-            id: 'adv_2',
-            text: 'Morning or evening?',
-            options: [
-                { value: 'morning', label: 'Morning', emoji: '🌅' },
-                { value: 'evening', label: 'Evening', emoji: '🌙' },
-            ],
-        },
-        {
-            id: 'adv_3',
-            text: 'Solo thrill or group adventure?',
-            options: [
-                { value: 'solo', label: 'Solo thrill', emoji: '🦅' },
-                { value: 'group', label: 'Group adventure', emoji: '🤝' },
-            ],
-        },
-        {
-            id: 'adv_4',
-            text: 'Water or sky?',
-            options: [
-                { value: 'water', label: 'Water', emoji: '🌊' },
-                { value: 'sky', label: 'Sky', emoji: '🪂' },
-            ],
-        },
-        {
-            id: 'adv_5',
-            text: 'Gentle discovery or adrenaline rush?',
-            options: [
-                { value: 'gentle', label: 'Gentle discovery', emoji: '🍃' },
-                { value: 'adrenaline', label: 'Adrenaline rush', emoji: '⚡' },
-            ],
-        },
-    ],
+function getQuestions(t: TFunction): Record<QuizCategory, QuizQuestion[]> {
+    return {
+        adventure: [
+            {
+                id: 'adv_1',
+                text: t('modals.discoveryQuiz.adventure.adv_1.text'),
+                options: [
+                    { value: 'beach', label: t('modals.discoveryQuiz.adventure.adv_1.opt0'), emoji: '🏖️' },
+                    { value: 'mountains', label: t('modals.discoveryQuiz.adventure.adv_1.opt1'), emoji: '⛰️' },
+                ],
+            },
+            {
+                id: 'adv_2',
+                text: t('modals.discoveryQuiz.adventure.adv_2.text'),
+                options: [
+                    { value: 'morning', label: t('modals.discoveryQuiz.adventure.adv_2.opt0'), emoji: '🌅' },
+                    { value: 'evening', label: t('modals.discoveryQuiz.adventure.adv_2.opt1'), emoji: '🌙' },
+                ],
+            },
+            {
+                id: 'adv_3',
+                text: t('modals.discoveryQuiz.adventure.adv_3.text'),
+                options: [
+                    { value: 'solo', label: t('modals.discoveryQuiz.adventure.adv_3.opt0'), emoji: '🦅' },
+                    { value: 'group', label: t('modals.discoveryQuiz.adventure.adv_3.opt1'), emoji: '🤝' },
+                ],
+            },
+            {
+                id: 'adv_4',
+                text: t('modals.discoveryQuiz.adventure.adv_4.text'),
+                options: [
+                    { value: 'water', label: t('modals.discoveryQuiz.adventure.adv_4.opt0'), emoji: '🌊' },
+                    { value: 'sky', label: t('modals.discoveryQuiz.adventure.adv_4.opt1'), emoji: '🪂' },
+                ],
+            },
+            {
+                id: 'adv_5',
+                text: t('modals.discoveryQuiz.adventure.adv_5.text'),
+                options: [
+                    { value: 'gentle', label: t('modals.discoveryQuiz.adventure.adv_5.opt0'), emoji: '🍃' },
+                    { value: 'adrenaline', label: t('modals.discoveryQuiz.adventure.adv_5.opt1'), emoji: '⚡' },
+                ],
+            },
+        ],
 
-    wellness: [
-        {
-            id: 'wel_1',
-            text: 'Indoor or outdoor?',
-            options: [
-                { value: 'indoor', label: 'Indoor', emoji: '🏠' },
-                { value: 'outdoor', label: 'Outdoor', emoji: '🌿' },
-            ],
-        },
-        {
-            id: 'wel_2',
-            text: 'Active or restorative?',
-            options: [
-                { value: 'active', label: 'Active', emoji: '🏃' },
-                { value: 'restorative', label: 'Restorative', emoji: '🛁' },
-            ],
-        },
-        {
-            id: 'wel_3',
-            text: 'Silence or music?',
-            options: [
-                { value: 'silence', label: 'Silence', emoji: '🤫' },
-                { value: 'music', label: 'Music', emoji: '🎵' },
-            ],
-        },
-        {
-            id: 'wel_4',
-            text: 'Heat or cold?',
-            options: [
-                { value: 'heat', label: 'Heat', emoji: '🔥' },
-                { value: 'cold', label: 'Cold', emoji: '❄️' },
-            ],
-        },
-        {
-            id: 'wel_5',
-            text: 'Hands-on treatment or self-guided?',
-            options: [
-                { value: 'treatment', label: 'Hands-on treatment', emoji: '💆' },
-                { value: 'self_guided', label: 'Self-guided', emoji: '🧘' },
-            ],
-        },
-    ],
+        wellness: [
+            {
+                id: 'wel_1',
+                text: t('modals.discoveryQuiz.wellness.wel_1.text'),
+                options: [
+                    { value: 'indoor', label: t('modals.discoveryQuiz.wellness.wel_1.opt0'), emoji: '🏠' },
+                    { value: 'outdoor', label: t('modals.discoveryQuiz.wellness.wel_1.opt1'), emoji: '🌿' },
+                ],
+            },
+            {
+                id: 'wel_2',
+                text: t('modals.discoveryQuiz.wellness.wel_2.text'),
+                options: [
+                    { value: 'active', label: t('modals.discoveryQuiz.wellness.wel_2.opt0'), emoji: '🏃' },
+                    { value: 'restorative', label: t('modals.discoveryQuiz.wellness.wel_2.opt1'), emoji: '🛁' },
+                ],
+            },
+            {
+                id: 'wel_3',
+                text: t('modals.discoveryQuiz.wellness.wel_3.text'),
+                options: [
+                    { value: 'silence', label: t('modals.discoveryQuiz.wellness.wel_3.opt0'), emoji: '🤫' },
+                    { value: 'music', label: t('modals.discoveryQuiz.wellness.wel_3.opt1'), emoji: '🎵' },
+                ],
+            },
+            {
+                id: 'wel_4',
+                text: t('modals.discoveryQuiz.wellness.wel_4.text'),
+                options: [
+                    { value: 'heat', label: t('modals.discoveryQuiz.wellness.wel_4.opt0'), emoji: '🔥' },
+                    { value: 'cold', label: t('modals.discoveryQuiz.wellness.wel_4.opt1'), emoji: '❄️' },
+                ],
+            },
+            {
+                id: 'wel_5',
+                text: t('modals.discoveryQuiz.wellness.wel_5.text'),
+                options: [
+                    { value: 'treatment', label: t('modals.discoveryQuiz.wellness.wel_5.opt0'), emoji: '💆' },
+                    { value: 'self_guided', label: t('modals.discoveryQuiz.wellness.wel_5.opt1'), emoji: '🧘' },
+                ],
+            },
+        ],
 
-    creative: [
-        {
-            id: 'cre_1',
-            text: 'Hands-on or observing?',
-            options: [
-                { value: 'hands_on', label: 'Hands-on', emoji: '🖐️' },
-                { value: 'observing', label: 'Observing', emoji: '👁️' },
-            ],
-        },
-        {
-            id: 'cre_2',
-            text: 'Solo creation or collaborative?',
-            options: [
-                { value: 'solo', label: 'Solo creation', emoji: '🎨' },
-                { value: 'collaborative', label: 'Collaborative', emoji: '🤝' },
-            ],
-        },
-        {
-            id: 'cre_3',
-            text: 'Traditional or modern?',
-            options: [
-                { value: 'traditional', label: 'Traditional', emoji: '🏺' },
-                { value: 'modern', label: 'Modern', emoji: '🚀' },
-            ],
-        },
-        {
-            id: 'cre_4',
-            text: 'Structured class or free exploration?',
-            options: [
-                { value: 'structured', label: 'Structured class', emoji: '📐' },
-                { value: 'free', label: 'Free exploration', emoji: '🌀' },
-            ],
-        },
-        {
-            id: 'cre_5',
-            text: 'Visual arts or performing arts?',
-            options: [
-                { value: 'visual', label: 'Visual arts', emoji: '🖼️' },
-                { value: 'performing', label: 'Performing arts', emoji: '🎭' },
-            ],
-        },
-    ],
-};
+        creative: [
+            {
+                id: 'cre_1',
+                text: t('modals.discoveryQuiz.creative.cre_1.text'),
+                options: [
+                    { value: 'hands_on', label: t('modals.discoveryQuiz.creative.cre_1.opt0'), emoji: '🖐️' },
+                    { value: 'observing', label: t('modals.discoveryQuiz.creative.cre_1.opt1'), emoji: '👁️' },
+                ],
+            },
+            {
+                id: 'cre_2',
+                text: t('modals.discoveryQuiz.creative.cre_2.text'),
+                options: [
+                    { value: 'solo', label: t('modals.discoveryQuiz.creative.cre_2.opt0'), emoji: '🎨' },
+                    { value: 'collaborative', label: t('modals.discoveryQuiz.creative.cre_2.opt1'), emoji: '🤝' },
+                ],
+            },
+            {
+                id: 'cre_3',
+                text: t('modals.discoveryQuiz.creative.cre_3.text'),
+                options: [
+                    { value: 'traditional', label: t('modals.discoveryQuiz.creative.cre_3.opt0'), emoji: '🏺' },
+                    { value: 'modern', label: t('modals.discoveryQuiz.creative.cre_3.opt1'), emoji: '🚀' },
+                ],
+            },
+            {
+                id: 'cre_4',
+                text: t('modals.discoveryQuiz.creative.cre_4.text'),
+                options: [
+                    { value: 'structured', label: t('modals.discoveryQuiz.creative.cre_4.opt0'), emoji: '📐' },
+                    { value: 'free', label: t('modals.discoveryQuiz.creative.cre_4.opt1'), emoji: '🌀' },
+                ],
+            },
+            {
+                id: 'cre_5',
+                text: t('modals.discoveryQuiz.creative.cre_5.text'),
+                options: [
+                    { value: 'visual', label: t('modals.discoveryQuiz.creative.cre_5.opt0'), emoji: '🖼️' },
+                    { value: 'performing', label: t('modals.discoveryQuiz.creative.cre_5.opt1'), emoji: '🎭' },
+                ],
+            },
+        ],
+    };
+}
 
 // ─── Option Card ──────────────────────────────────────────────────────────────
 
@@ -258,8 +262,9 @@ const DiscoveryQuizModal: React.FC<DiscoveryQuizModalProps> = ({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
 
-    const questions = QUESTIONS[category];
+    const questions = useMemo(() => getQuestions(t)[category], [t, category]);
     // Clamp index within bounds — if all 5 done, nothing to show
     const questionIndex = Math.min(questionsCompleted, questions.length - 1);
     const currentQuestion = questions[questionIndex];
@@ -288,7 +293,7 @@ const DiscoveryQuizModal: React.FC<DiscoveryQuizModalProps> = ({
     const accent = CATEGORY_ACCENTS[category];
 
     const isFirstQuestion = questionsCompleted === 0;
-    const titleText = isFirstQuestion ? 'Quick question! ✨' : 'One more question! 🎯';
+    const titleText = isFirstQuestion ? t('modals.discoveryQuiz.firstQuestion') : t('modals.discoveryQuiz.nextQuestion');
 
     const handleSelect = useCallback((answer: string) => {
         onAnswer(currentQuestion.id, answer);
@@ -381,7 +386,7 @@ const DiscoveryQuizModal: React.FC<DiscoveryQuizModalProps> = ({
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                title="Skip for now"
+                                title={t('modals.discoveryQuiz.skipForNow')}
                                 onPress={handleSkip}
                             />
                         </MotiView>

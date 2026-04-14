@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
@@ -16,11 +17,11 @@ import { TextInput } from '../../components/TextInput';
 import { BaseModal } from '../../components/BaseModal';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
+import SharedHeader from '../../components/SharedHeader';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { RecipientStackParamList, RootStackParamList, ExperienceGift } from '../../types';
 import { useApp } from '../../context/AppContext';
-import MainScreen from '../MainScreen';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { logger } from '../../utils/logger';
@@ -44,6 +45,7 @@ type CouponEntryNavigationProp = CompositeNavigationProp<
 >;
 
 const CouponEntryScreen = () => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<CouponEntryNavigationProp>();
@@ -139,20 +141,20 @@ const CouponEntryScreen = () => {
     setErrorMessage('');
 
     if (!trimmedCode) {
-      setErrorMessage('Please enter a claim code');
+      setErrorMessage(t('recipient.couponEntry.error.emptyCode'));
       triggerShake();
       return;
     }
 
     if (!validateClaimCode(trimmedCode)) {
-      setErrorMessage('Please enter a valid 12-character code');
+      setErrorMessage(t('recipient.couponEntry.error.invalidFormat'));
       triggerShake();
       return;
     }
 
     // Guard: user must be authenticated before claiming
     if (!state.user?.id) {
-      setErrorMessage('Please log in to claim this gift');
+      setErrorMessage(t('recipient.couponEntry.error.loginRequired'));
       triggerShake();
       return;
     }
@@ -172,7 +174,7 @@ const CouponEntryScreen = () => {
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        setErrorMessage('This claim code is invalid or already claimed');
+        setErrorMessage(t('recipient.couponEntry.error.invalidOrClaimed'));
         triggerShake();
         return;
       }
@@ -192,7 +194,7 @@ const CouponEntryScreen = () => {
             ? (rawExpiry as { toDate: () => Date }).toDate()
             : new Date(rawExpiry as string | number);
         if (expiresAt < new Date()) {
-          setErrorMessage('This claim code has expired');
+          setErrorMessage(t('recipient.couponEntry.error.expiredCode'));
           triggerShake();
           return;
         }
@@ -244,7 +246,7 @@ const CouponEntryScreen = () => {
         userId: state.user?.id,
         additionalData: { claimCode: trimmedCode }
       });
-      setErrorMessage('An error occurred. Please try again.');
+      setErrorMessage(t('recipient.couponEntry.error.genericError'));
       triggerShake();
     } finally {
       setIsLoading(false);
@@ -267,10 +269,10 @@ const CouponEntryScreen = () => {
 
   return (
     <ErrorBoundary screenName="CouponEntryScreen" userId={state.user?.id}>
-    <MainScreen activeRoute="Goals">
       <View style={styles.screenBackground}>
         <SafeAreaView style={{ flex: 1 }}>
           <StatusBar style="auto" />
+          <SharedHeader title={t('recipient.couponEntry.screenTitle')} showBack />
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={{ flex: 1 }}
@@ -289,16 +291,16 @@ const CouponEntryScreen = () => {
                     source={require('../../assets/favicon.png')}
                     style={styles.logoImage}
                     resizeMode="contain"
-                    accessibilityLabel="Ernit logo"
+                    accessibilityLabel={t('recipient.couponEntry.logoA11y')}
                   />
                 </View>
 
                 {/* Header */}
                 <View style={styles.headerWrapper}>
-                  <Text style={styles.headingLine1}>Claim your</Text>
-                  <Text style={styles.headingLine2}>Ernit</Text>
+                  <Text style={styles.headingLine1}>{t('recipient.couponEntry.headingLine1')}</Text>
+                  <Text style={styles.headingLine2}>{t('recipient.couponEntry.headingLine2')}</Text>
                   <Text style={styles.subtitle}>
-                    Enter the code you got below and start earning your reward
+                    {t('recipient.couponEntry.subtitle')}
                   </Text>
                 </View>
 
@@ -311,7 +313,7 @@ const CouponEntryScreen = () => {
                     ]}
                   >
                     <TextInput
-                      placeholder="ABC123DEF456"
+                      placeholder={t('recipient.couponEntry.codePlaceholder')}
                       value={claimCode}
                       onChangeText={(text) => {
                         const clean = text.replace(/[^A-Z0-9]/gi, '').toUpperCase();
@@ -342,7 +344,7 @@ const CouponEntryScreen = () => {
                     variant="primary"
                     gradient
                     size="lg"
-                    title="Claim Reward"
+                    title={t('recipient.couponEntry.claimButton')}
                     onPress={() => handleClaimCode()}
                     disabled={isLoading || claimCode.length < 12}
                     loading={isLoading}
@@ -352,12 +354,12 @@ const CouponEntryScreen = () => {
 
                 {/* Info Box */}
                 <View style={styles.infoBox}>
-                  <Text style={styles.infoTitle}>How it works:</Text>
+                  <Text style={styles.infoTitle}>{t('recipient.couponEntry.howItWorksTitle')}</Text>
                   <View style={styles.infoStepList}>
-                    <Text style={styles.infoStep}>1. Enter your claim code</Text>
-                    <Text style={styles.infoStep}>2. Set personal goals to earn the reward</Text>
-                    <Text style={styles.infoStep}>3. Receive hints as you progress</Text>
-                    <Text style={styles.infoStep}>4. Achieve your goals and claim your reward!</Text>
+                    <Text style={styles.infoStep}>{t('recipient.couponEntry.howItWorksStep1')}</Text>
+                    <Text style={styles.infoStep}>{t('recipient.couponEntry.howItWorksStep2')}</Text>
+                    <Text style={styles.infoStep}>{t('recipient.couponEntry.howItWorksStep3')}</Text>
+                    <Text style={styles.infoStep}>{t('recipient.couponEntry.howItWorksStep4')}</Text>
                   </View>
                 </View>
 
@@ -371,7 +373,7 @@ const CouponEntryScreen = () => {
       <BaseModal
         visible={showPersonalizedMessage}
         onClose={handleContinueFromMessage}
-        title="A Message For You"
+        title={t('recipient.couponEntry.messageModal.title')}
         variant="center"
       >
         <View style={styles.messageBox}>
@@ -379,7 +381,7 @@ const CouponEntryScreen = () => {
         </View>
         {pendingExperienceGift?.giverName && (
           <Text style={styles.signatureText}>
-            - from {pendingExperienceGift.giverName}
+            {t('recipient.couponEntry.messageModal.from', { name: pendingExperienceGift.giverName })}
           </Text>
         )}
         <TouchableOpacity
@@ -387,10 +389,9 @@ const CouponEntryScreen = () => {
           onPress={handleContinueFromMessage}
           activeOpacity={0.8}
         >
-          <Text style={styles.continueButtonText}>Continue</Text>
+          <Text style={styles.continueButtonText}>{t('recipient.couponEntry.messageModal.continueButton')}</Text>
         </TouchableOpacity>
       </BaseModal>
-    </MainScreen>
     </ErrorBoundary>
   );
 };
@@ -399,7 +400,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   // ── Screen background ─────────────────────────────────────
   screenBackground: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
 
   // ── ScrollView ──────────────────────────────────────────────
@@ -530,12 +531,19 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     paddingVertical: Spacing.lg,
     borderRadius: BorderRadius.md,
     alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 12,
-  },
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.5,
+        shadowRadius: 16,
+      },
+      android: {
+        boxShadow: `0 8 16 0 ${colors.primary}80`,
+      },
+      default: {},
+    }),
+  } as any,
   continueButtonText: {
     color: colors.white,
     ...Typography.heading3,

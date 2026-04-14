@@ -1,4 +1,6 @@
 ﻿import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatRelativeTime } from '../utils/i18nHelpers';
 import {
   View,
   Text,
@@ -24,7 +26,6 @@ import { goalService } from '../services/GoalService';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { RootStackParamList, Notification } from '../types';
-import MainScreen from './MainScreen';
 import FriendRequestNotification from '../components/FriendRequestNotification';
 import GoalApprovalNotification from '../components/GoalApprovalNotification';
 import GoalChangeSuggestionNotification from '../components/GoalChangeSuggestionNotification';
@@ -36,14 +37,14 @@ import SharedHeader from '../components/SharedHeader';
 import Animated, { ZoomIn, FadeInDown } from 'react-native-reanimated';
 import { logger } from '../utils/logger';
 import { analyticsService } from '../services/AnalyticsService';
-import { Bell, TrendingUp, Gift, X, Users, CreditCard, AlertCircle, Activity, CheckCircle, Trophy } from 'lucide-react-native';
+import { Bell, TrendingUp, Gift, X, Users, CreditCard, AlertCircle, Activity, CheckCircle, Trophy, Trash2 } from 'lucide-react-native';
 import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import ErrorRetry from '../components/ErrorRetry';
 import * as Haptics from 'expo-haptics';
 import { EmptyState } from '../components/EmptyState';
 import Button from '../components/Button';
-import { FOOTER_HEIGHT } from '../components/FooterNavigation';
+import { FOOTER_HEIGHT } from '../components/CustomTabBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
@@ -52,46 +53,23 @@ type NotificationNavigationProp = NativeStackNavigationProp<
   'Notification'
 >;
 
-// Format notification date (shared utility)
-const formatNotificationDate = (createdAt: Date | { toDate(): Date } | number | string | null | undefined) => {
-  if (!createdAt) return '';
-
-  // Handle Firestore Timestamp or Date
-  const ts = createdAt as { toDate?: () => Date };
-  const date =
-    typeof ts.toDate === 'function'
-      ? ts.toDate()
-      : new Date(createdAt as string | number | Date);
-
-  if (isNaN(date.getTime())) return '';
-
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 1) {
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    if (diffHours < 1) {
-      const diffMinutes = Math.floor(diffMs / (1000 * 60));
-      return diffMinutes <= 1 ? '1m ago' : `${diffMinutes}m ago`;
-    }
-    return diffHours <= 1 ? '1h ago' : `${diffHours}h ago`;
-  } else if (diffDays < 7) {
-    return diffDays === 1 ? '1d ago' : `${diffDays}d ago`;
-  } else {
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
-};
+// formatNotificationDate replaced by formatRelativeTime from i18nHelpers
 
 const NotificationsScreen = () => {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const fmtDate = useCallback((createdAt: Date | { toDate(): Date } | number | string | null | undefined): string => {
+    if (!createdAt) return '';
+    const ts = createdAt as { toDate?: () => Date };
+    const date = typeof ts.toDate === 'function'
+      ? ts.toDate()
+      : new Date(createdAt as string | number | Date);
+    if (isNaN(date.getTime())) return '';
+    return formatRelativeTime(date.getTime(), t);
+  }, [t]);
   const { state } = useApp();
   const { showSuccess, showError, showInfo } = useToast();
   const userId = state.user?.id;
@@ -162,7 +140,7 @@ const NotificationsScreen = () => {
         if (isRefreshingRef.current) {
           isRefreshingRef.current = false;
           setRefreshing(false);
-          showInfo('Notifications are up to date');
+          showInfo(t('notifications.toast.upToDate'));
         }
       }, (error) => {
         // BUG-36 FIX: Surface snapshot errors so the UI exits the loading skeleton
@@ -243,7 +221,7 @@ const NotificationsScreen = () => {
         try {
           const gift = await experienceGiftService.getExperienceGiftById(n.data.giftId);
           if (gift && gift.experienceId) {
-            navigation.navigate('GoalSetting', { experienceGift: gift });
+            navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'GoalSetting', params: { experienceGift: gift } } });
           } else {
             showError('Could not open — data unavailable');
           }
@@ -264,7 +242,7 @@ const NotificationsScreen = () => {
       try {
         const goal = await goalService.getGoalById(n.data.goalId);
         if (goal) {
-          navigation.navigate('Journey', { goal });
+          navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Journey', params: { goal } } });
         } else {
           showError('Could not open — data unavailable');
         }
@@ -279,7 +257,7 @@ const NotificationsScreen = () => {
     }
 
     if (n.type === 'post_reaction' && n.data?.postId) {
-      navigation.navigate('Feed', { highlightPostId: n.data.postId });
+      navigation.navigate('MainTabs', { screen: 'FeedTab', params: { screen: 'Feed', params: { highlightPostId: n.data.postId } } });
     }
 
     if (n.type === 'post_reaction' && !n.data?.postId) {
@@ -287,7 +265,7 @@ const NotificationsScreen = () => {
     }
 
     if (n.type === 'post_comment' && n.data?.postId) {
-      navigation.navigate('Feed', { highlightPostId: n.data.postId });
+      navigation.navigate('MainTabs', { screen: 'FeedTab', params: { screen: 'Feed', params: { highlightPostId: n.data.postId } } });
     }
 
     if (n.type === 'post_comment' && !n.data?.postId) {
@@ -298,7 +276,7 @@ const NotificationsScreen = () => {
       try {
         const goal = await goalService.getGoalById(n.data.goalId);
         if (goal) {
-          navigation.navigate('Journey', { goal });
+          navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Journey', params: { goal } } });
         } else {
           // BUG-17: show error when goal is null instead of silently doing nothing
           showError('Could not open — data unavailable');
@@ -313,7 +291,7 @@ const NotificationsScreen = () => {
       try {
         const goal = await goalService.getGoalById(n.data.goalId);
         if (goal) {
-          navigation.navigate('Journey', { goal });
+          navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Journey', params: { goal } } });
         } else {
           // BUG-17: show error when goal is null instead of silently doing nothing
           showError('Could not open — data unavailable');
@@ -326,12 +304,12 @@ const NotificationsScreen = () => {
 
     if (n.type === 'experience_empowered' && n.data?.goalId && n.data?.giftId) {
       Alert.alert(
-        'Attach Gift to Goal?',
-        "This will link the gift to your active goal. You can't undo this.",
+        t('notifications.attachGift.title'),
+        t('notifications.attachGift.message'),
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('notifications.attachGift.cancel'), style: 'cancel' },
           {
-            text: 'Attach Gift',
+            text: t('notifications.attachGift.confirm'),
             onPress: async () => {
               try {
                 // Check if gift is already attached before attempting
@@ -347,24 +325,24 @@ const NotificationsScreen = () => {
                   } catch (fetchError: unknown) {
                     logger.error('Failed to fetch goal after gift attachment:', fetchError);
                     showError('Something went wrong. Please check your goals.');
-                    navigation.navigate('Goals');
+                    navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Goals' } });
                     return;
                   }
                 }
                 if (n.data.isMystery) {
-                  showSuccess(`${n.data.giverName || 'A friend'} gifted you a mystery experience! Complete your challenge to reveal it.`);
+                  showSuccess(t('notifications.attachGift.mysterySuccess', { name: n.data.giverName || t('notifications.attachGift.aFriend') }));
                 } else {
-                  showSuccess(`${n.data.giverName || 'A friend'} gifted you an experience!`);
+                  showSuccess(t('notifications.attachGift.success', { name: n.data.giverName || t('notifications.attachGift.aFriend') }));
                 }
                 if (goal) {
-                  navigation.navigate('Journey', { goal });
+                  navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Journey', params: { goal } } });
                 } else {
-                  navigation.navigate('Goals');
+                  navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Goals' } });
                 }
               } catch (error: unknown) {
                 logger.error('Error attaching empowered gift:', error);
                 showError('Could not attach the gift. Please try again.');
-                navigation.navigate('Goals'); // H9: fallback navigation so user is never stranded
+                navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Goals' } }); // H9: fallback navigation so user is never stranded
               }
             },
           },
@@ -380,11 +358,11 @@ const NotificationsScreen = () => {
           if (goal.experienceGiftId) {
             const gift = await experienceGiftService.getExperienceGiftById(goal.experienceGiftId);
             if (gift) {
-              navigation.navigate('AchievementDetail', { goal, experienceGift: gift, mode: 'completion' });
+              navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'AchievementDetail', params: { goal, experienceGift: gift, mode: 'completion' } } });
               return;
             }
           }
-          navigation.navigate('Journey', { goal });
+          navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Journey', params: { goal } } });
         }
       } catch (error: unknown) {
         logger.error('Error navigating from booking reminder:', error);
@@ -398,13 +376,13 @@ const NotificationsScreen = () => {
       n.type === 'shared_session'
     ) {
       if (n.data?.goalId) {
-        navigation.navigate('GoalDetail', { goalId: n.data.goalId });
+        navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'GoalDetail', params: { goalId: n.data.goalId } } });
       }
     }
 
     if (n.type === 'payment_charged') {
       if (n.data?.goalId) {
-        navigation.navigate('GoalDetail', { goalId: n.data.goalId });
+        navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'GoalDetail', params: { goalId: n.data.goalId } } });
       }
     }
 
@@ -423,22 +401,22 @@ const NotificationsScreen = () => {
     }
 
     if ((n.type === 'goal_approval_response' || n.type === 'goal_edit_response') && n.data?.goalId) {
-      navigation.navigate('GoalDetail', { goalId: n.data.goalId });
+      navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'GoalDetail', params: { goalId: n.data.goalId } } });
     }
 
     if (n.type === 'goal_set' && n.data?.goalId) {
-      navigation.navigate('GoalDetail', { goalId: n.data.goalId });
+      navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'GoalDetail', params: { goalId: n.data.goalId } } });
     }
 
     if ((n.type === 'goal_progress' || n.type === 'free_goal_milestone' || n.type === 'inactivity_nudge') && n.data?.goalId) {
-      navigation.navigate('GoalDetail', { goalId: n.data.goalId });
+      navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'GoalDetail', params: { goalId: n.data.goalId } } });
     }
 
     if (n.type === 'goal_completed' && n.data?.goalId) {
       try {
         const goal = await goalService.getGoalById(n.data.goalId);
         if (goal) {
-          navigation.navigate('AchievementDetail', { goal, mode: 'completion' });
+          navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'AchievementDetail', params: { goal, mode: 'completion' } } });
         } else {
           showError('Could not open — data unavailable');
         }
@@ -450,7 +428,7 @@ const NotificationsScreen = () => {
     }
 
     if ((n.type === 'valentine_partner_progress' || n.type === 'valentine_start' || n.type === 'valentine_unlock' || n.type === 'valentine_completion') && n.data?.goalId) {
-      navigation.navigate('GoalDetail', { goalId: n.data.goalId });
+      navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'GoalDetail', params: { goalId: n.data.goalId } } });
     }
     } catch (e) {
       // BUG-18: catch unexpected errors (navigation failures, network errors, etc.)
@@ -475,7 +453,7 @@ const NotificationsScreen = () => {
   const confirmClearAll = useCallback(async () => {
     setShowClearAllConfirm(false);
     if (!userId) {
-      showError('User not authenticated');
+      showError(t('notifications.toast.notAuthenticated'));
       return;
     }
 
@@ -483,17 +461,17 @@ const NotificationsScreen = () => {
 
     try {
       await notificationService.clearAllNotifications(userId);
-      showSuccess('All notifications have been cleared.');
+      showSuccess(t('notifications.toast.allCleared'));
     } catch (error: unknown) {
       logger.error('Error clearing all notifications:', error);
-      showError('Failed to clear notifications. Please try again.');
+      showError(t('notifications.toast.failedClearAll'));
     }
   }, [userId, showError, showSuccess]);
 
 
   const handleClearNotification = useCallback((notificationId: string) => {
     if (!notificationId) {
-      showError('Cannot clear notification: missing ID');
+      showError(t('notifications.toast.missingId'));
       return;
     }
 
@@ -507,10 +485,13 @@ const NotificationsScreen = () => {
 
     try {
       await notificationService.deleteNotification(notificationId);
+      analyticsService.trackEvent('notification_dismissed', 'engagement', {
+        notificationId,
+      }, 'NotificationsScreen');
       // No toast needed - the notification just disappears
     } catch (error: unknown) {
       logger.error('Error clearing notification:', error);
-      showError('Failed to clear notification. Please try again.');
+      showError(t('notifications.toast.failedClear'));
     }
   }, [clearNotificationId, showError]);
 
@@ -527,7 +508,7 @@ const NotificationsScreen = () => {
     // Handle friend request notifications specially
     if (item.type === 'friend_request') {
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <FriendRequestNotification
             notification={item}
             onRequestHandled={handleFriendRequestHandled}
@@ -539,7 +520,7 @@ const NotificationsScreen = () => {
     // Handle goal approval request notifications
     if (item.type === 'goal_approval_request') {
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <GoalApprovalNotification
             notification={item}
             onActionTaken={handleApprovalActionTaken}
@@ -551,7 +532,7 @@ const NotificationsScreen = () => {
     // Handle goal change suggestion notifications
     if (item.type === 'goal_change_suggested') {
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <GoalChangeSuggestionNotification
             notification={item}
             onActionTaken={handleApprovalActionTaken}
@@ -563,7 +544,7 @@ const NotificationsScreen = () => {
     // Handle goal edit request notifications (for givers to approve or reject)
     if (item.type === 'goal_edit_request') {
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <GoalEditApprovalNotification
             notification={item}
             onActionTaken={handleApprovalActionTaken}
@@ -579,7 +560,7 @@ const NotificationsScreen = () => {
         : true;
 
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <GoalProgressNotification notification={item} isLatest={isLatest} />
         </Animated.View>
       );
@@ -592,7 +573,7 @@ const NotificationsScreen = () => {
         : true;
 
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <FreeGoalNotification
             notification={item}
             isLatest={isMilestoneLatest}
@@ -608,7 +589,7 @@ const NotificationsScreen = () => {
       const accentColor = isApproved ? colors.success : colors.error;
       const bgColor = isApproved ? colors.successLight : colors.errorLight;
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <TouchableOpacity
             onPress={() => handlePress(item)}
             activeOpacity={0.8}
@@ -630,7 +611,7 @@ const NotificationsScreen = () => {
                   {!item.read && <View style={styles.unreadDot} />}
                 </View>
                 <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
-                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+                <Text style={styles.reactionDate}>{fmtDate(item.createdAt)}</Text>
               </View>
             </View>
             <Pressable
@@ -652,7 +633,7 @@ const NotificationsScreen = () => {
       const mostRecentReaction = (item.data?.mostRecentReaction as 'muscle' | 'heart' | 'like') || 'like';
 
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <TouchableOpacity
             onPress={() => handlePress(item)}
             activeOpacity={0.8}
@@ -682,7 +663,7 @@ const NotificationsScreen = () => {
                 </View>
 
                 <Text style={styles.reactionDate}>
-                  {formatNotificationDate(item.createdAt)}
+                  {fmtDate(item.createdAt)}
                 </Text>
               </View>
             </View>
@@ -727,7 +708,7 @@ const NotificationsScreen = () => {
     // Handle motivation received notifications
     if (item.type === 'motivation_received') {
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <TouchableOpacity
             onPress={() => handlePress(item)}
             activeOpacity={0.8}
@@ -751,7 +732,7 @@ const NotificationsScreen = () => {
                   {!item.read && <View style={styles.unreadDot} />}
                 </View>
                 <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
-                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+                <Text style={styles.reactionDate}>{fmtDate(item.createdAt)}</Text>
               </View>
             </View>
             <Pressable
@@ -771,7 +752,7 @@ const NotificationsScreen = () => {
     // Handle session reminder notifications
     if (item.type === 'session_reminder') {
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <TouchableOpacity
             onPress={() => handlePress(item)}
             activeOpacity={0.8}
@@ -791,7 +772,7 @@ const NotificationsScreen = () => {
                   {!item.read && <View style={styles.unreadDot} />}
                 </View>
                 <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
-                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+                <Text style={styles.reactionDate}>{fmtDate(item.createdAt)}</Text>
               </View>
             </View>
             <Pressable
@@ -815,7 +796,7 @@ const NotificationsScreen = () => {
       const progressPercent = required > 0 ? Math.min(100, Math.round((completed / required) * 100)) : 0;
 
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <TouchableOpacity
             onPress={() => handlePress(item)}
             activeOpacity={0.8}
@@ -831,7 +812,7 @@ const NotificationsScreen = () => {
               </View>
               <View style={styles.reminderTextContent}>
                 <View style={styles.reactionHeader}>
-                  <Text style={styles.reminderTitle}>{item.title || 'Weekly Recap'}</Text>
+                  <Text style={styles.reminderTitle}>{item.title || t('notifications.weeklyRecap.defaultTitle')}</Text>
                   {!item.read && <View style={styles.unreadDot} />}
                 </View>
                 <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
@@ -840,10 +821,10 @@ const NotificationsScreen = () => {
                     <View style={styles.recapProgressBar}>
                       <View style={[styles.recapProgressFill, { width: `${progressPercent}%` }]} />
                     </View>
-                    <Text style={styles.recapProgressText}>{completed}/{required} sessions</Text>
+                    <Text style={styles.recapProgressText}>{t('notifications.weeklyRecap.sessions', { completed, required })}</Text>
                   </View>
                 )}
-                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+                <Text style={styles.reactionDate}>{fmtDate(item.createdAt)}</Text>
               </View>
             </View>
             <Pressable
@@ -863,7 +844,7 @@ const NotificationsScreen = () => {
     // Handle experience booking reminder notifications
     if (item.type === 'experience_booking_reminder') {
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <TouchableOpacity
             onPress={() => handlePress(item)}
             activeOpacity={0.8}
@@ -883,7 +864,7 @@ const NotificationsScreen = () => {
                   {!item.read && <View style={styles.unreadDot} />}
                 </View>
                 <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
-                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+                <Text style={styles.reactionDate}>{fmtDate(item.createdAt)}</Text>
               </View>
             </View>
             <Pressable
@@ -903,7 +884,7 @@ const NotificationsScreen = () => {
     // Handle per-session partner notifications
     if (item.type === 'shared_session') {
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <TouchableOpacity
             onPress={() => handlePress(item)}
             activeOpacity={0.8}
@@ -919,11 +900,11 @@ const NotificationsScreen = () => {
               </View>
               <View style={styles.reminderTextContent}>
                 <View style={styles.reactionHeader}>
-                  <Text style={styles.reminderTitle}>{item.title || 'Partner Activity'}</Text>
+                  <Text style={styles.reminderTitle}>{item.title || t('notifications.sharedSession.defaultTitle')}</Text>
                   {!item.read && <View style={styles.unreadDot} />}
                 </View>
-                <Text style={styles.reminderMessage} numberOfLines={2}>{item.message || 'Your partner logged a session!'}</Text>
-                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+                <Text style={styles.reminderMessage} numberOfLines={2}>{item.message || t('notifications.sharedSession.defaultMessage')}</Text>
+                <Text style={styles.reactionDate}>{fmtDate(item.createdAt)}</Text>
               </View>
             </View>
             <Pressable
@@ -945,7 +926,7 @@ const NotificationsScreen = () => {
       const accentColor = item.type === 'shared_unlock' ? colors.success : colors.primary;
       const bgColor = item.type === 'shared_unlock' ? colors.successLight : colors.primarySurface;
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <TouchableOpacity
             onPress={() => handlePress(item)}
             activeOpacity={0.8}
@@ -965,7 +946,7 @@ const NotificationsScreen = () => {
                   {!item.read && <View style={styles.unreadDot} />}
                 </View>
                 <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
-                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+                <Text style={styles.reactionDate}>{fmtDate(item.createdAt)}</Text>
               </View>
             </View>
             <Pressable
@@ -988,7 +969,7 @@ const NotificationsScreen = () => {
       const accentColor = isFailure ? colors.error : colors.success;
       const bgColor = isFailure ? colors.errorLight : colors.successLight;
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <TouchableOpacity
             onPress={() => handlePress(item)}
             activeOpacity={0.8}
@@ -1010,7 +991,7 @@ const NotificationsScreen = () => {
                   {!item.read && <View style={styles.unreadDot} />}
                 </View>
                 <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
-                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+                <Text style={styles.reactionDate}>{fmtDate(item.createdAt)}</Text>
               </View>
             </View>
             <Pressable
@@ -1034,7 +1015,7 @@ const NotificationsScreen = () => {
 
     if (item.type === 'gift_received') {
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <TouchableOpacity
             onPress={() => handlePress(item)}
             activeOpacity={0.8}
@@ -1055,9 +1036,9 @@ const NotificationsScreen = () => {
                 </View>
                 <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
                 <Text style={[styles.reminderMessage, { ...Typography.smallBold, color: colors.warning, marginTop: Spacing.xs }]}>
-                  Set up your goal →
+                  {t('notifications.giftReceived.setupGoal')}
                 </Text>
-                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+                <Text style={styles.reactionDate}>{fmtDate(item.createdAt)}</Text>
               </View>
             </View>
             <Pressable
@@ -1076,7 +1057,7 @@ const NotificationsScreen = () => {
 
     if (item.type === 'goal_completed') {
       return (
-        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+        <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <TouchableOpacity
             onPress={() => handlePress(item)}
             activeOpacity={0.8}
@@ -1096,7 +1077,7 @@ const NotificationsScreen = () => {
                   {!item.read && <View style={styles.unreadDot} />}
                 </View>
                 <Text style={styles.reminderMessage} numberOfLines={2}>{item.message}</Text>
-                <Text style={styles.reactionDate}>{formatNotificationDate(item.createdAt)}</Text>
+                <Text style={styles.reactionDate}>{fmtDate(item.createdAt)}</Text>
               </View>
             </View>
             <Pressable
@@ -1114,7 +1095,7 @@ const NotificationsScreen = () => {
     }
 
     return (
-      <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)}>
+      <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
         <View style={[
           styles.notificationCard,
           !item.read && styles.notificationCardUnread,
@@ -1133,9 +1114,9 @@ const NotificationsScreen = () => {
             <Text style={styles.cardMessage} numberOfLines={3}>{item.message}</Text>
 
             <View style={styles.cardFooter}>
-              <Text style={styles.cardDate}>{formatNotificationDate(item.createdAt)}</Text>
+              <Text style={styles.cardDate}>{fmtDate(item.createdAt)}</Text>
               {item.type === 'personalized_hint_left' && !userGoals[item.data?.goalId || ''] && (
-                <Text style={styles.hintText}>Tap to view goal</Text>
+                <Text style={styles.hintText}>{t('notifications.hintLeft.tapToView')}</Text>
               )}
             </View>
           </TouchableOpacity>
@@ -1158,10 +1139,10 @@ const NotificationsScreen = () => {
 
   return (
     <ErrorBoundary screenName="NotificationsScreen" userId={userId}>
-      <MainScreen activeRoute="Profile">
+      <View style={{ flex: 1, backgroundColor: colors.surface, paddingTop: insets.top }}>
         <StatusBar style="light" />
         <SharedHeader
-          title="Notifications"
+          title={t('notifications.screenTitle')}
           showBack={true}
           rightActions={
             notifications.length > 0 ? (
@@ -1169,23 +1150,26 @@ const NotificationsScreen = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  title="Mark Read"
+                  title={t('notifications.header.markRead')}
                   onPress={async () => {
                     if (!userId) return;
                     try {
                       await notificationService.markAllAsRead(userId);
                     } catch (error: unknown) {
                       logger.error('Error marking all as read:', error);
-                      showError('Failed to mark all as read.');
+                      showError(t('notifications.toast.failedMarkRead'));
                     }
                   }}
                 />
-                <Button
-                  variant="danger"
-                  size="sm"
-                  title="Clear All"
+                <TouchableOpacity
                   onPress={handleClearAll}
-                />
+                  accessibilityRole="button"
+                  accessibilityLabel={t('notifications.header.clearAll')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ padding: Spacing.xs }}
+                >
+                  <Trash2 size={20} color={colors.error} />
+                </TouchableOpacity>
               </View>
             ) : null
           }
@@ -1201,7 +1185,7 @@ const NotificationsScreen = () => {
           </ScrollView>
         ) : error ? (
           <ErrorRetry
-            message="Could not load notifications"
+            message={t('notifications.error.couldNotLoad')}
             onRetry={() => {
               setError(false);
               setLoading(true);
@@ -1211,8 +1195,8 @@ const NotificationsScreen = () => {
         ) : notifications.length === 0 ? (
           <EmptyState
             icon="🔔"
-            title="No Notifications"
-            message="You'll see updates here when friends interact with your goals"
+            title={t('notifications.empty.title')}
+            message={t('notifications.empty.message')}
           />
         ) : (
           <FlatList
@@ -1246,25 +1230,25 @@ const NotificationsScreen = () => {
           />
         )}
         </View>
-      </MainScreen>
       <ConfirmationDialog
         visible={showClearAllConfirm}
-        title="Clear All Notifications"
-        message="Are you sure you want to clear all notifications? This cannot be undone."
-        confirmLabel="Clear All"
+        title={t('notifications.dialog.clearAllTitle')}
+        message={t('notifications.dialog.clearAllMessage')}
+        confirmLabel={t('notifications.dialog.clearAllConfirm')}
         onConfirm={confirmClearAll}
         onCancel={() => setShowClearAllConfirm(false)}
         variant="danger"
       />
       <ConfirmationDialog
         visible={clearNotificationId !== null}
-        title="Clear Notification"
-        message="Remove this notification?"
-        confirmLabel="Clear"
+        title={t('notifications.dialog.clearOneTitle')}
+        message={t('notifications.dialog.clearOneMessage')}
+        confirmLabel={t('notifications.dialog.clearOneConfirm')}
         onConfirm={confirmClearNotification}
         onCancel={() => setClearNotificationId(null)}
         variant="danger"
       />
+      </View>
     </ErrorBoundary>
   );
 };
@@ -1363,7 +1347,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: BorderRadius.circle,
-    backgroundColor: colors.backgroundLight,
+    backgroundColor: colors.surfaceLight,
     justifyContent: 'center',
     alignItems: 'center',
   },

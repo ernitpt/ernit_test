@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Gift, Check } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
@@ -34,6 +35,7 @@ const PledgedExperiencePreview: React.FC<PledgedExperiencePreviewProps> = ({
     sessionsCompleted,
     totalSessions,
 }) => {
+    const { t } = useTranslation();
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const isGiftReceived = status === 'gift_received';
@@ -63,7 +65,7 @@ const PledgedExperiencePreview: React.FC<PledgedExperiencePreviewProps> = ({
                 <View style={styles.info}>
                     <Text style={styles.title} numberOfLines={1}>{experience.title}</Text>
                     <Text style={styles.subtitle}>
-                        {isGiftReceived ? 'Gift received' : 'Your reward'}
+                        {isGiftReceived ? t('recipient.pledgedExperience.giftReceived') : t('recipient.pledgedExperience.yourReward')}
                         {showProgress ? ` · ${sessionsCompleted}/${totalSessions}` : ''}
                     </Text>
                 </View>

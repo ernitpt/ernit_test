@@ -8,6 +8,7 @@ import {
     Image,
     ImageSourcePropType,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
@@ -32,6 +33,7 @@ const ReactionPicker: React.FC<ReactionPickerProps> = ({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
 
     // Keep component mounted during exit animation
     const [shouldRender, setShouldRender] = useState(visible);
@@ -127,7 +129,7 @@ const ReactionPicker: React.FC<ReactionPickerProps> = ({
                             ]}
                             onPress={() => handlePress(reaction.type, index)}
                             activeOpacity={0.7}
-                            accessibilityLabel={`Select ${reaction.type} reaction`}
+                            accessibilityLabel={t('accessibility.reactionBar.selectReaction', { type: reaction.type })}
                         >
                             <Image
                                 source={reaction.image}

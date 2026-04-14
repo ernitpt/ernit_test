@@ -13,6 +13,7 @@ import { BaseModal } from '../../../components/BaseModal';
 import Button from '../../../components/Button';
 import { Avatar } from '../../../components/Avatar';
 import ConfettiCannon from 'react-native-confetti-cannon';
+import { useTranslation } from 'react-i18next';
 import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
@@ -33,6 +34,7 @@ export const CancelSessionModal: React.FC<CancelSessionModalProps> = React.memo(
   onConfirm,
   message,
 }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -40,7 +42,7 @@ export const CancelSessionModal: React.FC<CancelSessionModalProps> = React.memo(
     <BaseModal
       visible={visible}
       onClose={onClose}
-      title="Cancel Session?"
+      title={t('recipient.goalCardModals.cancelSession.title')}
       variant="center"
     >
       <Text style={styles.modalSubtitle}>{message}</Text>
@@ -50,18 +52,18 @@ export const CancelSessionModal: React.FC<CancelSessionModalProps> = React.memo(
           style={[styles.modalButton, styles.cancelButtonPopup]}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="No"
+          accessibilityLabel={t('recipient.goalCardModals.cancelSession.no')}
         >
-          <Text style={styles.cancelText}>No</Text>
+          <Text style={styles.cancelText}>{t('recipient.goalCardModals.cancelSession.no')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={onConfirm}
           style={[styles.modalButton, styles.confirmButton]}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Yes, cancel"
+          accessibilityLabel={t('recipient.goalCardModals.cancelSession.yesCancel')}
         >
-          <Text style={styles.confirmText}>Yes, cancel</Text>
+          <Text style={styles.confirmText}>{t('recipient.goalCardModals.cancelSession.yesCancel')}</Text>
         </TouchableOpacity>
       </View>
     </BaseModal>
@@ -108,6 +110,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
   completedWeekNumber,
   onSessionPrivacy,
 }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const confettiRef = useRef<ConfettiCannon | null>(null);
@@ -139,13 +142,13 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
   const weekTier = useMemo(() => {
     if (!weekJustCompleted || !completedWeekNumber) return null;
     const n = completedWeekNumber;
-    if (n === 1) return { emoji: '🎉', title: 'First Week Done!', subtitle: 'Amazing start, keep it up!', confettiCount: 120, confettiColors: null as string[] | null };
-    if (n === 2) return { emoji: '🔥', title: 'Two Weeks Strong!', subtitle: 'You\'re building a real habit!', confettiCount: 180, confettiColors: null };
-    if (n === 3) return { emoji: '⭐', title: 'Three Weeks! Unstoppable!', subtitle: 'You\'re in the zone now!', confettiCount: 220, confettiColors: [colors.celebrationGold, colors.warning, colors.error, colors.celebrationGold, colors.white] };
-    return { emoji: '🏆', title: `Week ${n} Champion!`, subtitle: 'Your consistency is incredible!', confettiCount: 280, confettiColors: [colors.celebrationGold, colors.warning, colors.error, colors.celebrationGold, colors.categoryPink, colors.accent] };
+    if (n === 1) return { emoji: '🎉', title: t('recipient.goalCardModals.celebration.week1Title'), subtitle: t('recipient.goalCardModals.celebration.week1Subtitle'), confettiCount: 120, confettiColors: null as string[] | null };
+    if (n === 2) return { emoji: '🔥', title: t('recipient.goalCardModals.celebration.week2Title'), subtitle: t('recipient.goalCardModals.celebration.week2Subtitle'), confettiCount: 180, confettiColors: null };
+    if (n === 3) return { emoji: '⭐', title: t('recipient.goalCardModals.celebration.week3Title'), subtitle: t('recipient.goalCardModals.celebration.week3Subtitle'), confettiCount: 220, confettiColors: [colors.celebrationGold, colors.warning, colors.error, colors.celebrationGold, colors.white] };
+    return { emoji: '🏆', title: t('recipient.goalCardModals.celebration.weekNTitle', { n }), subtitle: t('recipient.goalCardModals.celebration.weekNSubtitle'), confettiCount: 280, confettiColors: [colors.celebrationGold, colors.warning, colors.error, colors.celebrationGold, colors.categoryPink, colors.accent] };
   }, [weekJustCompleted, completedWeekNumber, colors]);
 
-  const modalTitle = weekTier ? `${weekTier.emoji} Week Complete!` : 'Session Complete';
+  const modalTitle = weekTier ? `${weekTier.emoji} ${t('recipient.goalCardModals.celebration.weekComplete')}` : t('recipient.goalCardModals.celebration.sessionComplete');
   const confettiCount = weekTier ? weekTier.confettiCount : 120;
   const confettiColors = weekTier?.confettiColors ?? [colors.primary, colors.secondary, colors.warning, colors.error, colors.categoryViolet, colors.categoryPink];
 
@@ -216,12 +219,12 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
 
             {/* Author row */}
             <View style={styles.feedAuthorRow}>
-              <Avatar uri={userProfileImageUrl} name={userName || 'You'} size="sm" />
+              <Avatar uri={userProfileImageUrl} name={userName || t('recipient.goalCardModals.celebration.you')} size="sm" />
               <View style={{ flex: 1 }}>
                 <Text style={styles.feedAuthorName} numberOfLines={1}>
-                  <Text style={{ fontWeight: '500' }}>{userName || 'You'}</Text> completed session
+                  <Text style={{ fontWeight: '500' }}>{userName || t('recipient.goalCardModals.celebration.you')}</Text> {t('recipient.goalCardModals.celebration.completedSession')}
                 </Text>
-                <Text style={styles.feedTimestamp}>Just now</Text>
+                <Text style={styles.feedTimestamp}>{t('recipient.goalCardModals.celebration.justNow')}</Text>
               </View>
             </View>
 
@@ -229,7 +232,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
             {sessionsPerWeek && sessionsPerWeek > 0 && (
               <View style={styles.feedProgressBlock}>
                 <View style={styles.feedProgressHeader}>
-                  <Text style={styles.feedProgressBlockLabel}>Sessions this week</Text>
+                  <Text style={styles.feedProgressBlockLabel}>{t('recipient.goalCardModals.celebration.sessionsThisWeek')}</Text>
                   <Text style={styles.feedProgressBlockCount}>{weeklyCount || 0}/{sessionsPerWeek}</Text>
                 </View>
                 <View style={styles.feedCapsuleRow}>
@@ -259,7 +262,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
             {totalWeeks && totalWeeks > 0 && (
               <View style={styles.feedProgressBlock}>
                 <View style={styles.feedProgressHeader}>
-                  <Text style={styles.feedProgressBlockLabel}>Weeks completed</Text>
+                  <Text style={styles.feedProgressBlockLabel}>{t('recipient.goalCardModals.celebration.weeksCompleted')}</Text>
                   <Text style={styles.feedProgressBlockCount}>{weeksCompleted || 0}/{totalWeeks}</Text>
                 </View>
                 <View style={styles.feedCapsuleRow}>
@@ -298,7 +301,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
                 onPostToFeed();
                 onClose();
               }}
-              title="Share to Feed"
+              title={t('recipient.goalCardModals.celebration.shareToFeed')}
               fullWidth
             />
           )}
@@ -309,7 +312,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
               onSessionPrivacy?.('private');
               onClose();
             }}
-            title={onPostToFeed ? 'Skip' : 'Close'}
+            title={onPostToFeed ? t('recipient.goalCardModals.celebration.skip') : t('recipient.goalCardModals.celebration.close')}
             fullWidth
           />
         </View>

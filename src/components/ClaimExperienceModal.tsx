@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     Platform,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { ShoppingBag, Search } from 'lucide-react-native';
 import Button from './Button';
 import { useNavigation } from '@react-navigation/native';
@@ -16,6 +17,7 @@ import { Colors, useColors, Typography, Spacing, BorderRadius } from '../config'
 import * as Haptics from 'expo-haptics';
 import { BaseModal } from './BaseModal';
 import { SkeletonBox } from './SkeletonLoader';
+import { formatCurrency } from '../utils/helpers';
 
 interface ClaimExperienceModalProps {
     visible: boolean;
@@ -38,6 +40,7 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { state, dispatch } = useApp();
     const [isNavigating, setIsNavigating] = useState(false);
@@ -90,25 +93,23 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
         setTimeout(() => {
             if (!isMounted.current) return;
             onClose();
-            navigation.navigate('CategorySelection',
-                preferredRewardCategory ? { prefilterCategory: preferredRewardCategory } : undefined
-            );
+            navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection', params: preferredRewardCategory ? { prefilterCategory: preferredRewardCategory } : undefined } });
         }, 400);
     };
 
     return (
-        <BaseModal visible={visible} onClose={onClose} title="Claim Your Experience">
+        <BaseModal visible={visible} onClose={onClose} title={t('modals.claimExperience.title')}>
             {isNavigating ? (
                 <View style={styles.loadingContainer}>
                     <SkeletonBox width="100%" height={52} borderRadius={12} />
                     <SkeletonBox width="100%" height={44} borderRadius={12} />
                     <SkeletonBox width="60%" height={36} borderRadius={8} />
-                    <Text style={styles.loadingText}>Taking you there...</Text>
+                    <Text style={styles.loadingText}>{t('modals.claimExperience.loading')}</Text>
                 </View>
             ) : (
                 <>
                     <Text style={styles.subtitle}>
-                        You've earned it — pick your reward!
+                        {t('modals.claimExperience.subtitle')}
                     </Text>
 
                     {/* Option 1: Buy pledged experience */}
@@ -118,16 +119,16 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
                             onPress={handleDirect}
                             activeOpacity={0.8}
                             accessibilityRole="button"
-                            accessibilityLabel={`Claim ${experienceTitle}`}
+                            accessibilityLabel={t('modals.claimExperience.claimButton', { title: experienceTitle })}
                         >
                             <ShoppingBag size={18} color={colors.white} />
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.optionPrimaryText} numberOfLines={1}>
-                                    Claim "{experienceTitle}"
+                                    {t('modals.claimExperience.claimButton', { title: experienceTitle })}
                                 </Text>
                                 {experiencePrice != null && (
                                     <Text style={styles.optionPrice}>
-                                        {'\u20AC'}{experiencePrice}
+                                        {formatCurrency(experiencePrice)}
                                     </Text>
                                 )}
                             </View>
@@ -138,8 +139,8 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
                     <Button
                         title={
                             preferredRewardCategory && !experienceTitle
-                                ? `Browse ${preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)} Experiences`
-                                : 'Browse Other Experiences'
+                                ? t('modals.claimExperience.browseCategory', { category: preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1) })
+                                : t('modals.claimExperience.browseOther')
                         }
                         onPress={handleBrowse}
                         variant="secondary"
@@ -151,7 +152,7 @@ const ClaimExperienceModal: React.FC<ClaimExperienceModalProps> = ({
 
                     {/* Cancel */}
                     <Button
-                        title="Cancel"
+                        title={t('modals.claimExperience.cancel')}
                         onPress={onClose}
                         variant="ghost"
                         size="sm"

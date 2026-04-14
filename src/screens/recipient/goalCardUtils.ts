@@ -1,5 +1,7 @@
+import type { TFunction } from 'i18next';
 import { Goal, PersonalizedHint } from '../../types';
 import { Colors } from '../../config';
+import { getMonthNames, formatLocalDate } from '../../utils/i18nHelpers';
 
 // ─── Date utilities ─────────────────────────────────────────────────
 
@@ -26,12 +28,12 @@ export function rollingWeek(start: Date): Date[] {
 }
 
 export function day2(d: Date): string {
-  return d.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2);
+  return formatLocalDate(d, { weekday: 'short' }).slice(0, 2);
 }
 
 export function dayMonth(d: Date): string {
   const day = d.getDate();
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthNames = getMonthNames(undefined, 'short');
   const month = monthNames[d.getMonth()];
   return `${day} ${month}`;
 }
@@ -40,7 +42,7 @@ export function formatNextWeekDay(weekStartAt?: Date | null): string {
   if (!weekStartAt) return '';
   const next = new Date(weekStartAt);
   next.setDate(next.getDate() + 7);
-  return next.toLocaleDateString('en-US', { dateStyle: 'short' });
+  return formatLocalDate(next, { dateStyle: 'short' });
 }
 
 // ─── Goal logic utilities ───────────────────────────────────────────
@@ -63,36 +65,37 @@ export function getApprovalBlockMessage(
   goal: Goal,
   empoweredName: string | null,
   context: 'start' | 'finish' | 'banner',
+  t?: TFunction,
 ): { title: string; message: string } | null {
   if (!isGoalLocked(goal)) return null;
 
-  const giverName = empoweredName || 'your giver';
+  const giverName = empoweredName || (t ? t('recipient.goalStatus.yourGiver') : 'your giver');
 
   // Suggested change messages
   if (goal.approvalStatus === 'suggested_change') {
     if (context === 'banner' && goal.weeklyCount === 0) {
       return {
-        title: 'Goal Change Suggested',
-        message: `${giverName} has suggested a goal change. Please review and accept or modify the suggestion in your notifications.`,
+        title: t ? t('recipient.goalStatus.goalChangeSuggested') : 'Goal Change Suggested',
+        message: t ? t('recipient.goalStatus.goalChangeSuggestedMessage', { giverName }) : `${giverName} has suggested a goal change. Please review and accept or modify the suggestion in your notifications.`,
       };
     }
     if (context === 'banner' && goal.weeklyCount === 1) {
       return {
-        title: 'Goal Change Suggested',
-        message: `Congrats on your first session! ${giverName} has suggested a goal change. Please review and accept or modify the suggestion in your notifications to continue.`,
+        title: t ? t('recipient.goalStatus.goalChangeSuggested') : 'Goal Change Suggested',
+        message: t ? t('recipient.goalStatus.goalChangeSuggestedAfterFirst', { giverName }) : `Congrats on your first session! ${giverName} has suggested a goal change. Please review and accept or modify the suggestion in your notifications to continue.`,
       };
     }
     return {
-      title: 'Goal Not Approved',
-      message: `${giverName} has suggested a goal change. Please review and accept or modify the suggestion before continuing.`,
+      title: t ? t('recipient.goalStatus.goalNotApproved') : 'Goal Not Approved',
+      message: t ? t('recipient.goalStatus.goalChangeSuggestedContinue', { giverName }) : `${giverName} has suggested a goal change. Please review and accept or modify the suggestion before continuing.`,
     };
   }
 
   // Pending approval: 1-day/1-session goals are fully blocked
   if (goal.targetCount === 1 && goal.sessionsPerWeek === 1) {
     return {
-      title: 'Goal Not Approved',
-      message: "Goals with only 1 day and 1 session per week cannot be completed until giver's approval.",
+      title: t ? t('recipient.goalStatus.goalNotApproved') : 'Goal Not Approved',
+      message: t ? t('recipient.goalStatus.oneDayOneSessionBlocked') : "Goals with only 1 day and 1 session per week cannot be completed until giver's approval.",
     };
   }
 
@@ -101,20 +104,20 @@ export function getApprovalBlockMessage(
   if (totalSessionsDone >= 1 || (context === 'start' && goal.weeklyCount >= 1)) {
     if (context === 'banner') {
       return {
-        title: 'First Session Done',
-        message: `Congrats on your first session! The remaining sessions will unlock after ${giverName} approves this goal (or automatically in 24 hours).`,
+        title: t ? t('recipient.goalStatus.firstSessionDone') : 'First Session Done',
+        message: t ? t('recipient.goalStatus.firstSessionDoneMessage', { giverName }) : `Congrats on your first session! The remaining sessions will unlock after ${giverName} approves this goal (or automatically in 24 hours).`,
       };
     }
     return {
-      title: 'Goal Not Approved',
-      message: `Waiting for ${giverName}'s approval! You can start with the first session, but the remaining sessions will unlock after ${giverName} approves your goal (or automatically in 24 hours).`,
+      title: t ? t('recipient.goalStatus.goalNotApproved') : 'Goal Not Approved',
+      message: t ? t('recipient.goalStatus.waitingApprovalFirstDone', { giverName }) : `Waiting for ${giverName}'s approval! You can start with the first session, but the remaining sessions will unlock after ${giverName} approves your goal (or automatically in 24 hours).`,
     };
   }
 
   if (context === 'banner') {
     return {
-      title: 'Waiting for Approval',
-      message: `Waiting for ${giverName}'s approval! You can start with the first session, but the remaining sessions will unlock after ${giverName} approves your goal (or automatically in 24 hours).`,
+      title: t ? t('recipient.goalStatus.waitingForApproval') : 'Waiting for Approval',
+      message: t ? t('recipient.goalStatus.waitingApprovalBanner', { giverName }) : `Waiting for ${giverName}'s approval! You can start with the first session, but the remaining sessions will unlock after ${giverName} approves your goal (or automatically in 24 hours).`,
     };
   }
 

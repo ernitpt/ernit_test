@@ -8,6 +8,7 @@ import {
     Image,
     Platform,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { SmilePlus } from 'lucide-react-native';
 import type { ReactionType } from '../types';
 import ReactionPicker from './ReactionPicker';
@@ -46,6 +47,7 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const [showPicker, setShowPicker] = useState(false);
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -208,8 +210,8 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
                         onPress={handleTogglePicker}
                         activeOpacity={0.8}
                         accessibilityRole="button"
-                        accessibilityLabel="React to this post"
-                        accessibilityHint="Opens reaction picker"
+                        accessibilityLabel={t('accessibility.reactionBar.reactToPost')}
+                        accessibilityHint={t('accessibility.reactionBar.opensReactionPicker')}
                     >
                         <SmilePlus
                             color={(showPicker || userReaction) ? colors.secondary : colors.textSecondary}
@@ -253,7 +255,7 @@ const CompactReactionBar: React.FC<CompactReactionBarProps> = ({
                                     activeOpacity={0.7}
                                     hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                                     accessibilityRole="button"
-                                    accessibilityLabel={`${reactionCounts[type]} ${type} reactions`}
+                                    accessibilityLabel={t('accessibility.reactionBar.reactionCount', { count: reactionCounts[type], type })}
                                 >
                                     <Animated.Image
                                         source={REACTION_IMAGES[type]}

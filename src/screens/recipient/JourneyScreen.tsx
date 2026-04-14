@@ -1,4 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatLocalDate, formatRelativeTime } from '../../utils/i18nHelpers';
+import { formatCurrency } from '../../utils/helpers';
 import {
   View, Text, ScrollView, StyleSheet, Animated, Easing, TouchableOpacity,
   Platform, Linking, RefreshControl, Share, useWindowDimensions,
@@ -29,7 +32,6 @@ type HintEntry = PersonalizedHint | {
 import { useRootNavigation } from '../../types/navigation';
 import { generateCouponForGoal } from '../../services/CouponService';
 import { isSelfGifted } from '../../types';
-import MainScreen from '../MainScreen';
 import DetailedGoalCard from './DetailedGoalCard';
 import { goalService, normalizeGoal } from '../../services/GoalService';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
@@ -39,13 +41,13 @@ import { userService } from '../../services/userService';
 import { sessionService } from '../../services/SessionService';
 import { motivationService } from '../../services/MotivationService';
 import SharedHeader from '../../components/SharedHeader';
-import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
+import { FOOTER_HEIGHT } from '../../components/CustomTabBar';
 import AudioPlayer from '../../components/AudioPlayer';
 import ImageViewer from '../../components/ImageViewer';
 import { SessionCardSkeleton } from '../../components/SkeletonLoader';
 import { Card } from '../../components/Card';
 import { BookingCalendar } from '../../components/BookingCalendar';
-import { Clock, PlayCircle, Gift, ShoppingBag, Check, Trophy, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles, Share as ShareIcon, TrendingUp, Zap, Timer, Activity, Lock, Flame } from 'lucide-react-native';
+import { Clock, PlayCircle, Gift, ShoppingBag, Copy, CheckCircle, Ticket, MessageCircle, Mail, Sparkles, Share as ShareIcon, TrendingUp, Zap, Timer, Activity, Lock, Flame } from 'lucide-react-native';
 import { getFlameHex } from '../../utils/streakColor';
 import { logger } from '../../utils/logger';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
@@ -57,9 +59,6 @@ import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
 import { Video, ResizeMode } from 'expo-av';
 import { MotiView } from 'moti';
-import { captureRef } from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { vh } from '../../utils/responsive';
 import { toJSDate } from '../../utils/GoalHelpers';
@@ -74,15 +73,7 @@ const fmtDurationShort = (secs: number): string => {
   return `${m}m`;
 };
 
-const fmtTimeAgo = (dateMs: number): string => {
-  const diffMs = Date.now() - dateMs;
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return 'today';
-  if (diffDays === 1) return 'yesterday';
-  if (diffDays < 7) return `${diffDays}d ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-  return `${Math.floor(diffDays / 30)}mo ago`;
-};
+// fmtTimeAgo replaced by formatRelativeTime(dateMs, t) from i18nHelpers
 
 // ─── Segmented Tab Control ───────────────────────────────────────────────────
 const TAB_SESSIONS = 'Sessions';
@@ -96,6 +87,7 @@ const SegmentedControl = React.memo(({
   activeTab: TabKey;
   onTabChange: (tab: TabKey) => void;
 }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const segStyles = useMemo(() => createSegStyles(colors), [colors]);
   const slideAnim = useRef(new Animated.Value(activeTab === TAB_SESSIONS ? 0 : 1)).current;
@@ -122,25 +114,28 @@ const SegmentedControl = React.memo(({
           },
         ]}
       />
-      {[TAB_SESSIONS, TAB_HINTS].map((tab) => (
-        <TouchableOpacity
-          key={tab}
-          style={segStyles.tab}
-          onPress={() => onTabChange(tab as TabKey)}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel={`${tab} tab`}
-        >
-          <Text
-            style={[
-              segStyles.tabLabel,
-              activeTab === tab && segStyles.tabLabelActive,
-            ]}
+      {[TAB_SESSIONS, TAB_HINTS].map((tab) => {
+        const tabLabel = tab === TAB_SESSIONS ? t('recipient.journey.tabs.sessions') : t('recipient.journey.tabs.hints');
+        return (
+          <TouchableOpacity
+            key={tab}
+            style={segStyles.tab}
+            onPress={() => onTabChange(tab as TabKey)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('recipient.journey.tabs.a11y', { label: tabLabel })}
           >
-            {tab}
-          </Text>
-        </TouchableOpacity>
-      ))}
+            <Text
+              style={[
+                segStyles.tabLabel,
+                activeTab === tab && segStyles.tabLabelActive,
+              ]}
+            >
+              {tabLabel}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 });
@@ -198,6 +193,7 @@ const SessionCard = React.memo(({
   onToggleExpand: () => void;
   onImagePress: (uri: string) => void;
 }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const sessStyles = useMemo(() => createSessStyles(colors), [colors]);
   const anim = useRef(new Animated.Value(0)).current;
@@ -267,13 +263,13 @@ const SessionCard = React.memo(({
             <View style={sessStyles.metaRow}>
               <Clock size={13} color={colors.textSecondary} />
               <Text style={sessStyles.metaText}>{fmtDuration(session.duration)}</Text>
-              <Text style={sessStyles.weekBadge}>Week {session.weekNumber + 1}</Text>
+              <Text style={sessStyles.weekBadge}>{t('recipient.journey.sessionCard.week', { number: session.weekNumber + 1 })}</Text>
             </View>
           </View>
 
           {/* Right: privacy + media thumbnail */}
           {session.visibility === 'private' && !session.mediaUrl && (
-            <Lock size={14} color={colors.textMuted} accessibilityLabel="Private session" />
+            <Lock size={14} color={colors.textMuted} accessibilityLabel={t('recipient.journey.sessionCard.privateA11y')} />
           )}
           {session.mediaUrl && (
             <View style={sessStyles.thumb}>
@@ -315,7 +311,7 @@ const SessionCard = React.memo(({
                     onPress={() => onImagePress(session.mediaUrl!)}
                     activeOpacity={0.9}
                     accessibilityRole="button"
-                    accessibilityLabel="View session photo fullscreen"
+                    accessibilityLabel={t('recipient.journey.sessionCard.viewPhotoA11y')}
                   >
                     <Image
                       source={{ uri: session.mediaUrl }}
@@ -333,7 +329,7 @@ const SessionCard = React.memo(({
             <>
               <View style={sessStyles.expandedDivider} />
               <View style={sessStyles.notesContainer}>
-                <Text style={sessStyles.notesLabel}>Notes</Text>
+                <Text style={sessStyles.notesLabel}>{t('recipient.journey.sessionCard.notesLabel')}</Text>
                 <Text style={sessStyles.notesText}>{session.notes}</Text>
               </View>
             </>
@@ -346,7 +342,7 @@ const SessionCard = React.memo(({
                 style={sessStyles.sessionShareBtn}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel={`Share session ${session.sessionNumber} photo`}
+                accessibilityLabel={t('recipient.journey.sessionCard.shareA11y', { number: session.sessionNumber })}
                 onPress={async () => {
                   Haptics.selectionAsync();
                   try {
@@ -360,7 +356,7 @@ const SessionCard = React.memo(({
                 }}
               >
                 <ShareIcon size={14} color={colors.textSecondary} />
-                <Text style={sessStyles.sessionShareText}>Share this session</Text>
+                <Text style={sessStyles.sessionShareText}>{t('recipient.journey.sessionCard.shareText')}</Text>
               </TouchableOpacity>
             </>
           )}
@@ -375,11 +371,11 @@ const SessionCard = React.memo(({
             onPress={toggleMotivations}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={`${motivationsExpanded ? 'Hide' : 'Show'} motivations`}
+            accessibilityLabel={motivationsExpanded ? t('recipient.journey.sessionCard.hideMotivationsA11y') : t('recipient.journey.sessionCard.showMotivationsA11y')}
           >
             <MessageCircle size={14} color={colors.primary} />
             <Text style={sessStyles.motivationToggleText}>
-              {motivations.length} motivation{motivations.length !== 1 ? 's' : ''} from friends
+              {t('plurals.motivations', { count: motivations.length })}
             </Text>
           </TouchableOpacity>
 
@@ -678,6 +674,7 @@ const StatPill = React.memo(({ icon, label, value }: StatPillProps) => {
 });
 
 const SessionStatsBar = React.memo(({ sessions, hideSessions = false }: { sessions: SessionRecord[]; hideSessions?: boolean }) => {
+  const { t } = useTranslation();
   const colors = useColors();
 
   const stats = useMemo(() => {
@@ -731,35 +728,35 @@ const SessionStatsBar = React.memo(({ sessions, hideSessions = false }: { sessio
           <StatPill
             icon={<Activity size={16} color={colors.primary} />}
             value={String(sessions.length)}
-            label="Sessions"
+            label={t('recipient.journey.stats.sessions')}
           />
         )}
         {stats.avgDuration > 0 && (
           <StatPill
             icon={<Timer size={16} color={colors.secondary} />}
             value={formatAvgDuration(stats.avgDuration)}
-            label="Avg"
+            label={t('recipient.journey.stats.avg')}
           />
         )}
         {stats.longest > 0 && (
           <StatPill
             icon={<TrendingUp size={16} color={colors.warning} />}
             value={formatAvgDuration(stats.longest)}
-            label="Longest"
+            label={t('recipient.journey.stats.longest')}
           />
         )}
         {stats.totalTime > 0 && (
           <StatPill
             icon={<Clock size={16} color={colors.categoryViolet} />}
             value={formatTotalTime(stats.totalTime)}
-            label="Total"
+            label={t('recipient.journey.stats.total')}
           />
         )}
         {stats.streak > 1 && (
           <StatPill
             icon={<Zap size={16} color={colors.celebrationGold} />}
             value={`${stats.streak}🔥`}
-            label="Streak"
+            label={t('recipient.journey.stats.streak')}
           />
         )}
       </ScrollView>
@@ -778,6 +775,7 @@ const HintItem = React.memo(({
   fmtDateTime: (ts: number) => string;
   onImagePress: (uri: string) => void;
 }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const hintStyles = useMemo(() => createHintStyles(colors), [colors]);
   const anim = useRef(new Animated.Value(0)).current;
@@ -817,12 +815,12 @@ const HintItem = React.memo(({
         <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.xs }}>
           <View style={{ backgroundColor: colors.primaryLight, borderRadius: BorderRadius.sm, paddingHorizontal: Spacing.xs, paddingVertical: Spacing.xxs }}>
             <Text style={{ ...Typography.captionBold, color: colors.primary }}>
-              💡 Session {sessionNum}
+              💡 {t('recipient.journey.hint.sessionLabel', { number: sessionNum })}
             </Text>
           </View>
           {dateMs > 0 && (
             <Text style={{ ...Typography.caption, color: colors.textSecondary }}>
-              sent {fmtTimeAgo(dateMs)}
+              {t('recipient.journey.hint.sent', { time: formatRelativeTime(dateMs, t) })}
             </Text>
           )}
         </View>
@@ -837,9 +835,9 @@ const HintItem = React.memo(({
           onPress={() => onImagePress(hint.imageUrl!)}
           activeOpacity={0.9}
           accessibilityRole="button"
-          accessibilityLabel="View hint image"
+          accessibilityLabel={t('recipient.journey.hint.viewImageA11y')}
         >
-          <Image source={{ uri: hint.imageUrl }} style={hintStyles.hintImage} accessibilityLabel="Hint image" cachePolicy="memory-disk" contentFit="cover" />
+          <Image source={{ uri: hint.imageUrl }} style={hintStyles.hintImage} accessibilityLabel={t('recipient.journey.hint.imageA11y')} cachePolicy="memory-disk" contentFit="cover" />
         </TouchableOpacity>
       )}
 
@@ -874,6 +872,7 @@ const createHintStyles = (colors: typeof Colors) => StyleSheet.create({
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 const JourneyScreen = () => {
+  const { t } = useTranslation();
   const navigation = useRootNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
@@ -911,12 +910,9 @@ const JourneyScreen = () => {
   const phoneTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const emailTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const bookingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  const shareCardRef = useRef<View>(null);
   const isMountedRef = useRef(true);
   const tabScrollRef = useRef<ScrollView>(null);
   const { width: screenWidth } = useWindowDimensions();
-  const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
-  const [isSharing, setIsSharing] = useState(false);
   const [error, setError] = useState(false);
   const { showSuccess, showError, showInfo } = useToast();
 
@@ -1194,9 +1190,14 @@ const JourneyScreen = () => {
     if (!partner?.phone || !experience) return;
     const resolvedDate = date ?? preferredDate;
     const dateString = resolvedDate
-      ? resolvedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-      : 'at your earliest convenience';
-    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my goal and earned ${experience.title}!\n\nI'd like to schedule my experience for ${dateString}.\n\nLooking forward to it!\n${userName}`;
+      ? formatLocalDate(resolvedDate, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+      : t('booking.whatsapp.earliestConvenience');
+    const message = t('booking.whatsapp.scheduleMessage', {
+      partnerName: partner.name || t('booking.whatsapp.defaultPartnerName'),
+      experienceName: experience.title,
+      dateString,
+      userName,
+    });
     const phone = partner.phone.replace(/[^0-9]/g, '');
     const url = Platform.select({
       ios: `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`,
@@ -1205,9 +1206,9 @@ const JourneyScreen = () => {
     });
     Linking.canOpenURL(url!).then(ok => {
       if (ok) Linking.openURL(url!).catch(e => logger.error('Failed to open WhatsApp URL:', e));
-      else showInfo('WhatsApp is not installed.');
+      else showInfo(t('booking.whatsapp.error'));
     }).catch(e => logger.error('Failed to check WhatsApp URL:', e));
-  }, [partner, experience, preferredDate, userName]);
+  }, [partner, experience, preferredDate, userName, t]);
 
   const handleEmailSchedule = useCallback((date?: Date) => {
     if (!partner || !experience) return;
@@ -1215,12 +1216,17 @@ const JourneyScreen = () => {
     if (!email) return;
     const resolvedDate = date ?? preferredDate;
     const dateString = resolvedDate
-      ? resolvedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-      : 'at your earliest convenience';
-    const message = `Hi ${partner.name || 'there'}!\n\nI've completed my Ernit goal and earned ${experience.title}!\n\nI'd like to schedule my experience for ${dateString}.\n\nLooking forward to it!\n${userName}`;
-    const subject = `Experience Booking - ${experience.title}`;
+      ? formatLocalDate(resolvedDate, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+      : t('booking.email.earliestConvenience');
+    const message = t('booking.email.scheduleBody', {
+      partnerName: partner.name || t('booking.email.defaultPartnerName'),
+      experienceName: experience.title,
+      dateString,
+      userName,
+    });
+    const subject = t('booking.email.subject', { experienceName: experience.title });
     Linking.openURL(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`).catch(e => logger.error('Failed to open email URL:', e));
-  }, [partner, experience, preferredDate, userName]);
+  }, [partner, experience, preferredDate, userName, t]);
 
   const handleBookWhatsApp = useCallback(() => {
     setBookingMethod('whatsapp');
@@ -1244,58 +1250,6 @@ const JourneyScreen = () => {
   const handleCancelBooking = useCallback(() => {
     setShowCalendar(false);
   }, []);
-
-  const handleShare = useCallback(async () => {
-    if (!shareCardRef.current) return;
-    setIsSharing(true);
-    try {
-      if (Platform.OS === 'web') {
-        const dataUri = await captureRef(shareCardRef, {
-          format: 'png',
-          quality: 1,
-          result: 'data-uri',
-        });
-        const res = await fetch(dataUri);
-        const blob = await res.blob();
-        const file = new File([blob], 'ernit-achievement.png', { type: 'image/png' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: 'My Achievement',
-            text: 'Check out my achievement on Ernit!',
-          });
-        } else {
-          const link = document.createElement('a');
-          link.href = dataUri;
-          link.download = 'ernit-achievement.png';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          showInfo('Image saved! Share it to Instagram from your gallery.');
-        }
-      } else {
-        const uri = await captureRef(shareCardRef, {
-          format: 'png',
-          quality: 1,
-          result: 'tmpfile',
-        });
-        const isAvailable = await Sharing.isAvailableAsync();
-        if (isAvailable) {
-          await Sharing.shareAsync(uri, {
-            mimeType: 'image/png',
-            dialogTitle: 'Share your achievement',
-          });
-        } else {
-          showInfo('Sharing is not available on this device');
-        }
-      }
-    } catch (error: unknown) {
-      logger.error('Error sharing achievement:', error);
-      showError('Could not share. Please try again.');
-    } finally {
-      setIsSharing(false);
-    }
-  }, [showError, showInfo]);
 
   // ─── Hints data ──────────────────────────────────────────────────────────
   const hintsArray =
@@ -1332,9 +1286,9 @@ const JourneyScreen = () => {
       return (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>🏃</Text>
-          <Text style={styles.emptyText}>No sessions yet</Text>
+          <Text style={styles.emptyText}>{t('recipient.journey.empty.sessionsTitle')}</Text>
           <Text style={styles.emptySubText}>
-            Complete your first session and it will show up here.
+            {t('recipient.journey.empty.sessionsSubtitle')}
           </Text>
         </View>
       );
@@ -1353,14 +1307,14 @@ const JourneyScreen = () => {
       if (prevWeek !== null && s.weekNumber !== prevWeek && !seenWeeks.has(prevWeek)) {
         seenWeeks.add(prevWeek);
         items.push(
-          <WeekDivider key={`week-${prevWeek}`} label={`Week ${prevWeek} Complete`} />
+          <WeekDivider key={`week-${prevWeek}`} label={t('recipient.journey.milestone.weekComplete', { number: prevWeek })} />
         );
       }
       // Session count milestone
       if (SESSION_MILESTONES.has(s.sessionNumber) && !shownSessionMilestones.has(s.sessionNumber)) {
         shownSessionMilestones.add(s.sessionNumber);
         items.push(
-          <WeekDivider key={`sess-${s.sessionNumber}`} label={`${s.sessionNumber} Sessions`} />
+          <WeekDivider key={`sess-${s.sessionNumber}`} label={t('recipient.journey.milestone.sessions', { count: s.sessionNumber })} />
         );
       }
       items.push(
@@ -1396,9 +1350,9 @@ const JourneyScreen = () => {
       return (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>💡</Text>
-          <Text style={styles.emptyText}>No hints revealed yet</Text>
+          <Text style={styles.emptyText}>{t('recipient.journey.empty.hintsTitle')}</Text>
           <Text style={styles.emptySubText}>
-            Hints will appear here as you progress through your sessions.
+            {t('recipient.journey.empty.hintsSubtitle')}
           </Text>
         </View>
       );
@@ -1449,13 +1403,13 @@ const JourneyScreen = () => {
   // ─── Loading / redirect state ────────────────────────────────────────────
   if (!currentGoal) {
     return (
-      <MainScreen activeRoute="Goals">
+      <>
         <StatusBar style="light" />
-        <SharedHeader title="Journey" showBack />
+        <SharedHeader title={t('recipient.journey.screenTitle')} showBack />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
+          <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>{t('common.loading')}</Text>
         </View>
-      </MainScreen>
+      </>
     );
   }
 
@@ -1479,7 +1433,7 @@ const JourneyScreen = () => {
       ? completedAtRaw.toDate()
       : completedAtRaw ? new Date(completedAtRaw as Date) : null;
     const completedDate = parsedDate && !isNaN(parsedDate.getTime())
-      ? parsedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+      ? formatLocalDate(parsedDate, { month: 'short', day: 'numeric', year: 'numeric' })
       : null;
 
     const hasGift = !!currentGoal.giftAttachedAt || (!!currentGoal.experienceGiftId && !currentGoal.isFreeGoal);
@@ -1491,84 +1445,11 @@ const JourneyScreen = () => {
 
     return (
       <>
-        {/* Off-screen Share Card for capture */}
-        <View style={{ position: 'absolute', left: -9999 }}>
-          <View
-            ref={shareCardRef}
-            style={{
-              width: 1080,
-              height: shareFormat === 'story' ? 1920 : 1080,
-              backgroundColor: colors.cyan,
-            }}
-            collapsable={false}
-          >
-            <LinearGradient
-              colors={[colors.secondary, colors.cyan, colors.secondary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ flex: 1, padding: 80, justifyContent: 'center', alignItems: 'center' }}
-            >
-              {currentGoal.pledgedExperience?.coverImageUrl ? (
-                <Image
-                  source={{ uri: currentGoal.pledgedExperience.coverImageUrl }}
-                  style={{
-                    width: 600,
-                    height: shareFormat === 'story' ? 400 : 300,
-                    borderRadius: BorderRadius.pill,
-                    marginBottom: Spacing.jumbo,
-                  }}
-                  contentFit="cover" cachePolicy="memory-disk"
-                />
-              ) : null}
-              <Trophy color={colors.celebrationGoldLight} size={120} strokeWidth={2.5} fill={colors.celebrationGold} />
-              <Text style={{ ...Typography.hero, color: colors.white, textAlign: 'center', marginTop: Spacing.huge, marginBottom: Spacing.lg }}>
-                Goal Completed!
-              </Text>
-              <Text style={{ ...Typography.heroSub, color: colors.primaryTint, textAlign: 'center', marginBottom: Spacing.jumbo }}>
-                {currentGoal.title || currentGoal.description || ''}
-              </Text>
-              <View style={{ flexDirection: 'row', gap: Spacing.jumbo, marginBottom: Spacing.jumbo }}>
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={{ ...Typography.hero, color: colors.white }}>{totalSessions}</Text>
-                  <Text style={{ ...Typography.display, color: colors.whiteAlpha90 }}>SESSIONS</Text>
-                </View>
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={{ ...Typography.hero, color: colors.white }}>{currentGoal.targetCount || 0}</Text>
-                  <Text style={{ ...Typography.display, color: colors.whiteAlpha90 }}>WEEKS</Text>
-                </View>
-                {sessions.length > 0 && (() => {
-                  const totalSecs = sessions.reduce((acc, s) => acc + (s.duration || 0), 0);
-                  const h = Math.floor(totalSecs / 3600);
-                  const m = Math.floor((totalSecs % 3600) / 60);
-                  const label = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-                  return (
-                    <View style={{ alignItems: 'center' }}>
-                      <Text style={{ ...Typography.hero, color: colors.white }}>{label}</Text>
-                      <Text style={{ ...Typography.display, color: colors.whiteAlpha90 }}>TOTAL</Text>
-                    </View>
-                  );
-                })()}
-              </View>
-              <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
-                <Image
-                  source={require('../../assets/favicon.png')}
-                  style={{ width: 60, height: 60, marginBottom: Spacing.md }}
-                  contentFit="contain" cachePolicy="memory-disk"
-                  accessible={false}
-                />
-                <Text style={{ ...Typography.display, color: colors.overlayLight }}>
-                  Earned with Ernit
-                </Text>
-              </View>
-            </LinearGradient>
-          </View>
-        </View>
-
         {/* ─── 1. Completion Header Card ────────────────── */}
         <Card variant="elevated" style={{ alignItems: 'center', marginBottom: Spacing.sectionGap }}>
           <CheckCircle color={colors.primary} size={48} />
           <Text style={[Typography.heading1, { color: colors.textPrimary, marginTop: Spacing.md, textAlign: 'center' }]}>
-            Goal Completed
+            {t('recipient.journey.completed.title')}
           </Text>
           <Text style={[Typography.subheading, { color: colors.textSecondary, marginTop: Spacing.xs, textAlign: 'center' }]}>
             {currentGoal.title}
@@ -1577,11 +1458,11 @@ const JourneyScreen = () => {
           <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg, flexWrap: 'wrap', justifyContent: 'center' }}>
             <View style={cStyles.statChip}>
               <Text style={[Typography.heading2, { color: colors.textPrimary }]}>{totalSessions}</Text>
-              <Text style={[Typography.caption, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }]}>Sessions</Text>
+              <Text style={[Typography.caption, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }]}>{t('recipient.journey.completed.statSessions')}</Text>
             </View>
             <View style={cStyles.statChip}>
               <Text style={[Typography.heading2, { color: colors.textPrimary }]}>{currentGoal.targetCount || 0}</Text>
-              <Text style={[Typography.caption, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }]}>Weeks</Text>
+              <Text style={[Typography.caption, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }]}>{t('recipient.journey.completed.statWeeks')}</Text>
             </View>
             {(currentGoal.completionStreak ?? 0) >= 1 && (() => {
               const streakVal = currentGoal.completionStreak!;
@@ -1592,7 +1473,7 @@ const JourneyScreen = () => {
                     <Flame color={flameColor} size={18} fill={flameColor} />
                     <Text style={[Typography.heading2, { color: flameColor }]}>{streakVal}</Text>
                   </View>
-                  <Text style={[Typography.caption, { color: colors.warningDark, textTransform: 'uppercase', letterSpacing: 1 }]}>Streak</Text>
+                  <Text style={[Typography.caption, { color: colors.warningDark, textTransform: 'uppercase', letterSpacing: 1 }]}>{t('recipient.journey.completed.statStreak')}</Text>
                 </View>
               );
             })()}
@@ -1600,7 +1481,7 @@ const JourneyScreen = () => {
 
           {completedDate && (
             <Text style={[Typography.caption, { color: colors.textMuted, marginTop: Spacing.md }]}>
-              Completed {completedDate}
+              {t('recipient.journey.completed.completedOn', { date: completedDate })}
             </Text>
           )}
 
@@ -1609,7 +1490,7 @@ const JourneyScreen = () => {
             <>
               <View style={cStyles.rewardDivider} />
               <Text style={[Typography.subheading, { color: colors.textPrimary, marginBottom: Spacing.sm, alignSelf: 'flex-start' }]}>
-                Your Reward
+                {t('recipient.journey.completed.yourReward')}
               </Text>
 
               <Card variant="outlined" noPadding style={{ alignSelf: 'stretch', overflow: 'hidden' }}>
@@ -1637,36 +1518,36 @@ const JourneyScreen = () => {
                     <View style={cStyles.couponCard}>
                       <View style={cStyles.couponRow}>
                         <Ticket size={18} color={colors.primary} />
-                        <Text style={cStyles.couponLabel}>Your Redemption Code</Text>
+                        <Text style={cStyles.couponLabel}>{t('recipient.journey.completed.couponLabel')}</Text>
                       </View>
                       <View style={cStyles.couponCodeBox}>
                         <Text style={cStyles.couponCodeText}>{couponCode}</Text>
                       </View>
-                      <TouchableOpacity style={cStyles.copyButton} onPress={handleCopyCoupon} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy coupon code">
+                      <TouchableOpacity style={cStyles.copyButton} onPress={handleCopyCoupon} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('recipient.journey.completed.copyCouponA11y')}>
                         {isCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.primary} />}
                         <Text style={[cStyles.copyText, isCopied && { color: colors.secondary }]}>
-                          {isCopied ? 'Copied!' : 'Copy Code'}
+                          {isCopied ? t('common.copied') : t('recipient.journey.completed.copyCode')}
                         </Text>
                       </TouchableOpacity>
                     </View>
                   ) : couponLoading ? (
                     <View style={{ padding: Spacing.sm, alignItems: 'center' }}>
-                      <Text style={[Typography.small, { color: colors.textMuted }]}>Generating your code...</Text>
+                      <Text style={[Typography.small, { color: colors.textMuted }]}>{t('recipient.journey.completed.generatingCode')}</Text>
                     </View>
                   ) : null}
 
                   {/* Partner contact */}
                   {partner && (partner.phone || partner.contactEmail || partner.email) && (
                     <View style={cStyles.contactCard}>
-                      <Text style={cStyles.contactTitle}>Partner Contact</Text>
+                      <Text style={cStyles.contactTitle}>{t('recipient.journey.completed.partnerContact')}</Text>
 
                       {partner.phone && (
                         <View style={cStyles.contactRow}>
                           <View style={{ flex: 1 }}>
-                            <Text style={cStyles.contactLabel}>Phone (WhatsApp)</Text>
+                            <Text style={cStyles.contactLabel}>{t('recipient.journey.completed.phoneLabel')}</Text>
                             <Text style={cStyles.contactValue}>{partner.phone}</Text>
                           </View>
-                          <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy phone number">
+                          <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('recipient.journey.completed.copyPhoneA11y')}>
                             {isPhoneCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.textSecondary} />}
                           </TouchableOpacity>
                         </View>
@@ -1675,10 +1556,10 @@ const JourneyScreen = () => {
                       {(partner.contactEmail || partner.email) && (
                         <View style={cStyles.contactRow}>
                           <View style={{ flex: 1 }}>
-                            <Text style={cStyles.contactLabel}>Email</Text>
+                            <Text style={cStyles.contactLabel}>{t('recipient.journey.completed.emailLabel')}</Text>
                             <Text style={[cStyles.contactValue, { ...Typography.caption }]}>{partner.contactEmail || partner.email}</Text>
                           </View>
-                          <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy email address">
+                          <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('recipient.journey.completed.copyEmailA11y')}>
                             {isEmailCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.textSecondary} />}
                           </TouchableOpacity>
                         </View>
@@ -1691,7 +1572,7 @@ const JourneyScreen = () => {
                             variant="primary"
                             size="sm"
                             onPress={handleBookWhatsApp}
-                            title="WhatsApp"
+                            title={t('booking.whatsapp.buttonLabel')}
                             icon={<MessageCircle size={16} color={colors.white} />}
                             style={cStyles.whatsappBtn}
                           />
@@ -1701,7 +1582,7 @@ const JourneyScreen = () => {
                             variant="primary"
                             size="sm"
                             onPress={handleBookEmail}
-                            title="Email"
+                            title={t('booking.email.buttonLabel')}
                             icon={<Mail size={16} color={colors.white} />}
                             style={cStyles.emailBtn}
                           />
@@ -1716,8 +1597,8 @@ const JourneyScreen = () => {
               {showBuyCTA && (
                 <View style={{ alignSelf: 'stretch' }}>
                   <View style={cStyles.rewardDivider} />
-                  <Text style={cStyles.buyCTATitle}>You've earned this!</Text>
-                  <Text style={cStyles.buyCTASubtext}>Buy your reward now and redeem it instantly.</Text>
+                  <Text style={cStyles.buyCTATitle}>{t('recipient.journey.completed.buyCTATitle')}</Text>
+                  <Text style={cStyles.buyCTASubtext}>{t('recipient.journey.completed.buyCTASubtext')}</Text>
                   <Button
                     variant="primary"
                     onPress={() => navigation.navigate('ExperienceCheckout', {
@@ -1725,8 +1606,8 @@ const JourneyScreen = () => {
                       goalId: currentGoal.id,
                     })}
                     title={(currentGoal.pledgedExperience?.price ?? 0) > 0
-                      ? `Buy Now · \u20AC${currentGoal.pledgedExperience?.price}`
-                      : 'Get This Experience'}
+                      ? t('recipient.journey.completed.buyNowWithPrice', { price: formatCurrency(currentGoal.pledgedExperience?.price ?? 0) })
+                      : t('recipient.journey.completed.getExperience')}
                     icon={<ShoppingBag size={15} color={colors.white} />}
                     fullWidth
                     style={styles.buyButton}
@@ -1738,56 +1619,34 @@ const JourneyScreen = () => {
               {showExpired && (
                 <View style={{ alignSelf: 'stretch' }}>
                   <View style={cStyles.rewardDivider} />
-                  <Text style={cStyles.expiredText}>Purchase window has expired</Text>
+                  <Text style={cStyles.expiredText}>{t('recipient.journey.completed.purchaseWindowExpired')}</Text>
                 </View>
               )}
             </>
           )}
+          {currentGoal.isCompleted && (
+            <View style={{ marginTop: Spacing.lg, width: '80%', alignSelf: 'center' }}>
+              <Button
+                variant="primary"
+                title={t('recipient.journey.completed.shareAchievement')}
+                onPress={() => navigation.navigate('ShareGoal', {
+                  goal: currentGoal,
+                  experienceGift: currentGoal.pledgedExperience ? {
+                    pledgedExperience: currentGoal.pledgedExperience,
+                  } as any : undefined,
+                  sessions: sessions,
+                  sessionStreak: currentGoal.completionStreak,
+                })}
+                fullWidth
+              />
+            </View>
+          )}
         </Card>
-
-        {/* ─── Share Section ────────────────────────────── */}
-        <View style={cStyles.section}>
-          <Text style={cStyles.sectionTitle}>Share Your Achievement</Text>
-          <View style={cStyles.shareFormatToggle}>
-            <TouchableOpacity
-              style={[cStyles.shareFormatOption, shareFormat === 'story' && cStyles.shareFormatActive]}
-              onPress={() => { setShareFormat('story'); if (Platform.OS !== 'web') Haptics.selectionAsync(); }}
-              accessibilityRole="button"
-              accessibilityLabel="Story format (9:16)"
-              accessibilityState={{ selected: shareFormat === 'story' }}
-            >
-              <Text style={[cStyles.shareFormatText, shareFormat === 'story' && cStyles.shareFormatTextActive]}>
-                Story (9:16)
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[cStyles.shareFormatOption, shareFormat === 'square' && cStyles.shareFormatActive]}
-              onPress={() => { setShareFormat('square'); if (Platform.OS !== 'web') Haptics.selectionAsync(); }}
-              accessibilityRole="button"
-              accessibilityLabel="Square format (1:1)"
-              accessibilityState={{ selected: shareFormat === 'square' }}
-            >
-              <Text style={[cStyles.shareFormatText, shareFormat === 'square' && cStyles.shareFormatTextActive]}>
-                Square (1:1)
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <Button
-            variant="primary"
-            onPress={handleShare}
-            loading={isSharing}
-            disabled={isSharing}
-            title="Share"
-            icon={<ShareIcon color={colors.white} size={20} />}
-            fullWidth
-            style={cStyles.shareButton}
-          />
-        </View>
 
         {/* ─── Sessions History ───────────────────────────── */}
         <View style={cStyles.section}>
           <Text style={cStyles.sectionTitle}>
-            Sessions <Text style={cStyles.countBadge}>{sessions.length}</Text>
+            {t('recipient.journey.sections.sessions')} <Text style={cStyles.countBadge}>{sessions.length}</Text>
           </Text>
           <View style={styles.tabContent}>
             {renderSessionsTab({ hideSessions: true })}
@@ -1798,7 +1657,7 @@ const JourneyScreen = () => {
         {hasHints && (
           <View style={cStyles.section}>
             <Text style={cStyles.sectionTitle}>
-              Hints <Text style={cStyles.countBadge}>{hintsArray.length}</Text>
+              {t('recipient.journey.sections.hints')} <Text style={cStyles.countBadge}>{hintsArray.length}</Text>
             </Text>
             <View style={styles.tabContent}>
               {renderHintsTab()}
@@ -1813,27 +1672,25 @@ const JourneyScreen = () => {
   if (error && !sessionsLoading) {
     return (
       <ErrorBoundary screenName="JourneyScreen" userId={currentGoal?.userId}>
-        <MainScreen activeRoute="Goals">
           <StatusBar style="light" />
-          <SharedHeader title="Journey" showBack />
+          <SharedHeader title={t('recipient.journey.screenTitle')} showBack />
           <ErrorRetry
-            message="Could not load journey data"
+            message={t('recipient.journey.error.loadFailed')}
             onRetry={() => {
               setError(false);
               setSessionsLoading(true);
               loadSessions();
             }}
           />
-        </MainScreen>
       </ErrorBoundary>
     );
   }
 
   return (
     <ErrorBoundary screenName="JourneyScreen" userId={currentGoal?.userId}>
-    <MainScreen activeRoute="Goals">
+      <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <StatusBar style="light" />
-      <SharedHeader title={currentGoal.isCompleted ? 'Your Achievement' : 'Journey'} showBack />
+      <SharedHeader title={currentGoal.isCompleted ? t('recipient.journey.achievementTitle') : t('recipient.journey.screenTitle')} showBack />
 
       <ScrollView
         style={{ flex: 1 }}
@@ -1890,10 +1747,10 @@ const JourneyScreen = () => {
                       </View>
                       <View style={styles.experienceInlineBody}>
                         <View style={styles.experienceHeader}>
-                          <Text style={[styles.experienceLabel, { color: colors.warningDark }]}>Mystery Reward</Text>
+                          <Text style={[styles.experienceLabel, { color: colors.warningDark }]}>{t('recipient.journey.active.mysteryReward')}</Text>
                         </View>
                         <Text style={styles.experienceTitle} numberOfLines={2}>
-                          Complete your challenge to reveal it!
+                          {t('recipient.journey.active.mysteryRevealPrompt')}
                         </Text>
                         {(() => {
                           const total = currentGoal.targetCount * currentGoal.sessionsPerWeek;
@@ -1905,7 +1762,7 @@ const JourneyScreen = () => {
                                 <View style={[styles.experienceProgressFill, { width: `${pct}%`, backgroundColor: colors.warning }]} />
                               </View>
                               <Text style={styles.experienceProgressLabel}>
-                                {done}/{total} sessions to reveal
+                                {t('recipient.journey.active.sessionsToReveal', { done, total })}
                               </Text>
                             </View>
                           );
@@ -1923,10 +1780,10 @@ const JourneyScreen = () => {
                       ) : null}
                       <View style={styles.experienceInlineBody}>
                         <View style={styles.experienceHeader}>
-                          <Text style={styles.experienceLabel}>{currentGoal.giftAttachedAt ? 'Your Reward' : 'Your Dream Reward'}</Text>
+                          <Text style={styles.experienceLabel}>{currentGoal.giftAttachedAt ? t('recipient.journey.active.yourReward') : t('recipient.journey.active.yourDreamReward')}</Text>
                           {currentGoal.pledgedExperience.price > 0 && (
                             <Text style={styles.experiencePrice}>
-                              {'\u20AC'}{currentGoal.pledgedExperience.price}
+                              {formatCurrency(currentGoal.pledgedExperience.price)}
                             </Text>
                           )}
                         </View>
@@ -1943,7 +1800,7 @@ const JourneyScreen = () => {
                                 <View style={[styles.experienceProgressFill, { width: `${pct}%` }]} />
                               </View>
                               <Text style={styles.experienceProgressLabel}>
-                                {done}/{total} sessions to earn this
+                                {t('recipient.journey.active.sessionsToEarn', { done, total })}
                               </Text>
                             </View>
                           );
@@ -1957,8 +1814,8 @@ const JourneyScreen = () => {
                               goalId: currentGoal.id,
                             })}
                             title={(currentGoal.pledgedExperience?.price ?? 0) > 0
-                              ? `Buy Now · \u20AC${currentGoal.pledgedExperience?.price}`
-                              : 'Get This Experience'}
+                              ? t('recipient.journey.completed.buyNowWithPrice', { price: formatCurrency(currentGoal.pledgedExperience?.price ?? 0) })
+                              : t('recipient.journey.completed.getExperience')}
                             icon={<ShoppingBag size={15} color={colors.white} />}
                             fullWidth
                             style={styles.buyButton}
@@ -1978,7 +1835,7 @@ const JourneyScreen = () => {
                 <View style={styles.recommendedSection}>
                   <View style={styles.recommendedHeader}>
                     <Sparkles color={colors.primary} size={16} />
-                    <Text style={styles.recommendedTitle}>Recommended for you</Text>
+                    <Text style={styles.recommendedTitle}>{t('recipient.journey.active.recommendedTitle')}</Text>
                   </View>
                   <ScrollView
                     horizontal
@@ -1990,7 +1847,7 @@ const JourneyScreen = () => {
                         key={exp.id}
                         style={styles.recommendedCard}
                         activeOpacity={0.85}
-                        onPress={() => navigation.navigate('ExperienceDetails', { experience: exp })}
+                        onPress={() => navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'ExperienceDetails', params: { experience: exp } } })}
                       >
                         {exp.coverImageUrl ? (
                           <Image
@@ -2005,7 +1862,7 @@ const JourneyScreen = () => {
                         )}
                         <Text style={styles.recommendedName} numberOfLines={2}>{exp.title}</Text>
                         {exp.price > 0 && (
-                          <Text style={styles.recommendedPrice}>{'\u20AC'}{exp.price}</Text>
+                          <Text style={styles.recommendedPrice}>{formatCurrency(exp.price)}</Text>
                         )}
                       </TouchableOpacity>
                     ))}
@@ -2013,12 +1870,10 @@ const JourneyScreen = () => {
                   <TouchableOpacity
                     style={styles.browseAllLink}
                     activeOpacity={0.7}
-                    onPress={() => navigation.navigate('CategorySelection', {
-                      prefilterCategory: currentGoal.preferredRewardCategory,
-                    })}
+                    onPress={() => navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection', params: { prefilterCategory: currentGoal.preferredRewardCategory } } })}
                   >
                     <Text style={styles.browseAllText}>
-                      Browse all {currentGoal.preferredRewardCategory ? currentGoal.preferredRewardCategory.charAt(0).toUpperCase() + currentGoal.preferredRewardCategory.slice(1) : ''} experiences
+                      {t('recipient.journey.active.browseAll', { category: currentGoal.preferredRewardCategory ? currentGoal.preferredRewardCategory.charAt(0).toUpperCase() + currentGoal.preferredRewardCategory.slice(1) : '' })}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -2073,7 +1928,7 @@ const JourneyScreen = () => {
         onCancel={handleCancelBooking}
         minimumDate={new Date()}
       />
-    </MainScreen>
+      </View>
     </ErrorBoundary>
   );
 };
@@ -2481,39 +2336,6 @@ const createCStyles = (colors: typeof Colors) => StyleSheet.create({
     ...Typography.caption,
     color: colors.textMuted,
   },
-  shareFormatToggle: {
-    flexDirection: 'row',
-    backgroundColor: colors.backgroundLight,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.xxs,
-    marginBottom: Spacing.md,
-  },
-  shareFormatOption: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-    borderRadius: BorderRadius.sm,
-  },
-  shareFormatActive: {
-    backgroundColor: colors.white,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  shareFormatText: { ...Typography.smallBold, color: colors.textMuted },
-  shareFormatTextActive: { color: colors.primaryDark },
-  shareButton: {
-    backgroundColor: colors.secondary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-  },
-  shareButtonText: { color: colors.white, ...Typography.bodyBold },
 });
 
 export default JourneyScreen;

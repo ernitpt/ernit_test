@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     ScrollView,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { Reaction, ReactionType } from '../types';
 import { reactionService } from '../services/ReactionService';
 import { ReactionSkeleton } from './SkeletonLoader';
@@ -44,6 +45,7 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
     const [selectedTab, setSelectedTab] = useState<ReactionType | 'all'>('all');
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
 
     useEffect(() => {
         if (!visible) return;
@@ -119,7 +121,7 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
                     ]}
                     onPress={() => setSelectedTab('all')}
                     accessibilityRole="tab"
-                    accessibilityLabel="All reactions"
+                    accessibilityLabel={t('modals.reactionViewer.allReactions')}
                     accessibilityState={{ selected: selectedTab === 'all' }}
                 >
                     <Text
@@ -128,7 +130,7 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
                             selectedTab === 'all' && styles.tabTextActive,
                         ]}
                     >
-                        All {reactions.length > 0 && `(${reactions.length})`}
+                        {reactions.length > 0 ? t('modals.reactionViewer.allTabWithCount', { count: reactions.length }) : t('modals.reactionViewer.allTab')}
                     </Text>
                 </TouchableOpacity>
 
@@ -141,7 +143,7 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
                         ]}
                         onPress={() => setSelectedTab(type)}
                         accessibilityRole="tab"
-                        accessibilityLabel={`${REACTION_EMOJIS[type]} reactions`}
+                        accessibilityLabel={t('modals.reactionViewer.reactionType', { emoji: REACTION_EMOJIS[type] })}
                         accessibilityState={{ selected: selectedTab === type }}
                     >
                         <Text style={styles.tabEmoji}>{REACTION_EMOJIS[type]}</Text>
@@ -168,8 +170,8 @@ const ReactionViewerModal: React.FC<ReactionViewerModalProps> = ({
                 ) : filteredReactions.length === 0 ? (
                     <EmptyState
                         icon="❤️"
-                        title="No reactions yet"
-                        message="Be the first to react!"
+                        title={t('modals.reactionViewer.noReactionsTitle')}
+                        message={t('modals.reactionViewer.noReactionsMessage')}
                     />
                 ) : (
                     filteredReactions.map((reaction) => (

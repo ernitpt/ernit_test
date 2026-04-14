@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { Audio } from 'expo-av';
+import { useTranslation } from 'react-i18next';
 import { logger } from '../utils/logger';
 import { Play, Pause } from 'lucide-react-native';
 import { Colors, useColors } from '../config';
@@ -24,6 +25,7 @@ interface AudioPlayerProps {
 const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const { showError } = useToast();
     const [sound, setSound] = useState<Audio.Sound | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -91,7 +93,7 @@ const AudioPlayer = ({ uri, duration, variant = 'default' }: AudioPlayerProps) =
 
     return (
         <View style={[styles.audioPlayer, isPopup && styles.audioPlayerPopup]}>
-            <TouchableOpacity onPress={togglePlayback} disabled={isLoading} style={[styles.playButton, isPopup && styles.playButtonPopup]} accessibilityLabel={isLoading ? "Loading" : isPlaying ? "Pause" : "Play"} accessibilityRole="button">
+            <TouchableOpacity onPress={togglePlayback} disabled={isLoading} style={[styles.playButton, isPopup && styles.playButtonPopup]} accessibilityLabel={isLoading ? t('accessibility.audioPlayer.loading') : isPlaying ? t('accessibility.audioPlayer.pause') : t('accessibility.audioPlayer.play')} accessibilityRole="button">
                 {isLoading ? (
                     <ActivityIndicator size="small" color={colors.white} />
                 ) : isPlaying ? (
@@ -134,12 +136,19 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
         padding: Spacing.md,
         paddingRight: Spacing.xl,
         alignSelf: 'stretch',
-        shadowColor: colors.primary,
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 4,
-    },
+        ...Platform.select({
+            ios: {
+                shadowColor: colors.primary,
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 4 },
+            },
+            android: {
+                boxShadow: `0 4 8 0 ${colors.primary}4D`,
+            },
+            default: {},
+        }),
+    } as any,
     playButton: {
         width: 32,
         height: 32,

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { MotiView, AnimatePresence } from 'moti';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -49,6 +50,7 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void
   const toastConfig = useMemo(() => getToastConfig(colors), [colors]);
   const config = toastConfig[toast.type];
   const IconComponent = config.Icon;
+  const { t } = useTranslation();
 
   useEffect(() => {
     const timer = setTimeout(() => onDismiss(toast.id), toast.duration);
@@ -76,7 +78,7 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void
       <TouchableOpacity
         onPress={() => onDismiss(toast.id)}
         hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-        accessibilityLabel="Dismiss"
+        accessibilityLabel={t('accessibility.dismissToast')}
         accessibilityRole="button"
       >
         <X size={16} color={config.text} />

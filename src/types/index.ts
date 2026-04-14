@@ -43,6 +43,8 @@ export interface UserProfile {
   reminderEnabled?: boolean;     // default true
   reminderTime?: string;         // "HH:MM" format, default "19:00"
   timezone?: string;             // IANA timezone, e.g. "Europe/Lisbon"
+  // Language preference
+  preferredLanguage?: 'en' | 'pt';
 }
 
 // Friend Request types
@@ -657,7 +659,43 @@ export interface GiftFlowPrefill extends Partial<GiftFlowData> {
   currentStep: number;
 }
 
-// Navigation types
+// ─── Tab Navigator Types ──────────────────────────────────────────────
+export type HomeTabParamList = {
+  CategorySelection: { prefilterCategory?: ExperienceCategory } | undefined;
+  ExperienceDetails: { experience: Experience };
+  Cart: undefined;
+  MysteryChoice: { experience?: Experience; cartItems?: CartItem[] };
+};
+
+export type GoalsTabParamList = {
+  Goals: undefined;
+  GoalDetail: { goalId: string };
+  Journey: { goal: Goal };
+  GoalSetting: { experienceGift: ExperienceGift };
+  AchievementDetail: { goal: Goal; experienceGift?: ExperienceGift; mode?: 'completion' | 'review' };
+  CouponEntry: { code?: string } | undefined;
+};
+
+export type FeedTabParamList = {
+  Feed: { highlightPostId?: string } | undefined;
+  FriendProfile: { userId: string };
+};
+
+export type ProfileTabParamList = {
+  Profile: undefined;
+  FriendsList: undefined;
+  AddFriend: undefined;
+  PurchasedGifts: undefined;
+};
+
+export type MainTabsParamList = {
+  HomeTab: NavigatorScreenParams<HomeTabParamList>;
+  FeedTab: NavigatorScreenParams<FeedTabParamList>;
+  GoalsTab: NavigatorScreenParams<GoalsTabParamList>;
+  ProfileTab: NavigatorScreenParams<ProfileTabParamList>;
+};
+
+// ─── Root Stack Types ─────────────────────────────────────────────────
 export type RootStackParamList = {
   Landing: undefined;
   Auth: { mode?: 'signin' | 'signup'; fromModal?: boolean };
@@ -669,6 +707,7 @@ export type RootStackParamList = {
   ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string; isMystery?: boolean; giftId?: string };
   ExperienceDetails: { experience: Experience };
   GoalDetail: { goalId: string };
+  MainTabs: NavigatorScreenParams<MainTabsParamList>;
   GiverFlow: NavigatorScreenParams<GiverStackParamList>;
   RecipientFlow: NavigatorScreenParams<RecipientStackParamList>;
   GoalSetting: { experienceGift: ExperienceGift };
@@ -683,6 +722,7 @@ export type RootStackParamList = {
   ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
   LoginPromptModal: undefined;
   AchievementDetail: { goal: Goal; experienceGift?: ExperienceGift; mode?: 'completion' | 'review' };
+  ShareGoal: { goal: Goal; experienceGift?: ExperienceGift; sessions?: SessionRecord[]; sessionStreak?: number };
   ChallengeLanding: { mode?: 'self' | 'gift' } | undefined;
   MysteryChoice: { experience?: Experience; cartItems?: CartItem[] };
   ChallengeSetup: { prefill?: ChallengeSetupPrefill } | undefined;
@@ -774,7 +814,14 @@ export type AnalyticsEventName =
   | 'feed_viewed'
   | 'app_open'
   // Error
-  | 'error_boundary_triggered';
+  | 'error_boundary_triggered'
+  // Share
+  | 'share_goal_completed'
+  // Funnel entry events
+  | 'signup_started'
+  | 'experience_viewed'
+  | 'add_to_cart'
+  | 'category_browsed';
 
 export interface AnalyticsEvent {
   eventName: AnalyticsEventName;

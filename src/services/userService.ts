@@ -209,7 +209,7 @@ export class UserService {
       }
 
       // Normal update — restrict to whitelisted fields to prevent unintended overwrites
-      const allowedFields = ['profile', 'displayName', 'settings', 'wishlist', 'cart', 'reminderTime', 'reminderEnabled'];
+      const allowedFields = ['profile', 'displayName', 'settings', 'wishlist', 'cart', 'reminderTime', 'reminderEnabled', 'preferredLanguage'];
       const sanitizedUpdates = Object.keys(updates)
         .filter(key => allowedFields.includes(key))
         .reduce((obj, key) => ({ ...obj, [key]: updates[key as keyof typeof updates] }), {} as Partial<typeof updates>);

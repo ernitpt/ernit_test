@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { BaseModal } from './BaseModal';
 import { Notification } from '../types';
@@ -39,6 +40,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestError, setSuggestError] = useState<string | null>(null);
+  const { t } = useTranslation();
   const colors = useColors();
 
   // M8a: isMounted guard — prevents setState after unmount
@@ -62,7 +64,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
     setError(null);
     // BUG-26: guard against empty recipientId before any mutation
     if (!notification.data?.recipientId) {
-      setError('Recipient information is missing.');
+      setError(t('notifications.notificationComponents.goalApproval.errors.recipientMissing'));
       operationInProgressRef.current = false;
       return;
     }
@@ -96,7 +98,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
 
       // BUG-28: don't delete original notification if recipient notification silently failed
       if (!notifId) {
-        setError('Failed to notify recipient.');
+        setError(t('notifications.notificationComponents.goalApproval.errors.notifyFailed'));
         return;
       }
 
@@ -115,7 +117,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
     } catch (error: unknown) {
       logger.error('Error approving goal:', error);
       if (!mountedRef.current) return; // M8a: isMounted guard
-      setError('Failed to approve goal. Please try again.');
+      setError(t('notifications.notificationComponents.goalApproval.errors.approveFailed'));
     } finally {
       if (mountedRef.current) setApproveLoading(false); // M8a: isMounted guard
       operationInProgressRef.current = false; // BUG-25: release lock
@@ -131,7 +133,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
 
     // BUG-26: guard against empty recipientId before any mutation
     if (!notification.data?.recipientId) {
-      setSuggestError('Recipient information is missing.');
+      setSuggestError(t('notifications.notificationComponents.goalApproval.errors.recipientMissing'));
       operationInProgressRef.current = false;
       return;
     }
@@ -142,31 +144,31 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
     const sessions = suggestSessions.trim() ? parseInt(suggestSessions, 10) : initialSessions;
 
     if (!weeks || !sessions || weeks <= 0 || sessions <= 0) {
-      setSuggestError('Please enter valid numbers for weeks and sessions.');
+      setSuggestError(t('notifications.notificationComponents.goalApproval.errors.invalidNumbers'));
       operationInProgressRef.current = false; // BUG-25: release lock on early return
       return;
     }
 
     if (weeks < initialWeeks || sessions < initialSessions) {
-      setSuggestError('Suggested goal cannot be less than the original goal.');
+      setSuggestError(t('notifications.notificationComponents.goalApproval.errors.cannotReduce'));
       operationInProgressRef.current = false; // BUG-25: release lock on early return
       return;
     }
 
     // Validate maximum limits: 5 weeks and 7 sessions per week
     if (weeks === initialWeeks && sessions === initialSessions) {
-      setSuggestError('No changes made. Please adjust the values before submitting.');
+      setSuggestError(t('notifications.notificationComponents.goalApproval.errors.noChanges'));
       operationInProgressRef.current = false; // BUG-25: release lock on early return
       return;
     }
 
     if (weeks > 5) {
-      setSuggestError('The maximum duration is 5 weeks.');
+      setSuggestError(t('notifications.notificationComponents.goalApproval.errors.maxWeeks'));
       operationInProgressRef.current = false; // BUG-25: release lock on early return
       return;
     }
     if (sessions > 7) {
-      setSuggestError('The maximum is 7 sessions per week.');
+      setSuggestError(t('notifications.notificationComponents.goalApproval.errors.maxSessions'));
       operationInProgressRef.current = false; // BUG-25: release lock on early return
       return;
     }
@@ -211,7 +213,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
 
       // BUG-28: don't delete original notification if recipient notification silently failed
       if (!notifId) {
-        setSuggestError('Failed to notify recipient.');
+        setSuggestError(t('notifications.notificationComponents.goalApproval.errors.notifyFailed'));
         return;
       }
 
@@ -241,7 +243,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
     } catch (error: unknown) {
       logger.error('Error suggesting goal change:', error);
       if (!mountedRef.current) return; // M8a: isMounted guard
-      setSuggestError('Failed to suggest goal change. Please try again.');
+      setSuggestError(t('notifications.notificationComponents.goalApproval.errors.suggestFailed'));
     } finally {
       if (mountedRef.current) setSuggestLoading(false); // M8a: isMounted guard
       operationInProgressRef.current = false; // BUG-25: release lock
@@ -258,14 +260,14 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
       <View style={styles.buttons}>
         <Button
           variant="primary"
-          title="Approve"
+          title={t('notifications.notificationComponents.goalApproval.approve')}
           onPress={() => setShowApproveModal(true)}
           loading={approveLoading}
           style={styles.buttonFlex}
         />
         <Button
           variant="secondary"
-          title="Suggest Change"
+          title={t('notifications.notificationComponents.goalApproval.suggestChange')}
           onPress={() => setShowSuggestModal(true)}
           disabled={approveLoading || suggestLoading}
           style={styles.buttonFlex}
@@ -280,9 +282,9 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
           setApproveMessage('');
           setError(null);
         }}
-        title="Approve Goal"
+        title={t('notifications.notificationComponents.goalApproval.approveModal.title')}
       >
-        <Text style={styles.modalSubtitle}>Add an optional message (optional)</Text>
+        <Text style={styles.modalSubtitle}>{t('notifications.notificationComponents.goalApproval.approveModal.subtitle')}</Text>
         {error && (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{error}</Text>
@@ -290,7 +292,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
         )}
         <TextInput
           style={styles.messageInput}
-          placeholder="Your message..."
+          placeholder={t('notifications.notificationComponents.goalApproval.approveModal.placeholder')}
           value={approveMessage}
           onChangeText={(text) => {
             setApproveMessage(text);
@@ -310,21 +312,21 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
             }}
             disabled={approveLoading}
             accessibilityRole="button"
-            accessibilityLabel="Cancel goal approval"
+            accessibilityLabel={t('notifications.notificationComponents.goalApproval.approveModal.cancelA11y')}
           >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
+            <Text style={styles.cancelButtonText}>{t('notifications.notificationComponents.goalApproval.approveModal.cancel')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.modalButton, styles.confirmButton]}
             onPress={handleApprove}
             disabled={approveLoading}
             accessibilityRole="button"
-            accessibilityLabel="Confirm goal approval"
+            accessibilityLabel={t('notifications.notificationComponents.goalApproval.approveModal.confirmA11y')}
           >
             {approveLoading ? (
               <ActivityIndicator color={colors.white} />
             ) : (
-              <Text style={styles.confirmButtonText}>Approve</Text>
+              <Text style={styles.confirmButtonText}>{t('notifications.notificationComponents.goalApproval.approveModal.confirm')}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -340,10 +342,10 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
           setSuggestMessage('');
           setSuggestError(null);
         }}
-        title="Suggest Goal Change"
+        title={t('notifications.notificationComponents.goalApproval.suggestModal.title')}
       >
         <Text style={styles.modalSubtitle}>
-          Current: {initialWeeks} weeks, {initialSessions} sessions/week
+          {t('notifications.notificationComponents.goalApproval.suggestModal.currentLabel', { weeks: initialWeeks, sessions: initialSessions })}
         </Text>
         {suggestError && (
           <View style={styles.errorBox}>
@@ -352,7 +354,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
         )}
         <View style={styles.inputRow}>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Weeks</Text>
+            <Text style={styles.inputLabel}>{t('notifications.notificationComponents.goalApproval.suggestModal.weeksLabel')}</Text>
             <TextInput
               style={styles.numberInput}
               placeholder={initialWeeks.toString()}
@@ -365,7 +367,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
             />
           </View>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Sessions/Week</Text>
+            <Text style={styles.inputLabel}>{t('notifications.notificationComponents.goalApproval.suggestModal.sessionsLabel')}</Text>
             <TextInput
               style={styles.numberInput}
               placeholder={initialSessions.toString()}
@@ -381,7 +383,7 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
 
         <TextInput
           style={styles.messageInput}
-          placeholder="Your message (optional)..."
+          placeholder={t('notifications.notificationComponents.goalApproval.suggestModal.messagePlaceholder')}
           value={suggestMessage}
           onChangeText={(text) => {
             setSuggestMessage(text);
@@ -404,21 +406,21 @@ const GoalApprovalNotification: React.FC<GoalApprovalNotificationProps> = ({
             }}
             disabled={suggestLoading}
             accessibilityRole="button"
-            accessibilityLabel="Cancel change suggestion"
+            accessibilityLabel={t('notifications.notificationComponents.goalApproval.suggestModal.cancelA11y')}
           >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
+            <Text style={styles.cancelButtonText}>{t('notifications.notificationComponents.goalApproval.suggestModal.cancel')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.modalButton, styles.confirmButton]}
             onPress={handleSuggestChange}
             disabled={suggestLoading}
             accessibilityRole="button"
-            accessibilityLabel="Submit change suggestion"
+            accessibilityLabel={t('notifications.notificationComponents.goalApproval.suggestModal.suggestA11y')}
           >
             {suggestLoading ? (
               <ActivityIndicator color={colors.white} />
             ) : (
-              <Text style={styles.confirmButtonText}>Suggest</Text>
+              <Text style={styles.confirmButtonText}>{t('notifications.notificationComponents.goalApproval.suggestModal.suggest')}</Text>
             )}
           </TouchableOpacity>
         </View>

@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatCurrency } from '../../utils/helpers';
 import {
   View,
   Text,
@@ -18,7 +20,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Copy, CheckCircle, Gift, ArrowRight } from 'lucide-react-native';
 import { GiverStackParamList, ExperienceGift } from '../../types';
 import { useApp } from '../../context/AppContext';
-import MainScreen from '../MainScreen';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { GiftCardSkeleton } from '../../components/SkeletonLoader';
 import Button from '../../components/Button';
@@ -26,7 +27,7 @@ import { experienceService } from '../../services/ExperienceService';
 import { Experience } from '../../types';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { logger } from '../../utils/logger';
-import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
+import { FOOTER_HEIGHT } from '../../components/CustomTabBar';
 import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
@@ -49,6 +50,7 @@ interface GiftWithExperience {
 }
 
 const ConfirmationMultipleScreen = () => {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -87,7 +89,7 @@ const ConfirmationMultipleScreen = () => {
       logger.warn('Missing/invalid experienceGifts on ConfirmationMultipleScreen, redirecting to Home');
       navigation.reset({
         index: 0,
-        routes: [{ name: 'CategorySelection' }],
+        routes: [{ name: 'MainTabs', params: { screen: 'HomeTab', params: { screen: 'CategorySelection' } } }],
       });
     }
   }, [hasValidData, navigation]);
@@ -137,7 +139,7 @@ const ConfirmationMultipleScreen = () => {
         if (!mounted) return;
         logger.error("Error fetching experiences:", error);
         setLoadError(true);
-        showError("Could not load experience details.");
+        showError(t('giver.confirmationMultiple.toast.loadFailed'));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -158,7 +160,7 @@ const ConfirmationMultipleScreen = () => {
   const handleSendMessage = useCallback(async (giftId: string) => {
     const raw = personalizedMessages[giftId]?.trim() || '';
     if (!raw) {
-      showError('Please enter a message before sending.');
+      showError(t('giver.confirmation.personalMessage.error'));
       return;
     }
     const message = sanitizeText(raw, 500);
@@ -170,10 +172,10 @@ const ConfirmationMultipleScreen = () => {
         ...prev,
         [giftId]: true,
       }));
-      showSuccess('Your personalized message has been saved!');
+      showSuccess(t('giver.confirmationMultiple.toast.messageSaved'));
     } catch (error: unknown) {
       logger.error('Error updating personalized message:', error);
-      showError('Failed to save message. Please try again.');
+      showError(t('giver.confirmationMultiple.toast.messageFailed'));
     } finally {
       setSendingMessageId(null);
     }
@@ -182,59 +184,51 @@ const ConfirmationMultipleScreen = () => {
   const handleCopyCode = useCallback(async (code: string | undefined) => {
     if (!code) {
       logger.warn('handleCopyCode: claimCode is undefined, skipping clipboard write');
-      showError('Gift code is not available yet.');
+      showError(t('giver.confirmationMultiple.toast.codeUnavailable'));
       return;
     }
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await Clipboard.setStringAsync(code);
-      showSuccess('Claim code copied to clipboard.');
+      showSuccess(t('giver.confirmationMultiple.toast.codeCopied'));
     } catch (error: unknown) {
       logger.warn('Clipboard access denied:', error);
-      showError('Could not copy to clipboard');
+      showError(t('giver.confirmationMultiple.toast.copyFailed'));
     }
-  }, [showError]);
+  }, [showError, t]);
 
   const handleShareCode = useCallback(async (code: string | undefined) => {
     if (!code) {
       logger.warn('handleShareCode: claimCode is undefined, skipping share');
-      showError('Gift code is not available yet.');
+      showError(t('giver.confirmationMultiple.toast.codeUnavailable'));
       return;
     }
     try {
       const shareOptions = {
-        title: 'Gift Code',
-        message: `
-Hey! Got you an Ernit experience, a little boost for your goals.
-
-Sign up and redeem your gift at https://ernit.app/recipient/redeem/${code} to set up your goals. Once you complete your goals, you'll see what I got you 🎁
-
-Earn it. Unlock it. Enjoy it 🚀
-        `
+        title: t('giver.confirmation.share.title'),
+        message: t('giver.confirmation.share.solo', { code }),
       };
 
       await Share.share(shareOptions);
     } catch (error: unknown) {
-      showError(getUserMessage(error, 'Could not open share dialog. Try again or copy the code manually.'));
+      showError(getUserMessage(error, t('giver.confirmationMultiple.toast.shareFailed')));
     }
-  }, [showError]);
+  }, [showError, t]);
 
   const handleBackToHome = useCallback(() => {
     navigation.reset({
       index: 0,
-      routes: [{ name: 'CategorySelection' }],
+      routes: [{ name: 'MainTabs', params: { screen: 'HomeTab', params: { screen: 'CategorySelection' } } }],
     });
   }, [navigation]);
 
   if (loading) {
     return (
       <ErrorBoundary screenName="ConfirmationMultipleScreen" userId={state.user?.id}>
-      <MainScreen activeRoute="Home">
         <View style={{ padding: Spacing.xl, gap: Spacing.md }}>
           <GiftCardSkeleton />
           <GiftCardSkeleton />
         </View>
-      </MainScreen>
       </ErrorBoundary>
     );
   }
@@ -266,7 +260,7 @@ Earn it. Unlock it. Enjoy it 🚀
       if (!mounted) return;
       logger.error('Error fetching experiences on retry:', error);
       setLoadError(true);
-      showError('Could not load experience details.');
+      showError(t('giver.confirmationMultiple.toast.loadFailed'));
     } finally {
       if (mounted) setLoading(false);
     }
@@ -276,32 +270,29 @@ Earn it. Unlock it. Enjoy it 🚀
   if (loadError && giftsWithExperiences.length === 0) {
     return (
       <ErrorBoundary screenName="ConfirmationMultipleScreen" userId={state.user?.id}>
-      <MainScreen activeRoute="Home">
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl, gap: Spacing.lg }}>
           <Text style={{ ...Typography.heading3, color: colors.textPrimary, textAlign: 'center' }}>
-            Could not load experience details
+            {t('giver.confirmationMultiple.loadError.title')}
           </Text>
           <Text style={{ ...Typography.body, color: colors.textSecondary, textAlign: 'center' }}>
-            Please check your connection and try again.
+            {t('giver.confirmationMultiple.loadError.message')}
           </Text>
           <TouchableOpacity
             style={{ backgroundColor: colors.secondary, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxl, borderRadius: BorderRadius.md }}
             onPress={handleRetry}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel="Retry loading experiences"
+            accessibilityLabel={t('giver.confirmationMultiple.accessibility.retry')}
           >
-            <Text style={{ ...Typography.subheading, color: colors.white }}>Retry</Text>
+            <Text style={{ ...Typography.subheading, color: colors.white }}>{t('giver.confirmationMultiple.loadError.retry')}</Text>
           </TouchableOpacity>
         </View>
-      </MainScreen>
       </ErrorBoundary>
     );
   }
 
   return (
     <ErrorBoundary screenName="ConfirmationMultipleScreen" userId={state.user?.id}>
-    <MainScreen activeRoute="Home">
       <StatusBar style="auto" />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
         {/* Success Header with Animation */}
@@ -319,9 +310,9 @@ Earn it. Unlock it. Enjoy it 🚀
           </Animated.View>
 
           <Animated.View style={{ opacity: fadeAnim }}>
-            <Text style={styles.heroTitle}>Payment Successful!</Text>
+            <Text style={styles.heroTitle}>{t('giver.confirmationMultiple.hero.title')}</Text>
             <Text style={styles.heroSubtitle}>
-              {experienceGifts?.length ?? 0} thoughtful gift(s) ready to share 🎉
+              {t('giver.confirmationMultiple.hero.subtitle', { count: experienceGifts?.length ?? 0 })}
             </Text>
           </Animated.View>
         </View>
@@ -342,7 +333,7 @@ Earn it. Unlock it. Enjoy it 🚀
                   style={styles.giftImage}
                   contentFit="cover"
                   cachePolicy="memory-disk"
-                  accessibilityLabel={`${item.experience.title} experience image`}
+                  accessibilityLabel={t('giver.confirmationMultiple.accessibility.image', { title: item.experience.title })}
                 />
                 <View style={styles.giftOverlay}>
                   <Gift color={colors.white} size={20} />
@@ -356,24 +347,23 @@ Earn it. Unlock it. Enjoy it 🚀
 
                   <View style={styles.priceTag}>
                     <Text style={styles.priceAmount}>
-                      €{item.experience.price.toFixed(2)}
+                      {formatCurrency(item.experience.price)}
                     </Text>
                   </View>
 
                   {/* Personal Message Input/Display */}
                   <View style={styles.messageSection}>
                     <View style={styles.messageSectionHeader}>
-                      <Text style={styles.messageLabel}>Personal Message</Text>
+                      <Text style={styles.messageLabel}>{t('giver.confirmationMultiple.personalMessage.label')}</Text>
                       <Text style={styles.charCounter}>
                         {(personalizedMessages[item.gift.id || ''] || '').length}/500
                       </Text>
                     </View>
                     <Text style={styles.messageSubtitle}>
-                      Add a heartfelt message to make this gift extra special.
-                      It will show up when they redeem the gift.
+                      {t('giver.confirmationMultiple.personalMessage.subtitle')}
                     </Text>
                     <TextInput
-                      placeholder="Your message here..."
+                      placeholder={t('giver.confirmationMultiple.personalMessage.placeholder')}
                       multiline
                       value={personalizedMessages[item.gift.id || ''] || ''}
                       onChangeText={(text) => handleMessageChange(item.gift.id || '', text)}
@@ -381,7 +371,7 @@ Earn it. Unlock it. Enjoy it 🚀
                       maxLength={500}
                       editable={!messageSentStatus[item.gift.id || '']}
                       disabled={messageSentStatus[item.gift.id || '']}
-                      accessibilityLabel={`Personal message for ${item.experience.title}`}
+                      accessibilityLabel={t('giver.confirmationMultiple.accessibility.personalMessage', { title: item.experience.title })}
                       inputStyle={styles.messageInputInner}
                       containerStyle={styles.messageInputContainer}
                     />
@@ -389,7 +379,7 @@ Earn it. Unlock it. Enjoy it 🚀
                       <Button
                         variant="primary"
                         size="sm"
-                        title="Attach Message"
+                        title={t('giver.confirmationMultiple.personalMessage.attach')}
                         onPress={() => handleSendMessage(item.gift.id || '')}
                         disabled={sendingMessageId === item.gift.id || !personalizedMessages[item.gift.id || '']?.trim()}
                         loading={sendingMessageId === item.gift.id}
@@ -401,14 +391,14 @@ Earn it. Unlock it. Enjoy it 🚀
                     {messageSentStatus[item.gift.id || ''] && (
                       <View style={styles.messageSentBadge}>
                         <CheckCircle color={colors.secondary} size={16} />
-                        <Text style={styles.messageSentText}>Message sent!</Text>
+                        <Text style={styles.messageSentText}>{t('giver.confirmationMultiple.personalMessage.sent')}</Text>
                       </View>
                     )}
                   </View>
 
                   {/* Claim Code */}
                   <View style={styles.codeSection}>
-                    <Text style={styles.codeLabel}>Gift Code</Text>
+                    <Text style={styles.codeLabel}>{t('giver.confirmationMultiple.giftCode.label')}</Text>
                     <View style={styles.codeDisplay}>
                       <Text style={styles.codeText}>{item.gift.claimCode}</Text>
                     </View>
@@ -419,10 +409,10 @@ Earn it. Unlock it. Enjoy it 🚀
                         onPress={() => handleCopyCode(item.gift.claimCode)}
                         activeOpacity={0.7}
                         accessibilityRole="button"
-                        accessibilityLabel={`Copy gift code for ${item.experience?.title}`}
+                        accessibilityLabel={t('giver.confirmationMultiple.accessibility.copyCode', { title: item.experience?.title })}
                       >
                         <Copy color={colors.secondary} size={18} />
-                        <Text style={styles.copyCodeText}>Copy</Text>
+                        <Text style={styles.copyCodeText}>{t('giver.confirmationMultiple.giftCode.copy')}</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -430,9 +420,9 @@ Earn it. Unlock it. Enjoy it 🚀
                         onPress={() => handleShareCode(item.gift.claimCode)}
                         activeOpacity={0.7}
                         accessibilityRole="button"
-                        accessibilityLabel={`Share gift code for ${item.experience?.title}`}
+                        accessibilityLabel={t('giver.confirmationMultiple.accessibility.shareCode', { title: item.experience?.title })}
                       >
-                        <Text style={styles.shareCodeText}>Share</Text>
+                        <Text style={styles.shareCodeText}>{t('giver.confirmationMultiple.giftCode.share')}</Text>
                         <ArrowRight color={colors.white} size={18} />
                       </TouchableOpacity>
                     </View>
@@ -445,29 +435,29 @@ Earn it. Unlock it. Enjoy it 🚀
 
         {/* How It Works */}
         <View style={styles.howItWorksSection}>
-          <Text style={styles.howItWorksTitle}>How It Works</Text>
+          <Text style={styles.howItWorksTitle}>{t('giver.confirmationMultiple.howItWorks.title')}</Text>
 
           <View style={styles.stepsContainer}>
             {[
               {
                 step: '1',
-                title: 'Share the Code',
-                desc: 'Send the gift code to your recipient',
+                title: t('giver.confirmationMultiple.howItWorks.step1Title'),
+                desc: t('giver.confirmationMultiple.howItWorks.step1Desc'),
               },
               {
                 step: '2',
-                title: 'Set Goals',
-                desc: 'They create personal goals to earn the experience',
+                title: t('giver.confirmationMultiple.howItWorks.step2Title'),
+                desc: t('giver.confirmationMultiple.howItWorks.step2Desc'),
               },
               {
                 step: '3',
-                title: 'Track Progress',
-                desc: 'AI hints guide them as they work toward their goals',
+                title: t('giver.confirmationMultiple.howItWorks.step3Title'),
+                desc: t('giver.confirmationMultiple.howItWorks.step3Desc'),
               },
               {
                 step: '4',
-                title: 'Unlock Reward',
-                desc: 'Experience is revealed when goals are complete',
+                title: t('giver.confirmationMultiple.howItWorks.step4Title'),
+                desc: t('giver.confirmationMultiple.howItWorks.step4Desc'),
               },
             ].map((item, index) => (
               <View key={index} style={styles.stepItem}>
@@ -498,12 +488,11 @@ Earn it. Unlock it. Enjoy it 🚀
           onPress={handleBackToHome}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Back to home"
+          accessibilityLabel={t('giver.confirmationMultiple.accessibility.backToHome')}
         >
-          <Text style={styles.homeButtonText}>Back to Home</Text>
+          <Text style={styles.homeButtonText}>{t('giver.confirmationMultiple.buttons.backToHome')}</Text>
         </TouchableOpacity>
       </View>
-    </MainScreen>
     </ErrorBoundary>
   );
 };

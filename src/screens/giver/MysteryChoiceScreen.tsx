@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     View,
     Text,
@@ -13,10 +14,9 @@ import { ChevronLeft, Check } from 'lucide-react-native';
 import { MotiView } from 'moti';
 import { RootStackParamList, Experience, CartItem } from '../../types';
 import { useApp } from '../../context/AppContext';
-import MainScreen from '../MainScreen';
 import Button from '../../components/Button';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
-import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
+import { FOOTER_HEIGHT } from '../../components/CustomTabBar';
 import { analyticsService } from '../../services/AnalyticsService';
 import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
@@ -29,29 +29,30 @@ type MysteryChoiceNav = NativeStackNavigationProp<RootStackParamList, 'MysteryCh
 
 type RevealMode = 'revealed' | 'secret';
 
-const getRevealOptions = (colors: typeof Colors): { key: RevealMode; emoji: string; label: string; tagline: string; color: string; badge?: string }[] => [
-    {
-        key: 'revealed',
-        emoji: '\u{1F441}\uFE0F',
-        label: 'Revealed',
-        tagline: 'They know the reward from day one. Full motivation to earn it.',
-        color: colors.warning,
-    },
-    {
-        key: 'secret',
-        emoji: '\u{1F512}',
-        label: 'Secret',
-        tagline: 'The reward stays hidden. Ernit drops hints every session.',
-        color: colors.secondary,
-        badge: 'Surprise factor',
-    },
-];
+type RevealOption = { key: RevealMode; emoji: string; label: string; tagline: string; color: string; badge?: string };
 
 const MysteryChoiceScreen = () => {
+    const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
-    const REVEAL_OPTIONS = useMemo(() => getRevealOptions(colors), [colors]);
+    const REVEAL_OPTIONS = useMemo<RevealOption[]>(() => [
+        {
+            key: 'revealed',
+            emoji: '\u{1F441}\uFE0F',
+            label: t('giver.mystery.options.revealedLabel'),
+            tagline: t('giver.mystery.options.revealedTagline'),
+            color: colors.warning,
+        },
+        {
+            key: 'secret',
+            emoji: '\u{1F512}',
+            label: t('giver.mystery.options.secretLabel'),
+            tagline: t('giver.mystery.options.secretTagline'),
+            color: colors.secondary,
+            badge: t('giver.mystery.options.secretBadge'),
+        },
+    ], [colors, t]);
     const navigation = useNavigation<MysteryChoiceNav>();
     const route = useRoute();
     const routeParams = route.params as { experience?: Experience; cartItems?: CartItem[] } | undefined;
@@ -67,7 +68,7 @@ const MysteryChoiceScreen = () => {
     useEffect(() => {
         if (!experience && !isCartFlow) {
             if (navigation.canGoBack()) navigation.goBack();
-            else navigation.navigate('CategorySelection');
+            else navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection' } });
         }
     }, [experience, isCartFlow, navigation]);
 
@@ -107,18 +108,15 @@ const MysteryChoiceScreen = () => {
     if (!experience && !isCartFlow) {
         return (
             <ErrorBoundary screenName="MysteryChoiceScreen" userId={state.user?.id}>
-                <MainScreen activeRoute="Home">
                     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                        <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
+                        <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>{t('giver.mystery.redirecting')}</Text>
                     </View>
-                </MainScreen>
             </ErrorBoundary>
         );
     }
 
     return (
         <ErrorBoundary screenName="MysteryChoiceScreen" userId={state.user?.id}>
-            <MainScreen activeRoute="Home">
                 <View style={styles.container}>
                     {/* Header */}
                     <View style={styles.header}>
@@ -126,15 +124,15 @@ const MysteryChoiceScreen = () => {
                             style={styles.backButton}
                             onPress={() => {
                                 if (navigation.canGoBack()) navigation.goBack();
-                                else navigation.navigate('CategorySelection');
+                                else navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection' } });
                             }}
                             activeOpacity={0.8}
                             accessibilityRole="button"
-                            accessibilityLabel="Go back"
+                            accessibilityLabel={t('giver.mystery.accessibility.goBack')}
                         >
                             <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2.5} />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Gift a Challenge</Text>
+                        <Text style={styles.headerTitle}>{t('giver.mystery.screenTitle')}</Text>
                         <View style={{ width: 40 }} />
                     </View>
 
@@ -149,9 +147,9 @@ const MysteryChoiceScreen = () => {
                             animate={{ opacity: 1, translateY: 0 }}
                             transition={{ type: 'timing', duration: 300 }}
                         >
-                            <Text style={styles.stepTitle}>How is the reward revealed?</Text>
+                            <Text style={styles.stepTitle}>{t('giver.mystery.stepTitle')}</Text>
                             <Text style={styles.stepSubtitle}>
-                                Should they know what they're working towards?
+                                {t('giver.mystery.stepSubtitle')}
                             </Text>
                         </MotiView>
 
@@ -173,7 +171,7 @@ const MysteryChoiceScreen = () => {
                                         onPress={() => setRevealMode(option.key)}
                                         activeOpacity={0.8}
                                         accessibilityRole="button"
-                                        accessibilityLabel={`Select ${option.label} reveal mode`}
+                                        accessibilityLabel={t('giver.mystery.accessibility.selectReveal', { label: option.label })}
                                     >
                                         <View style={styles.rewardChoiceHeader}>
                                             <View style={{ flex: 1 }}>
@@ -202,7 +200,7 @@ const MysteryChoiceScreen = () => {
                     {/* Footer CTA */}
                     <View style={[styles.footer, { paddingBottom: insets.bottom + vh(18) }]}>
                         <Button
-                            title="Continue"
+                            title={t('giver.mystery.continue')}
                             variant="primary"
                             size="lg"
                             fullWidth
@@ -212,7 +210,6 @@ const MysteryChoiceScreen = () => {
                         />
                     </View>
                 </View>
-            </MainScreen>
         </ErrorBoundary>
     );
 };

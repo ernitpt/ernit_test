@@ -1,13 +1,9 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions/v2';
-import { defineSecret } from 'firebase-functions/params';
 import * as nodemailer from 'nodemailer';
 import * as admin from 'firebase-admin';
 import { allowedOrigins } from "./cors";
-
-// Define secrets for email credentials
-const EMAIL_USER = defineSecret('EMAIL_USER');
-const EMAIL_PASS = defineSecret('EMAIL_PASS');
+import { GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS } from './services/emailService';
 
 interface ContactSubmission {
     type: 'feedback' | 'support';
@@ -43,7 +39,7 @@ export const sendContactEmail = onCall(
     {
         region: 'europe-west1',
         cors: allowedOrigins,
-        secrets: [EMAIL_USER, EMAIL_PASS],
+        secrets: [GENERAL_EMAIL_USER, GENERAL_EMAIL_PASS],
     },
     async (request) => {
         logger.info('=== sendContactEmail function started ===');
@@ -125,8 +121,8 @@ export const sendContactEmail = onCall(
             throw new HttpsError('invalid-argument', 'Message must be under 5000 characters');
         }
 
-        const emailUser = EMAIL_USER.value();
-        const emailPass = EMAIL_PASS.value();
+        const emailUser = GENERAL_EMAIL_USER.value();
+        const emailPass = GENERAL_EMAIL_PASS.value();
 
         if (!emailUser || !emailPass) {
             logger.error('Email credentials not configured');
@@ -198,7 +194,7 @@ export const sendContactEmail = onCall(
 </html>`;
 
             const mailOptions = {
-                from: `Ernit App <redirect@ernit.app>`, // Send from redirect so it arrives as unread
+                from: `Ernit <info@ernit.app>`,
                 to: recipientEmail,
                 replyTo: verifiedEmail,
                 subject: `[${type.toUpperCase()}] ${subject.replace(/<[^>]*>/g, '').slice(0, 200)}`,

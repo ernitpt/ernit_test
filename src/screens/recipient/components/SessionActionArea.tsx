@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
@@ -11,31 +12,13 @@ import { config } from '../../../config/environment';
 
 const DEBUG_ALLOW_MULTIPLE_PER_DAY = config.debugEnabled;
 
-// ─── AlreadyLoggedTodayCard ─────────────────────────────────────────
-
-const getMotivationalSubtitle = (goal: Goal, totalSessionsDone: number): string => {
-  const remainingThisWeek = goal.sessionsPerWeek - goal.weeklyCount;
-  const totalTarget = goal.targetCount * goal.sessionsPerWeek;
-  const totalRemaining = totalTarget - totalSessionsDone;
-
-  // Goal almost done — show excitement
-  if (totalRemaining <= 3 && totalRemaining > 0) {
-    return `Only ${totalRemaining} session${totalRemaining === 1 ? '' : 's'} to your reward! 🎯`;
-  }
-  // Week complete
-  if (remainingThisWeek <= 0) {
-    return 'Week complete! Enjoy the rest 🎉';
-  }
-  // Sessions remaining this week
-  return `${remainingThisWeek} more session${remainingThisWeek === 1 ? '' : 's'} this week — see you tomorrow! 💪`;
-};
-
 interface AlreadyLoggedProps {
   goal: Goal;
   totalSessionsDone: number;
 }
 
 const AlreadyLoggedTodayCard: React.FC<AlreadyLoggedProps> = React.memo(({ goal, totalSessionsDone }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const checkScale = useRef(new Animated.Value(0)).current;
@@ -57,7 +40,18 @@ const AlreadyLoggedTodayCard: React.FC<AlreadyLoggedProps> = React.memo(({ goal,
     ]).start();
   }, [checkScale, fadeAnim]);
 
-  const subtitle = getMotivationalSubtitle(goal, totalSessionsDone);
+  const remainingThisWeek = goal.sessionsPerWeek - goal.weeklyCount;
+  const totalTarget = goal.targetCount * goal.sessionsPerWeek;
+  const totalRemaining = totalTarget - totalSessionsDone;
+
+  let subtitle: string;
+  if (totalRemaining <= 3 && totalRemaining > 0) {
+    subtitle = t('recipient.sessionAction.sessionsToReward', { count: totalRemaining });
+  } else if (remainingThisWeek <= 0) {
+    subtitle = t('recipient.sessionAction.weekComplete');
+  } else {
+    subtitle = t('recipient.sessionAction.sessionsRemainingThisWeek', { count: remainingThisWeek });
+  }
 
   return (
     <Animated.View style={[styles.loggedTodayContainer, { opacity: fadeAnim }]}>
@@ -77,7 +71,7 @@ const AlreadyLoggedTodayCard: React.FC<AlreadyLoggedProps> = React.memo(({ goal,
             <Text style={styles.loggedTodayCheckText}>✓</Text>
           </LinearGradient>
         </Animated.View>
-        <Text style={styles.loggedTodayTitle}>Great job today!</Text>
+        <Text style={styles.loggedTodayTitle}>{t('recipient.sessionAction.greatJobToday')}</Text>
         <Text style={styles.loggedTodaySub}>{subtitle}</Text>
       </LinearGradient>
     </Animated.View>
@@ -107,6 +101,7 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
   loading,
   onStart,
 }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isSelfGift = isSelfGifted(goal);
@@ -116,9 +111,9 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
   if (goal.isWeekCompleted && !goal.isCompleted) {
     return (
       <View style={styles.weekCompleteBox}>
-        <Text style={styles.weekCompleteText}>You've completed this week!</Text>
+        <Text style={styles.weekCompleteText}>{t('recipient.sessionAction.weekCompleted')}</Text>
         <Text style={styles.weekCompleteSub}>
-          Next week starts on {formatNextWeekDay(goal.weekStartAt)}
+          {t('recipient.sessionAction.nextWeekStarts', { date: formatNextWeekDay(goal.weekStartAt) })}
         </Text>
       </View>
     );
@@ -141,7 +136,7 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
           </View>
         )}
         <View style={styles.disabledStartContainer}>
-          <Text style={styles.disabledStartText}>Waiting for approval</Text>
+          <Text style={styles.disabledStartText}>{t('recipient.sessionAction.waitingForApproval')}</Text>
         </View>
       </>
     );
@@ -182,9 +177,9 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
         disabled={loading}
         activeOpacity={0.8}
         accessibilityRole="button"
-        accessibilityLabel="Start session"
+        accessibilityLabel={t('recipient.sessionAction.startSession')}
       >
-        <Text style={styles.startButtonText}>{loading ? 'Loading...' : 'Start Session'}</Text>
+        <Text style={styles.startButtonText}>{loading ? t('recipient.sessionAction.loading') : t('recipient.sessionAction.startSession')}</Text>
       </TouchableOpacity>
 
       <Text style={styles.sessionDurationText}>

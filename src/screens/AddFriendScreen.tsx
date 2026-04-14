@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -18,7 +19,6 @@ import { friendService } from '../services/FriendService';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import MainScreen from './MainScreen';
 import { ListItemSkeleton } from '../components/SkeletonLoader';
 import SharedHeader from '../components/SharedHeader';
 import { logger } from '../utils/logger';
@@ -38,6 +38,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type AddFriendNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddFriend'>;
 
 const AddFriendScreen: React.FC = () => {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -64,12 +65,15 @@ const AddFriendScreen: React.FC = () => {
       setSearchError(false);
       const results = await friendService.searchUsers(sanitizeText(query, 100), currentUserId);
       if (gen !== searchGenRef.current) return; // stale, discard
+      analyticsService.trackEvent('friend_search', 'social', {
+        resultCount: results.length,
+      }, 'AddFriendScreen');
       setSearchResults(results);
     } catch (error: unknown) {
       if (gen !== searchGenRef.current) return; // stale, discard
       logger.error('Error searching users:', error);
       setSearchError(true);
-      showError('Failed to search users. Please try again.');
+      showError(t('friends.add.toast.failedSearch'));
     } finally {
       if (gen === searchGenRef.current) {
         setIsSearching(false);
@@ -102,7 +106,7 @@ const AddFriendScreen: React.FC = () => {
 
     // 3. Show success feedback immediately
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    showSuccess(`Friend request sent to ${user.name}!`);
+    showSuccess(t('friends.add.toast.requestSent', { name: user.name }));
     analyticsService.trackEvent('friend_request_sent', 'social', { recipientId: user.id }, 'AddFriendScreen');
 
     // 4. Call API in background
@@ -119,13 +123,13 @@ const AddFriendScreen: React.FC = () => {
       // 5. Rollback on failure
       logger.error('Error sending friend request:', error);
       setSearchResults(previousResults);
-      showError('Failed to send friend request. Please try again.');
+      showError(t('friends.add.toast.failedRequest'));
     }
   }, [currentUserId, currentUserName, currentUserProfileImageUrl, showSuccess, showError, state.user?.profile?.country]);
 
   const handleViewProfile = useCallback((userId: string) => {
     Keyboard.dismiss();
-    navigation.navigate('FriendProfile', { userId });
+    navigation.navigate('MainTabs', { screen: 'FeedTab', params: { screen: 'FriendProfile', params: { userId } } });
   }, [navigation]);
 
   const renderUserItem = useCallback(({ item }: { item: UserSearchResult }) => (
@@ -151,7 +155,7 @@ const AddFriendScreen: React.FC = () => {
           <Button
             variant="secondary"
             size="sm"
-            title="Friends"
+            title={t('friends.add.buttons.friends')}
             onPress={() => {}}
             disabled
           />
@@ -159,7 +163,7 @@ const AddFriendScreen: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
-            title="Pending"
+            title={t('friends.add.buttons.pending')}
             onPress={() => {}}
             disabled
           />
@@ -167,7 +171,7 @@ const AddFriendScreen: React.FC = () => {
           <Button
             variant="primary"
             size="sm"
-            title="Add Friend"
+            title={t('friends.add.buttons.addFriend')}
             onPress={() => handleSendFriendRequest(item)}
           />
         )}
@@ -176,25 +180,25 @@ const AddFriendScreen: React.FC = () => {
   ), [handleViewProfile, handleSendFriendRequest]);
   return (
     <ErrorBoundary screenName="AddFriendScreen" userId={state.user?.id}>
+      <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <StatusBar style="auto" />
-    <MainScreen activeRoute="Profile">
       <SharedHeader
-        title="Add Friend"
+        title={t('friends.add.screenTitle')}
         showBack
       />
 
       {/* Search Section */}
       <View style={styles.searchSection}>
-        <Text style={styles.searchLabel}>Search for friends</Text>
+        <Text style={styles.searchLabel}>{t('friends.add.searchLabel')}</Text>
         <TextInput
-          placeholder="Enter name or email..."
+          placeholder={t('friends.add.searchPlaceholder')}
           value={searchTerm}
           onChangeText={setSearchTerm}
           autoCapitalize="none"
           autoCorrect={false}
           returnKeyType="search"
           onSubmitEditing={() => handleSearch(searchTerm)}
-          accessibilityLabel="Search for friends by name or email"
+          accessibilityLabel={t('friends.add.searchAccessibility')}
           leftIcon={<Search size={18} color={colors.textMuted} />}
           containerStyle={{ marginBottom: 0 }}
           maxLength={100}
@@ -211,25 +215,25 @@ const AddFriendScreen: React.FC = () => {
       {/* Search Results */}
       <View style={styles.resultsSection}>
         {searchTerm.length > 0 && searchTerm.length < 2 && (
-          <Text style={styles.hintText}>Enter at least 2 characters to search</Text>
+          <Text style={styles.hintText}>{t('friends.add.minCharsHint')}</Text>
         )}
 
         {searchError && !isSearching && searchTerm.length >= 2 && (
-          <ErrorRetry message="Could not search users" onRetry={() => handleSearch(searchTerm)} />
+          <ErrorRetry message={t('friends.add.error.couldNotSearch')} onRetry={() => handleSearch(searchTerm)} />
         )}
 
         {!searchError && searchTerm.length >= 2 && searchResults.length === 0 && !isSearching && (
           <EmptyState
             icon="🔍"
-            title="No users found"
-            message="Try searching with a different name or email"
+            title={t('friends.add.empty.title')}
+            message={t('friends.add.empty.message')}
           />
         )}
 
         {searchResults.length > 0 && (
           <>
             <Text style={styles.resultsTitle}>
-              {searchResults.length} user{searchResults.length !== 1 ? 's' : ''} found
+              {t('friends.add.results', { count: searchResults.length })}
             </Text>
             <FlatList
               data={searchResults}
@@ -247,7 +251,7 @@ const AddFriendScreen: React.FC = () => {
           </>
         )}
       </View>
-    </MainScreen>
+      </View>
     </ErrorBoundary>
   );
 };

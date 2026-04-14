@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform, Dimensions, TouchableOpacity, DimensionValue } from 'react-native';
 import { Image } from 'expo-image';
+import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView, AnimatePresence } from 'moti';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
@@ -18,13 +19,18 @@ const CARD_W = Math.min(SCREEN_W - 48, 400);
 // Step machine: -1 = hidden, 0-9 = visible steps
 type Step = -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
-// Phase labels
-const PHASES = ['Set Goal', 'Build Habit', 'Get Reward'] as const;
-
 // ─── JourneyDemo ─────────────────────────────────────────────────────
 const JourneyDemo: React.FC = React.memo(() => {
   const colors = useColors();
   const s = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
+
+  // Phase labels — derived from translations
+  const PHASES = useMemo(() => [
+    t('modals.journeyDemo.phases.setGoal'),
+    t('modals.journeyDemo.phases.buildHabit'),
+    t('modals.journeyDemo.phases.getReward'),
+  ], [t]);
 
   const [step, setStep] = useState<Step>(-1);
   const [experiences, setExperiences] = useState<Experience[]>([]);
@@ -282,7 +288,7 @@ const JourneyDemo: React.FC = React.memo(() => {
               transition={{ type: 'spring', damping: 24, stiffness: 120, delay: 100 }}
               style={s.rewardWrapAnimated}
             >
-              <Text style={s.rewardTitle}>You unlocked your reward!</Text>
+              <Text style={s.rewardTitle}>{t('modals.journeyDemo.rewardUnlocked')}</Text>
 
               <View style={s.rewardCard}>
                 <Image
@@ -299,7 +305,7 @@ const JourneyDemo: React.FC = React.memo(() => {
                   style={s.rewardGradient}
                 >
                   <View style={s.earnedTag}>
-                    <Text style={s.earnedTagText}>You've earned</Text>
+                    <Text style={s.earnedTagText}>{t('modals.journeyDemo.youveEarned')}</Text>
                   </View>
                   <Text style={s.rewardExpTitle} numberOfLines={2}>
                     {rewardExperience.title}
@@ -307,7 +313,7 @@ const JourneyDemo: React.FC = React.memo(() => {
                 </LinearGradient>
               </View>
 
-              <Text style={s.scheduleText}>You're ready to schedule your experience</Text>
+              <Text style={s.scheduleText}>{t('modals.journeyDemo.scheduleText')}</Text>
             </MotiView>
           )}
         </AnimatePresence>
@@ -334,10 +340,10 @@ const JourneyDemo: React.FC = React.memo(() => {
                 setBarProgress(0);
               }}
               accessibilityRole="button"
-              accessibilityLabel="Replay journey demo"
+              accessibilityLabel={t('modals.journeyDemo.replayA11y')}
             >
               <Text style={s.replayIcon}>↻</Text>
-              <Text style={s.replayText}>Replay</Text>
+              <Text style={s.replayText}>{t('modals.journeyDemo.replay')}</Text>
             </TouchableOpacity>
           </MotiView>
         )}

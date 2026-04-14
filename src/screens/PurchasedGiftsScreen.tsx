@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatLocalDate } from '../utils/i18nHelpers';
 import {
   View,
   Text,
@@ -14,7 +16,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import ErrorRetry from '../components/ErrorRetry';
 import { useApp } from '../context/AppContext';
-import MainScreen from './MainScreen';
 import { experienceGiftService } from '../services/ExperienceGiftService';
 import { experienceService } from '../services/ExperienceService';
 import { userService } from '../services/userService';
@@ -31,9 +32,9 @@ import { Spacing } from '../config/spacing';
 import { MotiView } from 'moti';
 import { EmptyState } from '../components/EmptyState';
 import { Card } from '../components/Card';
-import { FOOTER_HEIGHT } from '../components/FooterNavigation';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toJSDate } from '../utils/GoalHelpers';
+import { FOOTER_HEIGHT } from '../components/CustomTabBar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -46,17 +47,10 @@ type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
 
 // Note: experience caching is handled by ExperienceService's built-in TTL cache.
 
-const formatDate = (date: Date | { toDate(): Date } | number | string | null | undefined) => {
-  if (!date) return 'N/A';
-  const jsDate = toJSDate(date) ?? new Date(date as string | number | Date);
-  return jsDate.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-};
+// formatDate replaced by formatLocalDate from i18nHelpers
 
 const GiftItem = ({ item }: { item: ExperienceGift }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<PurchasedGiftsNavigationProp>();
@@ -113,7 +107,7 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
 
   const handlePress = useCallback(() => {
     if (experience) {
-      navigation.navigate('ExperienceDetails', { experience });
+      navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'ExperienceDetails', params: { experience } } });
     } else {
       // Category-only gift or experience not yet loaded — no detail screen to show
     }
@@ -124,7 +118,7 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
       variant="outlined"
       onPress={handlePress}
       style={styles.card}
-      accessibilityLabel={`View gift details for ${experience ? experience.title : item.preferredRewardCategory || 'experience'}. Status: ${item.status}`}
+      accessibilityLabel={t('giver.purchasedGifts.cardAccessibility', { title: experience ? experience.title : item.preferredRewardCategory || t('giver.purchasedGifts.experience'), status: item.status })}
     >
       <View style={styles.cardRow}>
         {experience || !item.experienceId ? (
@@ -133,7 +127,7 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
               ? experience.title
               : item.preferredRewardCategory
                 ? item.preferredRewardCategory.charAt(0).toUpperCase() + item.preferredRewardCategory.slice(1)
-                : 'Surprise Experience'}
+                : t('giver.purchasedGifts.surpriseExperience')}
           </Text>
         ) : (
           <SkeletonBox width={120} height={16} borderRadius={4} />
@@ -144,7 +138,7 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
             item.status === 'claimed' ? styles.statusClaimed : item.status === 'expired' ? styles.statusExpired : styles.statusPending,
           ]}
         >
-          {item.status === 'expired' ? 'Expired' : item.status ? item.status.toUpperCase() : 'PENDING'}
+          {item.status === 'expired' ? t('giver.purchasedGifts.status.expired') : item.status ? item.status.toUpperCase() : t('giver.purchasedGifts.status.pending')}
         </Text>
       </View>
 
@@ -153,19 +147,20 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
           <SkeletonBox width={80} height={14} borderRadius={4} />
         ) : (
           <Text style={[styles.detail, { color: colors.primaryDeep, fontWeight: '500' }]}>
-            Claimed by: {claimedByName || 'Unknown'}
+            {t('giver.purchasedGifts.claimedBy', { name: claimedByName || t('giver.purchasedGifts.unknown') })}
           </Text>
         )
       ) : (
-        <Text style={styles.detail}>Claim Code: {item.claimCode}</Text>
+        <Text style={styles.detail}>{t('giver.purchasedGifts.claimCode', { code: item.claimCode })}</Text>
       )}
 
-      <Text style={styles.detail}>Created: {formatDate(item.createdAt)}</Text>
+      <Text style={styles.detail}>{t('giver.purchasedGifts.created', { date: item.createdAt ? formatLocalDate(toJSDate(item.createdAt) ?? new Date(item.createdAt as string | number | Date), { month: 'short', day: 'numeric', year: 'numeric' }) : t('giver.purchasedGifts.na') })}</Text>
     </Card>
   );
 };
 
 const PurchasedGiftsScreen = () => {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -225,6 +220,7 @@ const PurchasedGiftsScreen = () => {
       from={{ opacity: 0, translateY: 12 }}
       animate={{ opacity: 1, translateY: 0 }}
       transition={{ type: 'timing', duration: 300, delay: index * 60 }}
+      style={{ backgroundColor: colors.surface }}
     >
       <GiftItem item={item} />
     </MotiView>
@@ -236,12 +232,12 @@ const PurchasedGiftsScreen = () => {
 
   return (
     <ErrorBoundary screenName="PurchasedGiftsScreen" userId={state.user?.id}>
-    <MainScreen activeRoute="Settings">
-      <StatusBar style="light" />
-      <SharedHeader
-        title="Purchased Gifts"
-        showBack
-      />
+      <View style={{ flex: 1, backgroundColor: colors.surface }}>
+        <StatusBar style="light" />
+        <SharedHeader
+          title={t('giver.purchasedGifts.screenTitle')}
+          showBack
+        />
 
       {/* Filter Tabs */}
       <View style={styles.filterContainer}>
@@ -249,30 +245,30 @@ const PurchasedGiftsScreen = () => {
           style={[styles.filterTab, filterStatus === 'all' && styles.filterTabActive]}
           onPress={() => handleFilterChange('all')}
           accessibilityRole="button"
-          accessibilityLabel={`Show all ${gifts.length} gifts`}
+          accessibilityLabel={t('giver.purchasedGifts.filter.allAccessibility', { count: gifts.length })}
         >
-          <Text style={[styles.filterText, filterStatus === 'all' && styles.filterTextActive]}>
-            All ({gifts.length})
+          <Text style={[styles.filterText, filterStatus === 'all' && styles.filterTextActive]} numberOfLines={1}>
+            {t('giver.purchasedGifts.filter.all', { count: gifts.length })}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterTab, filterStatus === 'pending' && styles.filterTabActive]}
           onPress={() => handleFilterChange('pending')}
           accessibilityRole="button"
-          accessibilityLabel={`Show ${gifts.filter(g => g.status === 'pending').length} pending gifts`}
+          accessibilityLabel={t('giver.purchasedGifts.filter.pendingAccessibility', { count: gifts.filter(g => g.status === 'pending').length })}
         >
-          <Text style={[styles.filterText, filterStatus === 'pending' && styles.filterTextActive]}>
-            Pending ({gifts.filter(g => g.status === 'pending').length})
+          <Text style={[styles.filterText, filterStatus === 'pending' && styles.filterTextActive]} numberOfLines={1}>
+            {t('giver.purchasedGifts.filter.pending', { count: gifts.filter(g => g.status === 'pending').length })}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterTab, filterStatus === 'claimed' && styles.filterTabActive]}
           onPress={() => handleFilterChange('claimed')}
           accessibilityRole="button"
-          accessibilityLabel={`Show ${gifts.filter(g => g.status === 'claimed').length} claimed gifts`}
+          accessibilityLabel={t('giver.purchasedGifts.filter.claimedAccessibility', { count: gifts.filter(g => g.status === 'claimed').length })}
         >
-          <Text style={[styles.filterText, filterStatus === 'claimed' && styles.filterTextActive]}>
-            Claimed ({gifts.filter(g => g.status === 'claimed').length})
+          <Text style={[styles.filterText, filterStatus === 'claimed' && styles.filterTextActive]} numberOfLines={1}>
+            {t('giver.purchasedGifts.filter.claimed', { count: gifts.filter(g => g.status === 'claimed').length })}
           </Text>
         </TouchableOpacity>
       </View>
@@ -285,16 +281,13 @@ const PurchasedGiftsScreen = () => {
         </View>
       ) : error ? (
         <ErrorRetry
-          message="Could not load gifts"
+          message={t('giver.purchasedGifts.error.couldNotLoad')}
           onRetry={fetchGifts}
         />
       ) : filteredGifts.length === 0 ? (
         <EmptyState
-          icon="🎁"
-          title={filterStatus === 'all' ? 'No Gifts Yet' : `No ${filterStatus} Gifts`}
-          message={filterStatus === 'all'
-            ? 'Purchase a gift to empower someone special!'
-            : `No gifts with status "${filterStatus}"`}
+          title={filterStatus === 'all' ? t('giver.purchasedGifts.empty.title') : t('giver.purchasedGifts.empty.filteredTitle', { status: filterStatus })}
+          message={filterStatus === 'all' ? t('giver.purchasedGifts.empty.message') : undefined}
         />
       ) : (
         <FlatList
@@ -327,7 +320,7 @@ const PurchasedGiftsScreen = () => {
           }
         />
       )}
-    </MainScreen>
+      </View>
     </ErrorBoundary>
   );
 };
@@ -389,7 +382,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   filterTab: {
     flex: 1,
     paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.sm,
     borderRadius: BorderRadius.sm,
     backgroundColor: colors.white,
     alignItems: 'center',

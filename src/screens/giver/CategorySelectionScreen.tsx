@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatCurrency } from '../../utils/helpers';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import ErrorRetry from '../../components/ErrorRetry';
 import { EmptyState } from '../../components/EmptyState';
@@ -24,7 +26,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
-import MainScreen from '../MainScreen';
 import { getAuth } from 'firebase/auth';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -46,7 +47,8 @@ import { Spacing } from '../../config/spacing';
 import { useToast } from '../../context/ToastContext';
 import { vh } from '../../utils/responsive';
 import * as Haptics from 'expo-haptics';
-import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
+import { analyticsService } from '../../services/AnalyticsService';
+import { FOOTER_HEIGHT } from '../../components/CustomTabBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // SCREEN_W and derived card widths are computed inside the component via useWindowDimensions()
@@ -77,6 +79,7 @@ const FeaturedHeroCard = ({
   onToggleWishlist: () => void;
   isWishlisted: boolean;
 }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const { width: screenWidth } = useWindowDimensions();
   const heroCardW = useMemo(() => screenWidth - Spacing.xxl * 2, [screenWidth]);
@@ -86,7 +89,7 @@ const FeaturedHeroCard = ({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.heroCard, { width: heroCardW }, pressed && { opacity: 0.95 }]}
-      accessibilityLabel={`Featured: ${experience.title}`}
+      accessibilityLabel={t('giver.category.accessibility.featured', { title: experience.title })}
     >
       <Image
         source={{ uri: experience.coverImageUrl }}
@@ -94,7 +97,7 @@ const FeaturedHeroCard = ({
         contentFit="cover"
         transition={300}
         cachePolicy="memory-disk"
-        accessibilityLabel={`${experience.title} cover image`}
+        accessibilityLabel={t('giver.category.accessibility.coverImage', { title: experience.title })}
       />
       <LinearGradient
         colors={['transparent', Colors.overlayOnImageLight]}
@@ -113,7 +116,7 @@ const FeaturedHeroCard = ({
               </View>
             )}
           </View>
-          <Text style={styles.heroPrice}>€{experience.price.toFixed(0)}</Text>
+          <Text style={styles.heroPrice}>{formatCurrency(experience.price)}</Text>
         </View>
       </BlurView>
       <TouchableOpacity
@@ -123,7 +126,7 @@ const FeaturedHeroCard = ({
         }}
         style={styles.heroHeart}
         accessibilityRole="button"
-        accessibilityLabel={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+        accessibilityLabel={isWishlisted ? t('giver.category.accessibility.removeFromWishlist') : t('giver.category.accessibility.addToWishlist')}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
         {isWishlisted ? (
@@ -192,6 +195,7 @@ const BentoCard = ({
   onToggleWishlist: () => void;
   isWishlisted: boolean;
 }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const { width: screenWidth } = useWindowDimensions();
   const bentoCW = useMemo(() => (screenWidth - Spacing.xxl * 2 - BENTO_GAP) / 2, [screenWidth]);
@@ -205,7 +209,7 @@ const BentoCard = ({
         { height, width: bentoCW },
         pressed && { opacity: 0.92 },
       ]}
-      accessibilityLabel={`View ${experience.title}`}
+      accessibilityLabel={t('giver.category.accessibility.view', { title: experience.title })}
     >
       <Image
         source={{ uri: experience.coverImageUrl }}
@@ -213,7 +217,7 @@ const BentoCard = ({
         contentFit="cover"
         transition={200}
         cachePolicy="memory-disk"
-        accessibilityLabel={`${experience.title} cover image`}
+        accessibilityLabel={t('giver.category.accessibility.coverImage', { title: experience.title })}
       />
       <BlurView intensity={20} tint="dark" style={styles.bentoOverlay}>
         <View style={styles.bentoOverlayInner}>
@@ -227,7 +231,7 @@ const BentoCard = ({
               </Text>
             )}
           </View>
-          <Text style={styles.bentoPrice}>{experience.price.toFixed(0)} €</Text>
+          <Text style={styles.bentoPrice}>{formatCurrency(experience.price)}</Text>
         </View>
       </BlurView>
       <TouchableOpacity
@@ -237,7 +241,7 @@ const BentoCard = ({
         }}
         style={styles.bentoHeart}
         accessibilityRole="button"
-        accessibilityLabel={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+        accessibilityLabel={isWishlisted ? t('giver.category.accessibility.removeFromWishlist') : t('giver.category.accessibility.addToWishlist')}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         {isWishlisted ? (
@@ -302,6 +306,7 @@ const CategoryCarousel = ({
 // ─── Main Screen ────────────────────────────────────────────────────────────
 
 const CategorySelectionScreen = () => {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const { width: screenWidth } = useWindowDimensions();
@@ -347,6 +352,10 @@ const CategorySelectionScreen = () => {
 
   // Prevents double-tap race on wishlist toggle
   const wishlistUpdatingRef = useRef(false);
+
+  useEffect(() => {
+    analyticsService.trackEvent('category_browsed', 'conversion', {}, 'CategorySelectionScreen');
+  }, []);
 
   // Save guest cart to local storage whenever it changes
   const prevCartRef = useRef<string>('');
@@ -494,7 +503,7 @@ const CategorySelectionScreen = () => {
     wishlistUpdatingRef.current = true;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!user || !state.user) {
-      showInfo('Please log in to use wishlist.');
+      showInfo(t('giver.category.toast.loginRequired'));
       wishlistUpdatingRef.current = false;
       return;
     }
@@ -512,7 +521,7 @@ const CategorySelectionScreen = () => {
       }
     } catch (error: unknown) {
       logger.error('Error updating wishlist:', error);
-      showError('Failed to update wishlist. Please try again.');
+      showError(t('giver.category.toast.wishlistFailed'));
     } finally {
       wishlistUpdatingRef.current = false;
     }
@@ -598,10 +607,10 @@ const CategorySelectionScreen = () => {
   const renderEmptyExperiences = useCallback(() => (
     <EmptyState
       icon={searchQuery ? '🔍' : '🎁'}
-      title={searchQuery ? `No results for "${searchQuery}"` : 'No Experiences Available'}
-      message={searchQuery ? 'Try a different search term' : 'Check back soon for new experiences!'}
+      title={searchQuery ? t('giver.category.empty.noResults', { query: searchQuery }) : t('giver.category.empty.noExperiences')}
+      message={searchQuery ? t('giver.category.empty.noResultsMessage') : t('giver.category.empty.noExperiencesMessage')}
     />
-  ), [searchQuery]);
+  ), [searchQuery, t]);
 
   const ListHeader = useMemo(() => (
     <>
@@ -612,7 +621,7 @@ const CategorySelectionScreen = () => {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'spring', delay: 0 }}
         >
-          <Text style={styles.sectionTitle}>Featured</Text>
+          <Text style={styles.sectionTitle}>{t('giver.category.featured')}</Text>
           <FlatList
             data={popularExperiences}
             keyExtractor={(item) => item.id}
@@ -674,18 +683,18 @@ const CategorySelectionScreen = () => {
 
   return (
     <ErrorBoundary screenName="CategorySelectionScreen" userId={state.user?.id}>
-      <MainScreen activeRoute="Home">
+      <View style={{ flex: 1, backgroundColor: colors.surface }}>
         <StatusBar style="light" />
         <View style={{ zIndex: 100 }}>
           <SharedHeader
-            title="Gift Experiences"
-            subtitle="Empower your friends"
+            title={t('giver.category.screenTitle')}
+            subtitle={t('giver.category.screenSubtitle')}
             rightActions={
               <TouchableOpacity
                 onPress={toggleSearch}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Search experiences"
+                accessibilityLabel={t('giver.category.accessibility.search')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 style={{ padding: Spacing.xs }}
               >
@@ -704,7 +713,7 @@ const CategorySelectionScreen = () => {
                 style={styles.empowerBannerClose}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Dismiss empower banner"
+                accessibilityLabel={t('giver.category.accessibility.dismissEmpower')}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <X color={colors.primary} size={16} />
@@ -732,20 +741,20 @@ const CategorySelectionScreen = () => {
               <View style={styles.searchBar}>
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Search experiences..."
+                  placeholder={t('giver.category.searchPlaceholder')}
                   placeholderTextColor={colors.textMuted}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   autoFocus
                   returnKeyType="search"
-                  accessibilityLabel="Search experiences"
+                  accessibilityLabel={t('giver.category.accessibility.search')}
                 />
                 {searchQuery.length > 0 && (
                   <TouchableOpacity
                     onPress={() => setSearchQuery('')}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     accessibilityRole="button"
-                    accessibilityLabel="Clear search"
+                    accessibilityLabel={t('giver.category.accessibility.clearSearch')}
                   >
                     <X size={18} color={colors.textSecondary} />
                   </TouchableOpacity>
@@ -772,7 +781,7 @@ const CategorySelectionScreen = () => {
           </ScrollView>
         ) : error ? (
           <ErrorRetry
-            message="Could not load experiences"
+            message={t('giver.category.error.loadFailed')}
             onRetry={fetchExperiences}
           />
         ) : (
@@ -818,7 +827,7 @@ const CategorySelectionScreen = () => {
           </ScrollView>
         )}
 
-      </MainScreen>
+      </View>
     </ErrorBoundary>
   );
 };
@@ -856,7 +865,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     paddingVertical: Spacing.lg,
   },
   searchBar: {
-    backgroundColor: colors.backgroundLight,
+    backgroundColor: colors.surfaceLight,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     flexDirection: 'row',

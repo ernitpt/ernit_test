@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatCurrency } from '../../utils/helpers';
 import {
   View,
   Text,
@@ -23,15 +25,14 @@ import { db } from '../../services/firebase';
 import { ExperienceGift, Experience } from '../../types';
 import { useGiverNavigation, useRootNavigation } from '../../types/navigation';
 import { useApp } from '../../context/AppContext';
-import MainScreen from '../MainScreen';
 import { experienceService } from '../../services/ExperienceService';
 import { experienceGiftService } from '../../services/ExperienceGiftService';
 import { goalService } from '../../services/GoalService';
 import { notificationService } from '../../services/NotificationService';
 import { logger } from '../../utils/logger';
 import { sanitizeText } from '../../utils/sanitization';
-import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import { logErrorToFirestore } from '../../utils/errorLogger';
+import { FOOTER_HEIGHT } from '../../components/CustomTabBar';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { EmptyState } from '../../components/EmptyState';
 import ErrorRetry from '../../components/ErrorRetry';
@@ -48,6 +49,7 @@ import { getUserMessage } from '../../utils/AppError';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ConfirmationScreen = () => {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -120,7 +122,7 @@ const ConfirmationScreen = () => {
         if (!mounted) return;
         // No recovery possible — redirect
         logger.warn('Missing/invalid experienceGift on ConfirmationScreen, redirecting to Home');
-        navigation.reset({ index: 0, routes: [{ name: 'CategorySelection' }] });
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'HomeTab', params: { screen: 'CategorySelection' } } }] });
       };
       tryRecoverSCA();
       return () => { mounted = false; };
@@ -178,7 +180,7 @@ const ConfirmationScreen = () => {
         });
         if (!mounted) return;
         setLoadError(true);
-        showError("Could not load experience details.");
+        showError(t('giver.confirmation.toast.loadFailed'));
       }
     };
     fetchExperience();
@@ -262,11 +264,9 @@ const ConfirmationScreen = () => {
   // Early return if data is invalid
   if (!hasValidData || !experienceGift) {
     return (
-      <MainScreen activeRoute="Home">
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
+          <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>{t('giver.confirmation.redirecting')}</Text>
         </View>
-      </MainScreen>
     );
   }
 
@@ -279,7 +279,7 @@ const ConfirmationScreen = () => {
 
   const handleSendMessage = useCallback(async () => {
     if (!personalizedMessage.trim()) {
-      showError('Please enter a message before sending.');
+      showError(t('giver.confirmation.personalMessage.error'));
       return;
     }
 
@@ -288,7 +288,7 @@ const ConfirmationScreen = () => {
       const sanitizedMessage = sanitizeText(personalizedMessage.trim(), 500);
       await experienceGiftService.updatePersonalizedMessage(experienceGift.id, sanitizedMessage);
       setMessageSent(true);
-      showSuccess('Your personalized message has been saved!');
+      showSuccess(t('giver.confirmation.personalMessage.saved'));
     } catch (error: unknown) {
       logger.error('Error updating personalized message:', error);
       await logErrorToFirestore(error, {
@@ -297,7 +297,7 @@ const ConfirmationScreen = () => {
         userId: state.user?.id || 'unknown',
         additionalData: { giftId: experienceGift.id },
       });
-      showError('Failed to save message. Please try again.');
+      showError(t('giver.confirmation.personalMessage.saveFailed'));
     } finally {
       setIsSendingMessage(false);
     }
@@ -312,24 +312,18 @@ const ConfirmationScreen = () => {
       copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
     } catch (error: unknown) {
       logger.warn('Clipboard access denied:', error);
-      showError('Could not copy to clipboard');
+      showError(t('giver.confirmation.toast.copyFailed'));
     }
   }, [experienceGift.claimCode]);
 
   const handleShareCode = useCallback(async () => {
     try {
       const shareMessage = isTogether
-        ? `Join my fitness challenge on Ernit! Use code ${experienceGift.claimCode} or sign up at https://ernit.app/recipient/redeem/${experienceGift.claimCode} to get started together 💪`
-        : `
-Hey! Got you an Ernit experience, a little boost for your goals.
-
-Sign up and redeem your gift at https://ernit.app/recipient/redeem/${experienceGift.claimCode} to set up your goals. Once you complete your goals, you'll see what I got you 🎁
-
-Earn it. Unlock it. Enjoy it 🚀
-        `;
+        ? t('giver.confirmation.share.together', { code: experienceGift.claimCode })
+        : t('giver.confirmation.share.solo', { code: experienceGift.claimCode });
 
       const shareOptions = {
-        title: isTogether ? 'Challenge Invite' : 'Gift Code',
+        title: isTogether ? t('giver.confirmation.share.togetherTitle') : t('giver.confirmation.share.title'),
         message: shareMessage,
       };
 
@@ -343,14 +337,14 @@ Earn it. Unlock it. Enjoy it 🚀
         logger.log('Share dismissed');
       }
     } catch (error: unknown) {
-      showError(getUserMessage(error, 'Could not open share dialog. Try again or copy the code manually.'));
+      showError(getUserMessage(error, t('giver.confirmation.toast.shareFailed')));
     }
   }, [isTogether, experienceGift.claimCode]);
 
   const handleBackToHome = useCallback(() => {
     navigation.reset({
       index: 0,
-      routes: [{ name: 'CategorySelection' }],
+      routes: [{ name: 'MainTabs', params: { screen: 'HomeTab', params: { screen: 'CategorySelection' } } }],
     });
   }, [navigation]);
 
@@ -358,7 +352,6 @@ Earn it. Unlock it. Enjoy it 🚀
   if (loadError && !experience) {
     return (
       <ErrorBoundary screenName="ConfirmationScreen" userId={state.user?.id}>
-        <MainScreen activeRoute="Home">
           <ErrorRetry
             message="Could not load gift details"
             onRetry={() => {
@@ -373,7 +366,6 @@ Earn it. Unlock it. Enjoy it 🚀
               }
             }}
           />
-        </MainScreen>
       </ErrorBoundary>
     );
   }
@@ -382,13 +374,11 @@ Earn it. Unlock it. Enjoy it 🚀
   if (!experience && !isCategory) {
     return (
       <ErrorBoundary screenName="ConfirmationScreen" userId={state.user?.id}>
-        <MainScreen activeRoute="Home">
           <View style={{ padding: Spacing.xl, gap: Spacing.md }}>
             <ExperienceCardSkeleton />
             <SkeletonBox width="100%" height={48} borderRadius={12} />
             <SkeletonBox width="80%" height={32} borderRadius={8} />
           </View>
-        </MainScreen>
       </ErrorBoundary>
     );
   }
@@ -399,7 +389,6 @@ Earn it. Unlock it. Enjoy it 🚀
 
   return (
     <ErrorBoundary screenName="ConfirmationScreen" userId={state.user?.id}>
-    <MainScreen activeRoute="Home">
       <StatusBar style="auto" />
       <ConfettiCannon
         ref={confettiRef}
@@ -428,16 +417,16 @@ Earn it. Unlock it. Enjoy it 🚀
 
           <Animated.View style={{ opacity: fadeAnim }}>
             <Text style={styles.heroTitle}>
-              {isTogether ? 'Challenge Created!' : 'Payment Successful'}
+              {isTogether ? t('giver.confirmation.hero.togetherTitle') : t('giver.confirmation.hero.paymentTitle')}
             </Text>
             <Text style={styles.heroSubtitle}>
               {isTogether
-                ? 'Share the invite code with your partner to get started together!'
+                ? t('giver.confirmation.hero.togetherSubtitle')
                 : isEmpower
-                ? `Your gift has been sent to ${empowerContext?.userName || 'them'}!`
+                ? t('giver.confirmation.hero.empowerSubtitle', { name: empowerContext?.userName || 'them' })
                 : goalId
-                ? 'You just set yourself for success. Now complete your challenge to unlock it!'
-                : 'Your thoughtful gift is ready to share 🎉'
+                ? t('giver.confirmation.hero.selfGoalSubtitle')
+                : t('giver.confirmation.hero.giftSubtitle')
               }
             </Text>
 
@@ -447,10 +436,10 @@ Earn it. Unlock it. Enjoy it 🚀
                 <Text style={styles.heroCategoryText}>
                   {routeParams?.preferredRewardCategory
                     ? `${routeParams.preferredRewardCategory.charAt(0).toUpperCase() + routeParams.preferredRewardCategory.slice(1)} Experience`
-                    : 'Surprise Experience'}
+                    : t('giver.confirmation.hero.surpriseExperience')}
                 </Text>
                 <Text style={styles.heroCategorySubtext}>
-                  We'll find the perfect reward as you progress
+                  {t('giver.confirmation.hero.weWillFind')}
                 </Text>
               </View>
             )}
@@ -465,7 +454,7 @@ Earn it. Unlock it. Enjoy it 🚀
               style={styles.experienceImage}
               contentFit="cover"
               cachePolicy="memory-disk"
-              accessibilityLabel={`${experience.title} experience image`}
+              accessibilityLabel={t('giver.confirmation.accessibility.image', { title: experience.title })}
             />
             <View style={styles.experienceOverlay}>
               <Gift color={colors.white} size={24} />
@@ -483,21 +472,21 @@ Earn it. Unlock it. Enjoy it 🚀
 
               <View style={styles.priceTag}>
                 <Text style={styles.priceAmount}>
-                  €{experience.price.toFixed(2)}
+                  {formatCurrency(experience.price)}
                 </Text>
               </View>
 
               {/* Personal Message Input/Display (gift to others only, not empower, not together) */}
               {!goalId && !isEmpower && !isTogether && <View style={styles.messageSection}>
                 <View style={styles.messageSectionHeader}>
-                  <Text style={styles.messageLabel}>Personal Message</Text>
+                  <Text style={styles.messageLabel}>{t('giver.confirmation.personalMessage.label')}</Text>
                   <Text style={styles.charCounter}>{charCount}/500</Text>
                 </View>
                 <Text style={styles.messageSubtitle}>
-                  Add a heartfelt message to make this gift extra special.
-                  It will show up when they redeem the gift.              </Text>
+                  {t('giver.confirmation.personalMessage.subtitle')}
+                </Text>
                 <TextInput
-                  placeholder="Your message here..."
+                  placeholder={t('giver.confirmation.personalMessage.placeholder')}
                   placeholderTextColor={colors.textMuted}
                   multiline
                   value={personalizedMessage}
@@ -505,13 +494,13 @@ Earn it. Unlock it. Enjoy it 🚀
                   textAlignVertical="top"
                   maxLength={500}
                   editable={!messageSent}
-                  accessibilityLabel="Personal message"
+                  accessibilityLabel={t('giver.confirmation.accessibility.personalMessage')}
                   inputStyle={styles.messageInput}
                 />
                 {!messageSent && (
                   <Button
                     variant="ghost"
-                    title="Attach Message"
+                    title={t('giver.confirmation.personalMessage.attach')}
                     onPress={handleSendMessage}
                     disabled={isSendingMessage || !personalizedMessage.trim()}
                     loading={isSendingMessage}
@@ -520,7 +509,7 @@ Earn it. Unlock it. Enjoy it 🚀
                 {messageSent && (
                   <View style={styles.messageSentBadge}>
                     <CheckCircle color={colors.secondary} size={16} />
-                    <Text style={styles.messageSentText}>Message sent!</Text>
+                    <Text style={styles.messageSentText}>{t('giver.confirmation.personalMessage.sent')}</Text>
                   </View>
                 )}
               </View>}
@@ -531,9 +520,9 @@ Earn it. Unlock it. Enjoy it 🚀
         {/* Claim Code Section (gift to others only, not empower — or Together) */}
         {((!goalId && !isEmpower) || isTogether) && <View style={styles.codeSection}>
           <View style={styles.codeSectionHeader}>
-            <Text style={styles.codeSectionTitle}>Gift Code</Text>
+            <Text style={styles.codeSectionTitle}>{t('giver.confirmation.giftCode.title')}</Text>
             <Text style={styles.codeSectionSubtitle}>
-              Share this code to unlock the experience
+              {t('giver.confirmation.giftCode.subtitle')}
             </Text>
           </View>
 
@@ -548,11 +537,11 @@ Earn it. Unlock it. Enjoy it 🚀
                 onPress={handleCopyCode}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Copy gift code"
+                accessibilityLabel={t('giver.confirmation.accessibility.copyCode')}
               >
                 <Copy color={isCopied ? colors.secondary : colors.textSecondary} size={20} />
                 <Text style={[styles.copyCodeText, isCopied && styles.copiedText]}>
-                  {isCopied ? 'Copied!' : 'Copy Code'}
+                  {isCopied ? t('giver.confirmation.giftCode.copied') : t('giver.confirmation.giftCode.copy')}
                 </Text>
               </TouchableOpacity>
 
@@ -561,9 +550,9 @@ Earn it. Unlock it. Enjoy it 🚀
                 onPress={handleShareCode}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Share gift code"
+                accessibilityLabel={t('giver.confirmation.accessibility.shareCode')}
               >
-                <Text style={styles.shareCodeText}>Share</Text>
+                <Text style={styles.shareCodeText}>{t('giver.confirmation.giftCode.share')}</Text>
                 <ArrowRight color={colors.white} size={20} />
               </TouchableOpacity>
             </View>
@@ -572,50 +561,50 @@ Earn it. Unlock it. Enjoy it 🚀
 
         {/* How It Works (gift to others only, not empower — or Together) */}
         {((!goalId && !isEmpower) || isTogether) && <View style={styles.howItWorksSection}>
-          <Text style={styles.howItWorksTitle}>How It Works</Text>
+          <Text style={styles.howItWorksTitle}>{t('giver.confirmation.howItWorks.title')}</Text>
 
           <View style={styles.stepsContainer}>
             {(isTogether ? [
               {
                 step: '1',
-                title: 'Share the Code',
-                desc: 'Send the invite to your partner',
+                title: t('giver.confirmation.howItWorks.together.step1Title'),
+                desc: t('giver.confirmation.howItWorks.together.step1Desc'),
               },
               {
                 step: '2',
-                title: 'They Join',
-                desc: 'Your partner accepts and sets their own goal',
+                title: t('giver.confirmation.howItWorks.together.step2Title'),
+                desc: t('giver.confirmation.howItWorks.together.step2Desc'),
               },
               {
                 step: '3',
-                title: 'Train Together',
-                desc: 'Track each other\'s progress and stay motivated',
+                title: t('giver.confirmation.howItWorks.together.step3Title'),
+                desc: t('giver.confirmation.howItWorks.together.step3Desc'),
               },
               {
                 step: '4',
-                title: 'Unlock Reward',
-                desc: 'Both complete the challenge to unlock the experience',
+                title: t('giver.confirmation.howItWorks.together.step4Title'),
+                desc: t('giver.confirmation.howItWorks.together.step4Desc'),
               },
             ] : [
               {
                 step: '1',
-                title: 'Share the Code',
-                desc: 'Send the gift code to your recipient',
+                title: t('giver.confirmation.howItWorks.solo.step1Title'),
+                desc: t('giver.confirmation.howItWorks.solo.step1Desc'),
               },
               {
                 step: '2',
-                title: 'Set Goals',
-                desc: 'They create personal goals to earn the experience',
+                title: t('giver.confirmation.howItWorks.solo.step2Title'),
+                desc: t('giver.confirmation.howItWorks.solo.step2Desc'),
               },
               {
                 step: '3',
-                title: 'Track Progress',
-                desc: 'AI hints guide them as they work toward their goals',
+                title: t('giver.confirmation.howItWorks.solo.step3Title'),
+                desc: t('giver.confirmation.howItWorks.solo.step3Desc'),
               },
               {
                 step: '4',
-                title: 'Unlock Reward',
-                desc: 'Experience is revealed when goals are complete',
+                title: t('giver.confirmation.howItWorks.solo.step4Title'),
+                desc: t('giver.confirmation.howItWorks.solo.step4Desc'),
               },
             ]).map((item, index) => (
               <View key={index} style={styles.stepItem}>
@@ -643,14 +632,14 @@ Earn it. Unlock it. Enjoy it 🚀
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button
           variant="primary"
-          title={isTogether ? 'Start Your Challenge' : isEmpower ? 'Back to Feed' : goalId ? 'Go to My Goals' : 'Back to Home'}
+          title={isTogether ? t('giver.confirmation.buttons.startChallenge') : isEmpower ? t('giver.confirmation.buttons.backToFeed') : goalId ? t('giver.confirmation.buttons.goToGoals') : t('giver.confirmation.buttons.backToHome')}
           onPress={() => {
             if (isTogether) {
-              rootNavigation.reset({ index: 0, routes: [{ name: 'Goals' }] });
+              rootNavigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'GoalsTab', params: { screen: 'Goals' } } }] });
             } else if (isEmpower) {
-              rootNavigation.reset({ index: 0, routes: [{ name: 'Feed' }] });
+              rootNavigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'FeedTab', params: { screen: 'Feed' } } }] });
             } else if (goalId) {
-              rootNavigation.reset({ index: 0, routes: [{ name: 'Goals' }] });
+              rootNavigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'GoalsTab', params: { screen: 'Goals' } } }] });
             } else {
               handleBackToHome();
             }
@@ -658,7 +647,6 @@ Earn it. Unlock it. Enjoy it 🚀
           fullWidth
         />
       </View>
-    </MainScreen>
     </ErrorBoundary>
   );
 };

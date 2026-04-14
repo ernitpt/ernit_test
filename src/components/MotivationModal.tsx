@@ -11,6 +11,7 @@ import {
     ScrollView,
     Easing,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { TextInput } from '../components/TextInput';
@@ -29,6 +30,7 @@ import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 import { useToast } from '../context/ToastContext';
+import { analyticsService } from '../services/AnalyticsService';
 
 interface MotivationModalProps {
     visible: boolean;
@@ -52,6 +54,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const commonStyles = useMemo(() => createCommonStyles(colors), [colors]);
+    const { t } = useTranslation();
 
     const { state } = useApp();
     const { showError } = useToast();
@@ -78,7 +81,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
         // Validate based on mode
         if (mode === 'voice' && !media.audioUri) return;
         if (mode === 'text' && !text.trim() && !media.imageUri) {
-            showError('Please enter a message or attach an image');
+            showError(t('modals.motivation.errorEmpty'));
             return;
         }
 
@@ -116,6 +119,11 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                 },
             );
 
+            analyticsService.trackEvent('motivation_sent', 'social', {
+              goalId,
+              mode,
+            }, 'MotivationModal');
+
             // Show success animation
             setShowSuccess(true);
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -139,11 +147,14 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : 'Something went wrong';
             if (errorMessage.includes('already sent')) {
-                setError('You have already sent motivation for this session.');
+                setError(t('modals.motivation.errorAlreadySent'));
+                // Sync parent UI to disabled state — backend already rejected a duplicate,
+                // so another tab/device has sent one for this session.
+                onSent?.();
             } else if (errorMessage.includes('next upcoming session') || errorMessage.includes('already been completed')) {
                 onClose();
             } else {
-                setError('Failed to send motivation. Please try again.');
+                setError(t('modals.motivation.errorGeneric'));
                 logger.error('Error sending motivation:', error);
                 await logErrorToFirestore(error, {
                     screenName: 'MotivationModal',
@@ -179,7 +190,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                     activeOpacity={1}
                     onPress={onClose}
                     accessibilityRole="button"
-                    accessibilityLabel="Close motivation modal"
+                    accessibilityLabel={t('modals.motivation.closeModal')}
                 />
 
                 <Animated.View style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]} accessibilityViewIsModal={true}>
@@ -189,9 +200,9 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                             transform: [{ scale: successAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }],
                         }]}>
                             <CheckCircle color={colors.secondary} size={48} />
-                            <Text style={styles.successText}>Message sent!</Text>
+                            <Text style={styles.successText}>{t('modals.motivation.successText')}</Text>
                             <Text style={styles.successSubtext}>
-                                {recipientName} will see it in their next session
+                                {t('modals.motivation.successSubtext', { name: recipientName })}
                             </Text>
                         </Animated.View>
                     ) : (
@@ -207,9 +218,9 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                                 end={{ x: 1, y: 1 }}
                                 style={styles.header}
                             >
-                                <Text style={styles.headerTitle}>Send Motivation</Text>
+                                <Text style={styles.headerTitle}>{t('modals.motivation.title')}</Text>
                                 <Text style={styles.headerSubtitle}>
-                                    Leave an encouraging message for {recipientName}
+                                    {t('modals.motivation.headerSubtitle', { name: recipientName })}
                                 </Text>
                             </LinearGradient>
 
@@ -219,22 +230,22 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                                     style={[styles.tab, mode === 'text' && styles.activeTab]}
                                     onPress={() => setMode('text')}
                                     accessibilityRole="tab"
-                                    accessibilityLabel="Text and photo message"
+                                    accessibilityLabel={t('modals.motivation.tabTextA11y')}
                                     accessibilityState={{ selected: mode === 'text' }}
                                 >
                                     <Text style={[styles.tabText, mode === 'text' && styles.activeTabText]}>
-                                        Text & Photo
+                                        {t('modals.motivation.tabText')}
                                     </Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={[styles.tab, mode === 'voice' && styles.activeTab]}
                                     onPress={() => setMode('voice')}
                                     accessibilityRole="tab"
-                                    accessibilityLabel="Voice memo message"
+                                    accessibilityLabel={t('modals.motivation.tabVoiceA11y')}
                                     accessibilityState={{ selected: mode === 'voice' }}
                                 >
                                     <Text style={[styles.tabText, mode === 'voice' && styles.activeTabText]}>
-                                        Voice Memo
+                                        {t('modals.motivation.tabVoice')}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
@@ -251,12 +262,12 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                                     <>
                                         {/* Text Input */}
                                         <TextInput
-                                            placeholder="You've got this! Keep going..."
+                                            placeholder={t('modals.motivation.placeholder')}
                                             value={text}
                                             onChangeText={setText}
                                             multiline
                                             maxLength={MAX_TEXT_LENGTH}
-                                            helperText={`${remainingChars} characters remaining`}
+                                            helperText={t('modals.motivation.charRemaining', { count: remainingChars })}
                                             inputStyle={{ minHeight: Spacing.textareaMinHeight }}
                                             containerStyle={{ marginBottom: 0 }}
                                         />
@@ -276,9 +287,9 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                                                     </TouchableOpacity>
                                                 </View>
                                             ) : (
-                                                <TouchableOpacity style={styles.attachButton} onPress={media.pickImage} accessibilityRole="button" accessibilityLabel="Add photo">
+                                                <TouchableOpacity style={styles.attachButton} onPress={media.pickImage} accessibilityRole="button" accessibilityLabel={t('modals.motivation.addPhoto')}>
                                                     <ImageIcon size={20} color={colors.primary} />
-                                                    <Text style={styles.attachButtonText}>Add Photo</Text>
+                                                    <Text style={styles.attachButtonText}>{t('modals.motivation.addPhoto')}</Text>
                                                 </TouchableOpacity>
                                             )}
                                         </View>
@@ -288,10 +299,10 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                                             style={styles.examplesToggle}
                                             onPress={() => setShowExamples(!showExamples)}
                                             accessibilityRole="button"
-                                            accessibilityLabel={showExamples ? 'Hide inspiration examples' : 'Show inspiration examples'}
+                                            accessibilityLabel={showExamples ? t('modals.motivation.hideExamples') : t('modals.motivation.showExamples')}
                                         >
                                             <Text style={styles.examplesToggleText}>
-                                                {showExamples ? '▼' : '▶'} Need inspiration?
+                                                {showExamples ? '▼' : '▶'} {t('modals.motivation.needInspiration')}
                                             </Text>
                                         </TouchableOpacity>
 
@@ -332,7 +343,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                                                     )}
                                                 </TouchableOpacity>
                                                 <Text style={styles.recordingStatus}>
-                                                    {media.isRecording ? 'Recording...' : 'Tap to Record'}
+                                                    {media.isRecording ? t('modals.motivation.recordingStatus') : t('modals.motivation.tapToRecord')}
                                                 </Text>
                                             </View>
                                         ) : (
@@ -353,7 +364,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                                             </View>
                                         )}
                                         <Text style={styles.voiceNote}>
-                                            Max 30 seconds. Voice motivations are audio only.
+                                            {t('modals.motivation.voiceNote')}
                                         </Text>
                                     </View>
                                 )}
@@ -366,7 +377,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                                     onPress={onClose}
                                     disabled={submitting}
                                 >
-                                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                                    <Text style={styles.cancelButtonText}>{t('modals.motivation.cancel')}</Text>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
@@ -388,7 +399,7 @@ const MotivationModal: React.FC<MotivationModalProps> = ({
                                         style={styles.submitButtonGradient}
                                     >
                                         <Text style={styles.submitButtonText}>
-                                            {submitting ? 'Sending...' : 'Send'}
+                                            {submitting ? t('modals.motivation.sending') : t('modals.motivation.send')}
                                         </Text>
                                     </LinearGradient>
                                 </TouchableOpacity>

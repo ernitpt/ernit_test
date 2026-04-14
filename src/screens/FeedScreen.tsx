@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     View,
     FlatList,
@@ -7,12 +8,12 @@ import {
     Animated,
     Platform,
     ScrollView,
+    ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import MainScreen from './MainScreen';
 import SharedHeader from '../components/SharedHeader';
 import FeedPost from '../components/FeedPost';
 import { MotiView } from 'moti';
@@ -31,19 +32,16 @@ import { analyticsService } from '../services/AnalyticsService';
 import { useToast } from '../context/ToastContext';
 import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
-import { FOOTER_HEIGHT } from '../components/FooterNavigation';
+import { FOOTER_HEIGHT } from '../components/CustomTabBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type FeedScreenRouteProp = RouteProp<RootStackParamList, 'Feed'>;
 
-const FILTER_OPTIONS = [
-    { key: 'all', label: 'All' },
-    { key: 'goals', label: 'Goals' },
-    { key: 'sessions', label: 'Sessions' },
-    { key: 'completed', label: 'Completed' },
-] as const;
+// Filter labels are translated dynamically inside the component
+const FILTER_KEYS = ['all', 'goals', 'sessions', 'completed'] as const;
 
 const FeedScreen: React.FC = () => {
+    const { t } = useTranslation();
     const colors = useColors();
     const insets = useSafeAreaInsets();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -178,7 +176,7 @@ const FeedScreen: React.FC = () => {
             logger.error('Error loading feed:', error);
             if (!loadMore) {
                 setError(true);
-                showError('Could not load feed. Pull to refresh to try again.');
+                showError(t('feed.error.couldNotLoad'));
             }
         } finally {
             setIsLoading(false);
@@ -232,24 +230,38 @@ const FeedScreen: React.FC = () => {
             })
             : 1;
 
+        const card = (
+            <Animated.View style={{
+                borderWidth: 2,
+                borderColor,
+                transform: [{ scale }],
+                borderRadius: BorderRadius.md,
+                marginBottom: Spacing.lg,
+            }}>
+                <FeedPost post={item} />
+            </Animated.View>
+        );
+
+        // Skip MotiView on Android — opacity:0 animation causes white flash artifacts
+        if (Platform.OS === 'android') return card;
+
         return (
             <MotiView
                 from={{ opacity: 0, translateY: 12 }}
                 animate={{ opacity: 1, translateY: 0 }}
                 transition={{ type: 'timing', duration: 350 }}
             >
-                <Animated.View style={{
-                    borderWidth: 2,
-                    borderColor,
-                    transform: [{ scale }],
-                    borderRadius: BorderRadius.md,
-                    marginBottom: Spacing.lg,
-                }}>
-                    <FeedPost post={item} />
-                </Animated.View>
+                {card}
             </MotiView>
         );
     }, [highlightedPostId, highlightAnim, colors]);
+
+    const filterOptions = useMemo(() => [
+        { key: 'all', label: t('feed.filters.all') },
+        { key: 'goals', label: t('feed.filters.goals') },
+        { key: 'sessions', label: t('feed.filters.sessions') },
+        { key: 'completed', label: t('feed.filters.completed') },
+    ], [t]);
 
     const renderFilterRow = useCallback(() => (
         <ScrollView
@@ -257,9 +269,9 @@ const FeedScreen: React.FC = () => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.filterRow}
             accessibilityRole="tablist"
-            accessibilityLabel="Filter posts by type"
+            accessibilityLabel={t('feed.filtersAccessibility')}
         >
-            {FILTER_OPTIONS.map(({ key, label }) => (
+            {filterOptions.map(({ key, label }) => (
                 <Chip
                     key={key}
                     label={label}
@@ -270,21 +282,21 @@ const FeedScreen: React.FC = () => {
                 />
             ))}
         </ScrollView>
-    ), [activeFilter, handleFilterChange, styles]);
+    ), [activeFilter, handleFilterChange, styles, filterOptions, t]);
 
     const renderEmpty = () => {
         if (isLoading) return null;
 
         if (error) {
-            return <ErrorRetry message="Could not load your feed" onRetry={loadFeed} />;
+            return <ErrorRetry message={t('feed.error.couldNotLoad')} onRetry={loadFeed} />;
         }
 
         if (activeFilter !== 'all') {
             return (
                 <EmptyState
                     icon="🔍"
-                    title="No Posts Found"
-                    message="There are no posts matching this filter yet."
+                    title={t('feed.empty.noPostsTitle')}
+                    message={t('feed.empty.noPostsMessage')}
                 />
             );
         }
@@ -292,21 +304,21 @@ const FeedScreen: React.FC = () => {
         return (
             <EmptyState
                 icon="👥"
-                title="No Activity Yet"
-                message="Add friends to see their goal progress and celebrate together!"
-                actionLabel="Add Friends"
-                onAction={() => navigation.navigate('AddFriend')}
+                title={t('feed.empty.noActivityTitle')}
+                message={t('feed.empty.noActivityMessage')}
+                actionLabel={t('feed.empty.addFriends')}
+                onAction={() => navigation.navigate('MainTabs', { screen: 'ProfileTab', params: { screen: 'AddFriend' } })}
             />
         );
     };
 
     return (
         <ErrorBoundary screenName="FeedScreen" userId={state.user?.id}>
-            <MainScreen activeRoute="Feed">
+            <View style={{ flex: 1, backgroundColor: colors.surface }}>
                 <StatusBar style="light" />
                 <SharedHeader
-                    title="Feed"
-                    subtitle="See what you and your friends have achieved"
+                    title={t('feed.screenTitle')}
+                    subtitle={t('feed.screenSubtitle')}
                 />
 
                 <View accessibilityLiveRegion="polite" style={{ flex: 1 }}>
@@ -326,11 +338,11 @@ const FeedScreen: React.FC = () => {
                         renderItem={renderPost}
                         contentContainerStyle={[styles.list, { paddingBottom: Spacing.lg + FOOTER_HEIGHT + insets.bottom }]}
                         accessibilityRole="list"
-                        accessibilityLabel="Activity feed"
+                        accessibilityLabel={t('feed.listAccessibility')}
                         ListEmptyComponent={renderEmpty}
                         ListFooterComponent={isLoadingMore ? (
                             <View style={styles.loadingMore}>
-                                <FeedPostSkeleton />
+                                <ActivityIndicator size="small" color={colors.textMuted} />
                             </View>
                         ) : null}
                         showsVerticalScrollIndicator={false}
@@ -358,13 +370,13 @@ const FeedScreen: React.FC = () => {
                                 onRefresh={handleRefresh}
                                 colors={[colors.secondary]}
                                 tintColor={colors.secondary}
-                                accessibilityLabel="Pull to refresh feed"
+                                accessibilityLabel={t('feed.pullToRefreshAccessibility')}
                             />
                         }
                     />
                 )}
                 </View>
-            </MainScreen>
+            </View>
         </ErrorBoundary>
     );
 };

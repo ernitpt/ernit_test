@@ -13,10 +13,12 @@ import { useApp } from '../context/AppContext';
 import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
+import { useTranslation } from 'react-i18next';
 
 type LandingScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Landing'>;
 
 const LandingScreen = () => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -26,7 +28,7 @@ const LandingScreen = () => {
   // Redirect authenticated users to Goals
   useEffect(() => {
     if (state.user?.id) {
-      navigation.reset({ index: 0, routes: [{ name: 'Goals' }] });
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'GoalsTab', params: { screen: 'Goals' } } }] });
     }
   }, [state.user?.id, navigation]);
 
@@ -61,16 +63,16 @@ const LandingScreen = () => {
                 source={require('../assets/icon.png')}
                 style={styles.logo}
                 resizeMode="contain"
-                accessibilityLabel="Ernit app logo"
+                accessibilityLabel={t('landing.appName') + ' app logo'}
               />
 
               {/* Logo Text */}
               <View style={styles.logoTextContainer}>
                 <Text style={styles.title}>
-                  Ernit
+                  {t('landing.appName')}
                 </Text>
                 <Text style={styles.tagline}>
-                  Gamified Rewards & Experiences
+                  {t('landing.tagline')}
                 </Text>
               </View>
             </View>
@@ -87,7 +89,7 @@ const LandingScreen = () => {
               <View style={styles.buttonWrapper}>
                 <Button
                   variant="secondary"
-                  title="Sign In"
+                  title={t('landing.signIn')}
                   onPress={handleSignIn}
                   fullWidth
                 />
@@ -97,7 +99,7 @@ const LandingScreen = () => {
               <View style={styles.buttonWrapper}>
                 <Button
                   variant="primary"
-                  title="Sign Up"
+                  title={t('landing.signUp')}
                   onPress={handleSignUp}
                   fullWidth
                   gradient

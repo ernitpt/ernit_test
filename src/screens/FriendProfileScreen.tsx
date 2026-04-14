@@ -1,4 +1,7 @@
 ﻿import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatLocalDate } from '../utils/i18nHelpers';
+import { formatCurrency } from '../utils/helpers';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import ErrorRetry from '../components/ErrorRetry';
 import {
@@ -27,12 +30,12 @@ import { userService } from '../services/userService';
 import { friendService } from '../services/FriendService';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import MainScreen from './MainScreen';
 import { experienceGiftService } from '../services/ExperienceGiftService';
 import { experienceService } from '../services/ExperienceService';
 import AudioPlayer from '../components/AudioPlayer';
 import ImageViewer from '../components/ImageViewer';
 import { goalService } from '../services/GoalService';
+import { motivationService } from '../services/MotivationService';
 import { logger } from '../utils/logger';
 import { toJSDate } from '../utils/GoalHelpers';
 import { vh } from '../utils/responsive';
@@ -72,6 +75,7 @@ const CapsuleMini = ({ filled }: { filled: boolean }) => {
 };
 
 const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId: string | undefined; userName: string | null }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const { width: screenWidth } = useWindowDimensions();
   const styles = useMemo(() => createStyles(colors, screenWidth), [colors, screenWidth]);
@@ -81,6 +85,7 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const [showEmpowerModal, setShowEmpowerModal] = useState(false);
   const [showMotivateModal, setShowMotivateModal] = useState(false);
+  const [alreadySent, setAlreadySent] = useState(false);
   const isGiver = currentUserId === goal.empoweredBy;
   const isSelfGoal = currentUserId === goal.userId;
   const hasExperience = !!goal.experienceGiftId || !!goal.giftAttachedAt;
@@ -92,6 +97,16 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
       userService.getUserName(goal.empoweredBy).then(setGiverName).catch(() => {});
     }
   }, [goal.empoweredBy]);
+
+  useEffect(() => {
+    if (!currentUserId || !goal.id || isSelfGoal || goal.isCompleted) return;
+    let mounted = true;
+    motivationService
+      .hasUserSentMotivation(goal.id, currentUserId, nextSession)
+      .then((sent) => { if (mounted) setAlreadySent(sent); })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, [goal.id, currentUserId, nextSession, isSelfGoal, goal.isCompleted]);
 
   // Sessions this week
   const weeklyFilled = Math.max(0, goal.weeklyCount || 0);
@@ -116,7 +131,7 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
       {/* Sessions this week */}
       <View style={{ marginTop: Spacing.md }}>
         <View style={styles.progressHeaderRow}>
-          <Text style={styles.progressHeaderLabel}>Sessions this week</Text>
+          <Text style={styles.progressHeaderLabel}>{t('friends.profile.sessionsThisWeek')}</Text>
           <Text style={styles.progressHeaderValue}>
             {weeklyFilled}/{weeklyTotal}
           </Text>
@@ -132,7 +147,7 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
       {/* Weeks completed */}
       <View style={{ marginTop: Spacing.md }}>
         <View style={styles.progressHeaderRow}>
-          <Text style={styles.progressHeaderLabel}>Weeks completed</Text>
+          <Text style={styles.progressHeaderLabel}>{t('friends.profile.weeksCompleted')}</Text>
           <Text style={styles.progressHeaderValue}>
             {completedWeeks}/{totalWeeks}
           </Text>
@@ -160,16 +175,29 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
               <Text style={styles.empowerActionButtonText}>Empower</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            onPress={() => setShowMotivateModal(true)}
-            style={styles.motivateActionButton}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Send motivation"
-          >
-            <Heart color={colors.primary} size={16} />
-            <Text style={styles.motivateActionButtonText}>Motivate</Text>
-          </TouchableOpacity>
+          {alreadySent ? (
+            <View
+              style={[styles.motivateActionButton, { backgroundColor: colors.backgroundLight, borderColor: colors.border }]}
+              accessibilityRole="text"
+              accessibilityLabel={t('feed.empowerActions.motivationSent')}
+            >
+              <Heart color={colors.textMuted} size={16} />
+              <Text style={[styles.motivateActionButtonText, { color: colors.textMuted }]}>
+                {t('feed.empowerActions.motivationSent')}
+              </Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={() => setShowMotivateModal(true)}
+              style={styles.motivateActionButton}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={t('feed.empowerActions.motivate')}
+            >
+              <Heart color={colors.primary} size={16} />
+              <Text style={styles.motivateActionButtonText}>{t('feed.empowerActions.motivate')}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -191,7 +219,7 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
           accessibilityLabel="View hint history"
         >
           <Text style={{ ...Typography.smallBold, color: colors.textSecondary, textAlign: 'center' }}>
-            View Hint History
+            {t('friends.profile.viewHintHistory')}
           </Text>
         </TouchableOpacity>
       )}
@@ -251,7 +279,7 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
             })
           ) : (
             <Text style={historyModalStyles.emptyText}>
-              No hints have been sent yet.
+              {t('friends.profile.noHints')}
             </Text>
           )}
         </ScrollView>
@@ -286,12 +314,14 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
         goalId={goal.id}
         targetSession={nextSession}
         onClose={() => setShowMotivateModal(false)}
+        onSent={() => setAlreadySent(true)}
       />
     </View>
   );
 };
 
 const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ goal, userName }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const { width: screenWidth } = useWindowDimensions();
   const styles = useMemo(() => createStyles(colors, screenWidth), [colors, screenWidth]);
@@ -326,27 +356,27 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
     if (daysLeft <= 0) {
       return (
         <Text style={{ ...Typography.caption, color: colors.textMuted, marginTop: Spacing.xs }}>
-          Expired
+          {t('friends.profile.expired')}
         </Text>
       );
     }
     if (daysLeft <= 1) {
       return (
         <Text style={{ ...Typography.caption, color: colors.error, marginTop: Spacing.xs }}>
-          🔴 Expires tomorrow!
+          🔴 {t('friends.profile.expiresTomorrow')}
         </Text>
       );
     }
     if (daysLeft <= 7) {
       return (
         <Text style={{ ...Typography.caption, color: colors.warning, marginTop: Spacing.xs }}>
-          ⚠️ {daysLeft} days left!
+          ⚠️ {t('friends.profile.daysLeft', { count: daysLeft })}
         </Text>
       );
     }
     return (
       <Text style={{ ...Typography.caption, color: colors.textSecondary, marginTop: Spacing.xs }}>
-        Expires in {daysLeft} days
+        {t('friends.profile.expiresInDays', { count: daysLeft })}
       </Text>
     );
   };
@@ -393,13 +423,13 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
         <View style={styles.achSelfBanner}>
           <Text style={{ ...Typography.display }}>🏆</Text>
           <View style={{ flex: 1 }}>
-            <Text style={styles.achSelfLabel}>Self-Achievement</Text>
+            <Text style={styles.achSelfLabel}>{t('friends.profile.selfAchievement')}</Text>
             <Text style={styles.achSelfTitle} numberOfLines={2}>{goal.title}</Text>
           </View>
         </View>
         <View style={styles.achievementContent}>
           <Text style={styles.achievementMeta}>
-            {sessions} sessions completed • {weeks} weeks
+            {t('friends.profile.sessionsMeta', { sessions, weeks })}
           </Text>
           {renderDeadlineBadge()}
           {canEmpowerSelf && (
@@ -445,7 +475,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
           <Text style={styles.achievementTitle} numberOfLines={1}>{goal.title}</Text>
           <Text style={styles.achievementGoal} numberOfLines={1}>🎁 {pledged.title}</Text>
           <Text style={styles.achievementMeta}>
-            {sessions} sessions completed • {weeks} weeks
+            {t('friends.profile.sessionsMeta', { sessions, weeks })}
           </Text>
           {renderDeadlineBadge()}
           {canEmpower && (
@@ -505,16 +535,16 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
         ) : (
           <>
             <Text style={styles.achievementTitle} numberOfLines={1}>
-              🎁 {experience?.title || "Experience unlocked"}
+              🎁 {experience?.title || t('friends.profile.experienceUnlocked')}
             </Text>
             <Text style={styles.achievementPartner} numberOfLines={1}>
               👤 {partnerName}
             </Text>
             <Text style={styles.achievementGoal} numberOfLines={2}>
-              Goal: {goal.title}
+              {t('friends.profile.goalLabel', { title: goal.title })}
             </Text>
             <Text style={styles.achievementMeta}>
-              {sessions} sessions completed • {weeks} weeks
+              {t('friends.profile.sessionsMeta', { sessions, weeks })}
             </Text>
             {renderDeadlineBadge()}
           </>
@@ -525,12 +555,13 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
 };
 
 const ExperienceCard = ({ experience }: { experience: Experience }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<FriendProfileNavigationProp>();
 
   const handlePress = useCallback(() =>
-    navigation.navigate('ExperienceDetails', { experience }), [navigation, experience]);
+    navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'ExperienceDetails', params: { experience } } }), [navigation, experience]);
 
   const handleGiftThis = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -567,7 +598,7 @@ const ExperienceCard = ({ experience }: { experience: Experience }) => {
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.xs }}>
           <Text style={styles.experiencePrice}>
-            €{Number(experience.price || 0).toFixed(2)}
+            {formatCurrency(Number(experience.price || 0))}
           </Text>
           <TouchableOpacity
             style={styles.giftThisButton}
@@ -585,6 +616,7 @@ const ExperienceCard = ({ experience }: { experience: Experience }) => {
 };
 
 const FriendProfileScreen: React.FC = () => {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
@@ -689,7 +721,7 @@ const FriendProfileScreen: React.FC = () => {
     } catch (error: unknown) {
       if (!isMountedRef.current) return;
       logger.error('Error loading profile:', error);
-      showError('Failed to load profile. Please try again.');
+      showError(t('friends.profile.toast.failedLoad'));
       setError(true);
     } finally {
       if (isMountedRef.current) setIsLoading(false);
@@ -712,7 +744,7 @@ const FriendProfileScreen: React.FC = () => {
   if (error && !isLoading) {
     return (
       <ErrorRetry
-        message="Could not load profile"
+        message={t('friends.profile.error.couldNotLoad')}
         onRetry={() => { setError(false); loadFriendProfile(); }}
       />
     );
@@ -753,12 +785,16 @@ const FriendProfileScreen: React.FC = () => {
           : wishlist;
 
     if (data.length === 0) {
-      const title = `No ${tab.charAt(0).toUpperCase() + tab.slice(1)} Yet`;
-      const message = tab === 'goals'
-        ? 'No active goals at the moment'
+      const title = tab === 'goals'
+        ? t('friends.profile.empty.goalsTitle')
         : tab === 'achievements'
-          ? 'No achievements earned yet'
-          : 'No wishlist items yet';
+          ? t('friends.profile.empty.achievementsTitle')
+          : t('friends.profile.empty.wishlistTitle');
+      const message = tab === 'goals'
+        ? t('friends.profile.empty.goalsMessage')
+        : tab === 'achievements'
+          ? t('friends.profile.empty.achievementsMessage')
+          : t('friends.profile.empty.wishlistMessage');
       return <EmptyState title={title} message={message} />;
     }
 
@@ -768,6 +804,7 @@ const FriendProfileScreen: React.FC = () => {
         from={{ opacity: 0, translateY: 12 }}
         animate={{ opacity: 1, translateY: 0 }}
         transition={{ type: 'timing', duration: 300, delay: index * 60 }}
+        style={{ backgroundColor: colors.surface }}
       >
         {tab === 'wishlist' ? (
           <ExperienceCard experience={item} />
@@ -783,9 +820,7 @@ const FriendProfileScreen: React.FC = () => {
   if (isLoading && !userProfile) {
     return (
       <ErrorBoundary screenName="FriendProfileScreen" userId={state.user?.id}>
-      <MainScreen activeRoute="Profile">
         <ProfileSkeleton />
-      </MainScreen>
       </ErrorBoundary>
     );
   }
@@ -793,7 +828,6 @@ const FriendProfileScreen: React.FC = () => {
   return (
     <ErrorBoundary screenName="FriendProfileScreen" userId={state.user?.id}>
       <StatusBar style="auto" />
-    <MainScreen activeRoute="Profile">
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
@@ -817,7 +851,7 @@ const FriendProfileScreen: React.FC = () => {
             <TouchableOpacity
               onPress={() => {
                 if (navigation.canGoBack()) navigation.goBack();
-                else navigation.navigate('FriendsList');
+                else navigation.navigate('MainTabs', { screen: 'ProfileTab', params: { screen: 'FriendsList' } });
               }}
               style={styles.backButton}
               accessibilityRole="button"
@@ -844,7 +878,7 @@ const FriendProfileScreen: React.FC = () => {
           )}
           {isFriend && friendSince && (
             <Text style={{ ...Typography.caption, color: colors.textMuted, marginBottom: Spacing.xl }}>
-              {`Friends since ${friendSince.toLocaleString('default', { month: 'long', year: 'numeric' })}`}
+              {t('friends.profile.friendsSince', { date: formatLocalDate(friendSince, { month: 'long', year: 'numeric' }) })}
             </Text>
           )}
 
@@ -852,15 +886,15 @@ const FriendProfileScreen: React.FC = () => {
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{activeGoals.length}</Text>
-              <Text style={styles.statLabel}>Active</Text>
+              <Text style={styles.statLabel}>{t('friends.profile.stats.active')}</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{completedGoals.length}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
+              <Text style={styles.statLabel}>{t('friends.profile.stats.completed')}</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{wishlist.length}</Text>
-              <Text style={styles.statLabel}>Wishlist</Text>
+              <Text style={styles.statLabel}>{t('friends.profile.stats.wishlist')}</Text>
             </View>
           </View>
 
@@ -882,13 +916,13 @@ const FriendProfileScreen: React.FC = () => {
                 >
                   <UserMinus color={colors.errorDark} size={16} />
                   <Text style={[styles.friendButtonText, { color: colors.errorDark }]}>
-                    {isActionLoading ? "Removing..." : "Remove"}
+                    {isActionLoading ? t('friends.profile.removing') : t('friends.profile.remove')}
                   </Text>
                 </TouchableOpacity>
               ) : hasPendingRequest ? (
                 <View style={[styles.friendButton, { backgroundColor: colors.warning }]}>
                   <Clock color={colors.white} size={16} />
-                  <Text style={styles.friendButtonText}>Sent</Text>
+                  <Text style={styles.friendButtonText}>{t('friends.profile.sent')}</Text>
                 </View>
               ) : (
                 <TouchableOpacity
@@ -909,7 +943,7 @@ const FriendProfileScreen: React.FC = () => {
                       setHasPendingRequest(true);
                     } catch (error: unknown) {
                       logger.error('Friend request failed:', error);
-                      showError('Could not send friend request. Please try again.');
+                      showError(t('friends.profile.toast.failedRequest'));
                     } finally {
                       setIsActionLoading(false);
                     }
@@ -920,7 +954,7 @@ const FriendProfileScreen: React.FC = () => {
                 >
                   <UserPlus color={colors.white} size={16} />
                   <Text style={styles.friendButtonText}>
-                    {isActionLoading ? "Sending..." : "Add"}
+                    {isActionLoading ? t('friends.profile.sending') : t('friends.profile.add')}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -931,9 +965,9 @@ const FriendProfileScreen: React.FC = () => {
         {/* Tabs */}
         <View style={styles.tabsContainer}>
           {([
-            { key: "goals" as const, label: "Goals" },
-            { key: "achievements" as const, label: "Achievements" },
-            { key: "wishlist" as const, label: "Wishlist" },
+            { key: "goals" as const, label: t('friends.profile.tabs.goals') },
+            { key: "achievements" as const, label: t('friends.profile.tabs.achievements') },
+            { key: "wishlist" as const, label: t('friends.profile.tabs.wishlist') },
           ]).map((tab) => (
             <TouchableOpacity
               key={tab.key}
@@ -1001,10 +1035,9 @@ const FriendProfileScreen: React.FC = () => {
           ]}
         >
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Remove Friend?</Text>
+            <Text style={styles.modalTitle}>{t('friends.profile.removeDialog.title')}</Text>
             <Text style={styles.modalSubtitle}>
-              Are you sure you want to remove{" "}
-              {userProfile?.name || "this user"} from your friends list?
+              {t('friends.profile.removeDialog.message', { name: userProfile?.name || t('friends.profile.removeDialog.thisUser') })}
             </Text>
 
             <View style={styles.modalButtons}>
@@ -1015,7 +1048,7 @@ const FriendProfileScreen: React.FC = () => {
                 accessibilityRole="button"
                 accessibilityLabel="Cancel remove friend"
               >
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={styles.cancelText}>{t('friends.profile.removeDialog.cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -1028,7 +1061,7 @@ const FriendProfileScreen: React.FC = () => {
                     setIsFriend(false);
                   } catch (error: unknown) {
                     logger.error('Remove friend failed:', error);
-                    showError('Could not remove friend. Please try again.');
+                    showError(t('friends.profile.toast.failedRemove'));
                   } finally {
                     setIsActionLoading(false);
                     closeRemovePopup();
@@ -1039,13 +1072,12 @@ const FriendProfileScreen: React.FC = () => {
                 accessibilityRole="button"
                 accessibilityLabel="Confirm remove friend"
               >
-                <Text style={styles.confirmText}>Yes, remove</Text>
+                <Text style={styles.confirmText}>{t('friends.profile.removeDialog.confirm')}</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Animated.View>
       )}
-    </MainScreen>
     </ErrorBoundary>
   );
 };

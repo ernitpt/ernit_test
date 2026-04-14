@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatLocalDate } from '../utils/i18nHelpers';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import {
   View,
@@ -19,7 +21,6 @@ import { RootStackParamList, Friend } from '../types';
 import { friendService } from '../services/FriendService';
 import { userService } from '../services/userService';
 import { useApp } from '../context/AppContext';
-import MainScreen from './MainScreen';
 import PersonAddIcon from '../assets/icons/PersonAdd';
 import SharedHeader from '../components/SharedHeader';
 import { ListItemSkeleton } from '../components/SkeletonLoader';
@@ -32,7 +33,7 @@ import { Shadows } from '../config/shadows';
 import { useToast } from '../context/ToastContext';
 import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
-import { FOOTER_HEIGHT } from '../components/FooterNavigation';
+import { FOOTER_HEIGHT } from '../components/CustomTabBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type FriendsListNavigationProp = NativeStackNavigationProp<RootStackParamList, 'FriendsList'>;
@@ -43,6 +44,7 @@ interface EnrichedFriend extends Friend {
 }
 
 const FriendsListScreen: React.FC = () => {
+  const { t } = useTranslation();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -93,7 +95,7 @@ const FriendsListScreen: React.FC = () => {
     } catch (err: unknown) {
       logger.error('Error loading friends', err);
       setError(true);
-      showError('Could not load friends. Pull to refresh to try again.');
+      showError(t('friends.error.couldNotLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -113,7 +115,7 @@ const FriendsListScreen: React.FC = () => {
 
   const handleFriendPress = useCallback((friendId: string) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate('FriendProfile', { userId: friendId });
+    navigation.navigate('MainTabs', { screen: 'FeedTab', params: { screen: 'FriendProfile', params: { userId: friendId } } });
   }, [navigation]);
 
   const renderFriendItem = useCallback(({ item }: { item: EnrichedFriend }) => {
@@ -138,7 +140,7 @@ const FriendsListScreen: React.FC = () => {
             <View style={styles.friendInfo}>
               <Text style={styles.friendName}>{displayName}</Text>
               <Text style={styles.friendDate}>
-                Friends since {(item.createdAt?.toDate?.() ?? new Date(item.createdAt)).toLocaleDateString()}
+                {t('friends.friendsSince', { date: formatLocalDate(item.createdAt?.toDate?.() ?? new Date(item.createdAt as string | number | Date), { month: 'long', year: 'numeric' }) })}
               </Text>
             </View>
           </TouchableOpacity>
@@ -153,10 +155,10 @@ const FriendsListScreen: React.FC = () => {
 
   return (
     <ErrorBoundary screenName="FriendsListScreen" userId={state.user?.id}>
+      <View style={{ flex: 1, backgroundColor: colors.surface }}>
       <StatusBar style="auto" />
-    <MainScreen activeRoute="Profile">
       <SharedHeader
-        title="Your Friends"
+        title={t('friends.screenTitle')}
         showBack
       />
 
@@ -170,7 +172,7 @@ const FriendsListScreen: React.FC = () => {
         <>
           <View style={styles.countContainer}>
             <Text style={styles.countText}>
-              {friends.length} {friends.length === 1 ? 'Friend' : 'Friends'}
+              {t('friends.count', { count: friends.length })}
             </Text>
 
             <TouchableOpacity
@@ -178,7 +180,7 @@ const FriendsListScreen: React.FC = () => {
               style={styles.addFriendIconButton}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Add a friend"
+              accessibilityLabel={t('friends.addFriendAccessibility')}
             >
               <PersonAddIcon width={30} height={30} />
             </TouchableOpacity>
@@ -217,18 +219,18 @@ const FriendsListScreen: React.FC = () => {
           />
         </>
       ) : error && friends.length === 0 ? (
-        <ErrorRetry message="Could not load friends" onRetry={loadFriends} />
+        <ErrorRetry message={t('friends.error.couldNotLoad')} onRetry={loadFriends} />
       ) : (
         <EmptyState
           icon="👥"
-          title="No Friends Yet"
-          message="Start building your network by adding friends!"
-          actionLabel="Add Your First Friend"
+          title={t('friends.empty.title')}
+          message={t('friends.empty.message')}
+          actionLabel={t('friends.empty.actionLabel')}
           onAction={() => navigation.navigate('AddFriend')}
         />
       )}
 
-    </MainScreen>
+      </View>
     </ErrorBoundary>
   );
 };

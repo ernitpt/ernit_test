@@ -7,6 +7,7 @@ import {
   TextInput,
   Platform,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { BaseModal } from './BaseModal';
 import Button from './Button';
@@ -35,6 +36,7 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
   const { state } = useApp();
 
   const isGiftedGoal = !goal?.isFreeGoal && !!goal?.empoweredBy && goal.empoweredBy !== state.user?.id;
@@ -97,7 +99,7 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
 
   const handleSave = useCallback(async () => {
     if (!goal?.id) {
-      setError('Goal information is missing.');
+      setError(t('modals.goalEdit.error.missingGoal'));
       return;
     }
     setError(null);
@@ -126,25 +128,25 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
       }
     } catch (err: unknown) {
       logger.error('GoalEditModal: save error', err);
-      setError(err instanceof Error ? err.message : 'Failed to save. Please try again.');
+      setError(err instanceof Error ? err.message : t('modals.goalEdit.error.saveFailed'));
     } finally {
       setLoading(false);
     }
   }, [goal, isGiftedGoal, selectedWeeks, selectedSessions, message, onGoalUpdated, onClose]);
 
-  const title = isGiftedGoal ? 'Request a Goal Change' : 'Edit Goal';
+  const title = isGiftedGoal ? t('modals.goalEdit.titleRequest') : t('modals.goalEdit.title');
 
   if (success) {
     return (
-      <BaseModal visible={visible} onClose={onClose} title="Request Sent">
+      <BaseModal visible={visible} onClose={onClose} title={t('modals.goalEdit.requestSentTitle')}>
         <View style={styles.successContainer}>
-          <Text style={styles.successEmoji}>📬</Text>
-          <Text style={styles.successTitle}>Request sent!</Text>
+          <Text style={styles.successEmoji}>{t('modals.goalEdit.requestSentEmoji')}</Text>
+          <Text style={styles.successTitle}>{t('modals.goalEdit.requestSentHeading')}</Text>
           <Text style={styles.successBody}>
-            Your giver has been notified and can approve or decline your edit request.
+            {t('modals.goalEdit.requestSentBody')}
           </Text>
         </View>
-        <Button title="Done" variant="primary" size="md" onPress={onClose} style={styles.fullWidth} />
+        <Button title={t('modals.goalEdit.done')} variant="primary" size="md" onPress={onClose} style={styles.fullWidth} />
       </BaseModal>
     );
   }
@@ -160,13 +162,13 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
       {isGiftedGoal && (
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>
-            Since this is a gifted goal, your edit will be sent as a request to your giver for approval.
+            {t('modals.goalEdit.giftedGoalInfo')}
           </Text>
         </View>
       )}
 
       <View style={styles.currentInfo}>
-        <Text style={styles.currentLabel}>Current goal:</Text>
+        <Text style={styles.currentLabel}>{t('modals.goalEdit.currentGoalLabel')}</Text>
         <Text style={styles.currentValue}>
           {goal?.targetCount} week{(goal?.targetCount || 1) !== 1 ? 's' : ''}, {goal?.sessionsPerWeek} session{(goal?.sessionsPerWeek || 1) !== 1 ? 's' : ''}/week
         </Text>
@@ -174,7 +176,7 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
 
       <View style={styles.selectorContainer}>
         <Text style={styles.selectorLabel}>
-          {isGiftedGoal ? 'Requested goal:' : 'New goal:'}
+          {isGiftedGoal ? t('modals.goalEdit.requestedGoalLabel') : t('modals.goalEdit.newGoalLabel')}
         </Text>
         <Text style={styles.selectorValue}>
           {selectedWeeks} week{selectedWeeks !== 1 ? 's' : ''}, {selectedSessions} session{selectedSessions !== 1 ? 's' : ''}/week
@@ -182,14 +184,14 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
 
         {/* Weeks stepper */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Weeks (max 5):</Text>
+          <Text style={styles.inputLabel}>{t('modals.goalEdit.weeksLabel')}</Text>
           <View style={styles.stepperRow}>
             <TouchableOpacity
               style={[styles.stepBtn, selectedWeeks <= minWeeks && styles.stepBtnDisabled]}
               onPress={() => adjustWeeks(-1)}
               disabled={selectedWeeks <= minWeeks || loading}
               accessibilityRole="button"
-              accessibilityLabel="Decrease weeks"
+              accessibilityLabel={t('modals.goalEdit.decreaseWeeks')}
             >
               <Text style={[styles.stepBtnText, selectedWeeks <= minWeeks && styles.stepBtnTextDisabled]}>−</Text>
             </TouchableOpacity>
@@ -200,7 +202,7 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
                 onChangeText={handleWeeksChange}
                 keyboardType="numeric"
                 editable={!loading}
-                accessibilityLabel="Weeks value"
+                accessibilityLabel={t('modals.goalEdit.weeksValue')}
               />
             </View>
             <TouchableOpacity
@@ -208,28 +210,28 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
               onPress={() => adjustWeeks(1)}
               disabled={selectedWeeks >= maxWeeks || loading}
               accessibilityRole="button"
-              accessibilityLabel="Increase weeks"
+              accessibilityLabel={t('modals.goalEdit.increaseWeeks')}
             >
               <Text style={[styles.stepBtnText, selectedWeeks >= maxWeeks && styles.stepBtnTextDisabled]}>+</Text>
             </TouchableOpacity>
           </View>
           {!isGiftedGoal && (goal?.currentCount || 0) > 0 && (
             <Text style={styles.constraintNote}>
-              Min {minWeeks} week{minWeeks !== 1 ? 's' : ''} (already completed {goal.currentCount})
+              {t('modals.goalEdit.minWeeksNote', { count: minWeeks, completed: goal.currentCount })}
             </Text>
           )}
         </View>
 
         {/* Sessions stepper */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Sessions per week (max 7):</Text>
+          <Text style={styles.inputLabel}>{t('modals.goalEdit.sessionsLabel')}</Text>
           <View style={styles.stepperRow}>
             <TouchableOpacity
               style={[styles.stepBtn, selectedSessions <= minSessions && styles.stepBtnDisabled]}
               onPress={() => adjustSessions(-1)}
               disabled={selectedSessions <= minSessions || loading}
               accessibilityRole="button"
-              accessibilityLabel="Decrease sessions"
+              accessibilityLabel={t('modals.goalEdit.decreaseSessions')}
             >
               <Text style={[styles.stepBtnText, selectedSessions <= minSessions && styles.stepBtnTextDisabled]}>−</Text>
             </TouchableOpacity>
@@ -240,7 +242,7 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
                 onChangeText={handleSessionsChange}
                 keyboardType="numeric"
                 editable={!loading}
-                accessibilityLabel="Sessions value"
+                accessibilityLabel={t('modals.goalEdit.sessionsValue')}
               />
             </View>
             <TouchableOpacity
@@ -248,14 +250,14 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
               onPress={() => adjustSessions(1)}
               disabled={selectedSessions >= maxSessions || loading}
               accessibilityRole="button"
-              accessibilityLabel="Increase sessions"
+              accessibilityLabel={t('modals.goalEdit.increaseSessions')}
             >
               <Text style={[styles.stepBtnText, selectedSessions >= maxSessions && styles.stepBtnTextDisabled]}>+</Text>
             </TouchableOpacity>
           </View>
           {!isGiftedGoal && (goal?.weeklyCount || 0) > 0 && (
             <Text style={styles.constraintNote}>
-              Min {minSessions} session{minSessions !== 1 ? 's' : ''} (already logged {goal.weeklyCount} this week)
+              {t('modals.goalEdit.minSessionsNote', { count: minSessions, logged: goal.weeklyCount })}
             </Text>
           )}
         </View>
@@ -265,10 +267,10 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
       {isGiftedGoal && (
         <TextInput
           style={styles.messageInput}
-          placeholder="Add a message to your giver (optional)..."
+          placeholder={t('modals.goalEdit.messagePlaceholder')}
           placeholderTextColor={colors.textMuted}
           value={message}
-          onChangeText={(t) => { setMessage(t); setError(null); }}
+          onChangeText={(text) => { setMessage(text); setError(null); }}
           multiline
           numberOfLines={3}
           maxLength={500}
@@ -278,7 +280,7 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
 
       <View style={styles.buttonRow}>
         <Button
-          title="Cancel"
+          title={t('modals.goalEdit.cancel')}
           variant="ghost"
           size="md"
           onPress={onClose}
@@ -286,7 +288,7 @@ const GoalEditModal: React.FC<GoalEditModalProps> = ({
           style={styles.halfBtn}
         />
         <Button
-          title={isGiftedGoal ? 'Send Request' : 'Save Changes'}
+          title={isGiftedGoal ? t('modals.goalEdit.sendRequest') : t('modals.goalEdit.saveChanges')}
           variant="primary"
           size="md"
           onPress={handleSave}

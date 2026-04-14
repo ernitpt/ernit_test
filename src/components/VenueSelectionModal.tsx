@@ -28,6 +28,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Search, MapPin, X } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import { vh } from '../utils/responsive';
 import Button from './Button';
@@ -101,6 +102,7 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const { showError } = useToast();
 
     // ─── State ────────────────────────────────────────────────────────────
@@ -289,10 +291,10 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
                 };
                 animateClose(() => onSelectVenue(venue));
             } else {
-                showError('Could not load venue details. Please try again or skip.');
+                showError(t('modals.venueSelection.errorLoadFailed'));
             }
         } catch {
-            showError('Something went wrong. Please try again or skip.');
+            showError(t('modals.venueSelection.errorGeneric'));
         } finally {
             setFetchingDetails(null);
         }
@@ -358,7 +360,7 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
                 style={styles.overlay}
                 activeOpacity={1}
                 onPress={handleClose}
-                accessibilityLabel="Dismiss venue selector"
+                accessibilityLabel={t('modals.venueSelection.dismissA11y')}
                 accessibilityRole="button"
             >
                 <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropOpacity }]}>
@@ -384,16 +386,16 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
                     {/* Header */}
                     <View style={styles.header}>
                         <View style={styles.headerTextGroup}>
-                            <Text style={styles.title}>Where will you train?</Text>
+                            <Text style={styles.title}>{t('modals.venueSelection.title')}</Text>
                             <Text style={styles.subtitle}>
-                                Tag your gym or studio so we can verify your sessions.
+                                {t('modals.venueSelection.subtitle')}
                             </Text>
                         </View>
                         <TouchableOpacity
                             onPress={handleClose}
                             style={styles.closeButton}
                             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                            accessibilityLabel="Close"
+                            accessibilityLabel={t('modals.venueSelection.closeA11y')}
                             accessibilityRole="button"
                         >
                             <X size={20} color={colors.textSecondary} />
@@ -412,19 +414,19 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
                                     <RNTextInput
                                         ref={inputRef}
                                         style={styles.searchInput}
-                                        placeholder="Type your gym or studio name"
+                                        placeholder={t('modals.venueSelection.webPlaceholder')}
                                         placeholderTextColor={colors.textMuted}
                                         value={webVenueName}
                                         onChangeText={setWebVenueName}
                                         returnKeyType="done"
                                         onSubmitEditing={handleWebConfirm}
-                                        accessibilityLabel="Venue name input"
+                                        accessibilityLabel={t('modals.venueSelection.venueInputA11y')}
                                     />
                                     {webVenueName.length > 0 && (
                                         <TouchableOpacity
                                             onPress={() => setWebVenueName('')}
                                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                            accessibilityLabel="Clear input"
+                                            accessibilityLabel={t('modals.venueSelection.clearA11y')}
                                         >
                                             <X size={16} color={colors.textMuted} />
                                         </TouchableOpacity>
@@ -432,7 +434,7 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
                                 </View>
                                 {webVenueName.trim().length > 0 && (
                                     <Button
-                                        title="Confirm venue"
+                                        title={t('modals.venueSelection.confirmVenue')}
                                         onPress={handleWebConfirm}
                                         fullWidth
                                         gradient
@@ -451,14 +453,14 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
                                     <RNTextInput
                                         ref={inputRef}
                                         style={styles.searchInput}
-                                        placeholder="Search for a gym or studio"
+                                        placeholder={t('modals.venueSelection.nativePlaceholder')}
                                         placeholderTextColor={colors.textMuted}
                                         value={searchQuery}
                                         onChangeText={handleSearchChange}
                                         returnKeyType="search"
                                         clearButtonMode="while-editing"
                                         autoCorrect={false}
-                                        accessibilityLabel="Gym search input"
+                                        accessibilityLabel={t('modals.venueSelection.searchInputA11y')}
                                     />
                                     {searchQuery.length > 0 && Platform.OS !== 'ios' && (
                                         <TouchableOpacity
@@ -467,7 +469,7 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
                                                 setPredictions([]);
                                             }}
                                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                            accessibilityLabel="Clear search"
+                                            accessibilityLabel={t('modals.venueSelection.clearSearchA11y')}
                                         >
                                             <X size={16} color={colors.textMuted} />
                                         </TouchableOpacity>
@@ -476,7 +478,7 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
 
                                 {/* Results / skeletons */}
                                 {loading ? (
-                                    <View style={styles.skeletonList} accessibilityLabel="Loading venues">
+                                    <View style={styles.skeletonList} accessibilityLabel={t('modals.venueSelection.loadingA11y')}>
                                         <VenueResultSkeleton />
                                         <View style={styles.divider} />
                                         <VenueResultSkeleton />
@@ -492,7 +494,7 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
                                         keyboardShouldPersistTaps="handled"
                                         showsVerticalScrollIndicator={false}
                                         ItemSeparatorComponent={() => <View style={styles.divider} />}
-                                        accessibilityLabel="Venue search results"
+                                        accessibilityLabel={t('modals.venueSelection.resultsA11y')}
                                         removeClippedSubviews={false}
                                         maxToRenderPerBatch={10}
                                         windowSize={5}
@@ -500,7 +502,7 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
                                 ) : searchQuery.trim().length > 0 ? (
                                     <View style={styles.emptyState}>
                                         <Text style={styles.emptyStateText}>
-                                            No venues found. Try a different search.
+                                            {t('modals.venueSelection.noVenuesFound')}
                                         </Text>
                                     </View>
                                 ) : null}
@@ -513,10 +515,10 @@ const VenueSelectionModal: React.FC<VenueSelectionModalProps> = ({
                             onPress={handleSkip}
                             activeOpacity={0.65}
                             accessibilityRole="button"
-                            accessibilityLabel="Skip venue selection"
+                            accessibilityLabel={t('modals.venueSelection.skipA11y')}
                         >
                             <Text style={styles.skipText}>
-                                I'll work out on my own
+                                {t('modals.venueSelection.skipText')}
                             </Text>
                         </TouchableOpacity>
                     </View>

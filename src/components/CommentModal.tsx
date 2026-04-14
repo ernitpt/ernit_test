@@ -34,6 +34,7 @@ import { Spacing } from '../config/spacing';
 import { useToast } from '../context/ToastContext';
 import { EmptyState } from './EmptyState';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 
 interface CommentModalProps {
     visible: boolean;
@@ -49,6 +50,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
     const { showError } = useToast();
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const [comments, setComments] = useState<Comment[]>([]);
     const [commentText, setCommentText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -123,7 +125,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             onChange?.(reloaded.length);
         } catch (error: unknown) {
             logger.error('Error sending/updating comment:', error);
-            showError('Could not send comment. Please try again.');
+            showError(t('modals.comment.error.postFailed'));
         } finally {
             setIsSending(false);
         }
@@ -187,7 +189,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             setMenuVisibleId(null);
         } catch (error: unknown) {
             logger.error('Error deleting comment:', error);
-            showError('Could not delete comment. Please try again.');
+            showError(t('modals.comment.error.deleteFailed'));
         }
     }, [deleteConfirmId, postId, onChange, showError]);
 
@@ -208,7 +210,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                                 onPress={() => setMenuVisibleId(menuVisibleId === item.id ? null : item.id)}
                                 hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
                                 style={styles.moreButton}
-                                accessibilityLabel="Comment options"
+                                accessibilityLabel={t('modals.comment.commentOptions')}
                                 accessibilityRole="button"
                             >
                                 <MoreHorizontal size={14} color={colors.textMuted} />
@@ -229,7 +231,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                                             onPress={() => startEditing(item)}
                                         >
                                             <Edit2 size={14} color={colors.gray600} />
-                                            <Text style={styles.menuText}>Edit</Text>
+                                            <Text style={styles.menuText}>{t('modals.comment.edit')}</Text>
                                         </TouchableOpacity>
                                         <View style={styles.menuDivider} />
                                         <TouchableOpacity
@@ -237,7 +239,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                                             onPress={() => handleDeleteComment(item.id)}
                                         >
                                             <Trash2 size={14} color={colors.error} />
-                                            <Text style={[styles.menuText, { color: colors.error }]}>Delete</Text>
+                                            <Text style={[styles.menuText, { color: colors.error }]}>{t('modals.comment.delete')}</Text>
                                         </TouchableOpacity>
                                     </MotiView>
                                 )}
@@ -252,7 +254,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                 {/* Meta row */}
                 <View style={styles.bubbleMeta}>
                     <Text style={styles.timestamp}>{getTimeAgo(item.createdAt)}</Text>
-                    {item.updatedAt && <Text style={styles.editedTag}>edited</Text>}
+                    {item.updatedAt && <Text style={styles.editedTag}>{t('modals.comment.edited')}</Text>}
                     <TouchableOpacity
                         onPress={() => handleLikeComment(item)}
                         style={styles.likeButton}
@@ -306,11 +308,11 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }} keyboardVerticalOffset={0}>
                 {/* Header */}
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Comments</Text>
+                    <Text style={styles.headerTitle}>{t('modals.comment.title')}</Text>
                     <TouchableOpacity
                         onPress={onClose}
                         style={styles.closeButton}
-                        accessibilityLabel="Close comments"
+                        accessibilityLabel={t('modals.comment.closeComments')}
                         accessibilityRole="button"
                     >
                         <X color={colors.textSecondary} size={24} />
@@ -334,8 +336,8 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                     ) : comments.length === 0 ? (
                         <EmptyState
                             icon="💬"
-                            title="No comments yet"
-                            message="Be the first to comment!"
+                            title={t('modals.comment.noComments')}
+                            message={t('modals.comment.noCommentsFirst')}
                         />
                     ) : (
                         comments.map(renderCommentItem)
@@ -356,7 +358,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                     <View style={styles.inputWrapper}>
                         <TextInput
                             style={styles.input}
-                            placeholder={editingCommentId ? "Edit your comment..." : "Write a comment..."}
+                            placeholder={editingCommentId ? t('modals.comment.editPlaceholder') : t('modals.comment.writePlaceholder')}
                             placeholderTextColor={colors.textMuted}
                             value={commentText}
                             onChangeText={setCommentText}
@@ -367,7 +369,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
                             onSubmitEditing={handleSendComment}
                         />
                         <Text style={[styles.charCount, commentText.length > 280 && { color: colors.error }]}>
-                            {commentText.length}/300
+                            {t('modals.comment.charCount', { count: commentText.length })}
                         </Text>
                     </View>
                     <TouchableOpacity
@@ -391,9 +393,9 @@ const CommentModal: React.FC<CommentModalProps> = ({ visible, postId, onClose, o
             </Animated.View>
             <ConfirmationDialog
                 visible={deleteConfirmId !== null}
-                title="Delete Comment"
-                message="Are you sure you want to delete this comment?"
-                confirmLabel="Delete"
+                title={t('modals.comment.deleteConfirm.title')}
+                message={t('modals.comment.deleteConfirm.message')}
+                confirmLabel={t('modals.comment.deleteConfirm.confirm')}
                 onConfirm={confirmDeleteComment}
                 onCancel={() => setDeleteConfirmId(null)}
                 variant="danger"

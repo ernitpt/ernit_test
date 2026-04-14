@@ -20,6 +20,7 @@ import { useModalAnimation } from '../hooks/useModalAnimation';
 import { createCommonStyles } from '../styles/commonStyles';
 import { contactService } from '../services/ContactService';
 import { logger } from '../utils/logger';
+import { useTranslation } from 'react-i18next';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
@@ -35,6 +36,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const commonStyles = useMemo(() => createCommonStyles(colors), [colors]);
+    const { t } = useTranslation();
 
     const { state } = useApp();
     const [subject, setSubject] = useState('');
@@ -70,7 +72,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
 
     const handleSubmit = async () => {
         if (!subject.trim() || !message.trim()) {
-            setErrorMessage('Please fill in all fields');
+            setErrorMessage(t('modals.contact.fillAllFields'));
             return;
         }
 
@@ -98,15 +100,15 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
             logger.error(`Error sending ${type}:`, error);
             setIsSending(false);
             setShowSuccess(false);
-            setErrorMessage('Failed to send. Please try again.');
+            setErrorMessage(t('modals.contact.sendFailed'));
         }
     };
 
     const Icon = type === 'feedback' ? MessageSquare : LifeBuoy;
-    const title = type === 'feedback' ? 'Give Feedback' : 'Get Support';
+    const title = type === 'feedback' ? t('modals.contact.titleFeedback') : t('modals.contact.titleSupport');
     const placeholder = type === 'feedback'
-        ? 'Tell us about your idea, suggestion, or what you love about Ernit...'
-        : 'Describe the issue you\'re experiencing (bug, payment problem, progression issue, etc.)...';
+        ? t('modals.contact.messagePlaceholderFeedback')
+        : t('modals.contact.messagePlaceholderSupport');
 
     const userEmail = state.user?.email || 'your registered email';
 
@@ -123,7 +125,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                     activeOpacity={1}
                     onPress={onClose}
                     accessibilityRole="button"
-                    accessibilityLabel="Close contact form"
+                    accessibilityLabel={t('modals.contact.closeA11y')}
                 />
                 <Animated.View
                     style={[
@@ -142,7 +144,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                                 <Icon color={colors.secondary} size={24} />
                                 <Text style={styles.headerTitle}>{title}</Text>
                             </View>
-                            <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close">
+                            <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel={t('modals.contact.closeButton')}>
                                 <X color={colors.textSecondary} size={24} />
                             </TouchableOpacity>
                         </View>
@@ -151,12 +153,11 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                             // Success State
                             <View style={styles.successContainer}>
                                 <CheckCircle color={colors.secondary} size={64} />
-                                <Text style={styles.successTitle}>Message Sent!</Text>
+                                <Text style={styles.successTitle}>{t('modals.contact.successTitle')}</Text>
                                 <Text style={styles.successMessage}>
-                                    Thank you for your {type === 'feedback' ? 'feedback' : 'message'}.
-                                    We'll get back to you at{' '}
-                                    <Text style={styles.emailText}>{userEmail}</Text>
-                                    {' '}within 24-48 hours.
+                                    {type === 'feedback'
+                                        ? t('modals.contact.successMessageFeedback', { email: userEmail })
+                                        : t('modals.contact.successMessageSupport', { email: userEmail })}
                                 </Text>
                             </View>
                         ) : (
@@ -169,8 +170,8 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                             >
                                 {/* Subject Input */}
                                 <TextInput
-                                    label="Subject"
-                                    placeholder={type === 'feedback' ? 'Feature request, UI improvement, etc.' : 'Bug report, payment issue, etc.'}
+                                    label={t('modals.contact.subjectLabel')}
+                                    placeholder={type === 'feedback' ? t('modals.contact.subjectPlaceholderFeedback') : t('modals.contact.subjectPlaceholderSupport')}
                                     value={subject}
                                     onChangeText={setSubject}
                                     maxLength={100}
@@ -183,7 +184,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
 
                                 {/* Message Input */}
                                 <TextInput
-                                    label="Message"
+                                    label={t('modals.contact.messageLabel')}
                                     placeholder={placeholder}
                                     value={message}
                                     onChangeText={setMessage}
@@ -200,7 +201,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
                                 {/* Info Box */}
                                 <View style={styles.infoBox}>
                                     <Text style={styles.infoText}>
-                                        We'll respond to <Text style={styles.emailText}>{userEmail}</Text>
+                                        {t('modals.contact.respondInfo', { email: userEmail })}
                                     </Text>
                                 </View>
 
@@ -211,7 +212,7 @@ const ContactModal: React.FC<ContactModalProps> = ({ visible, type, onClose }) =
 
                                 {/* Submit Button */}
                                 <Button
-                                    title="Send Message"
+                                    title={t('modals.contact.sendButton')}
                                     onPress={handleSubmit}
                                     variant="primary"
                                     size="md"

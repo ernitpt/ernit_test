@@ -1,8 +1,11 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
 import { useAuthGuard } from '../context/AuthGuardContext';
+import { useColors } from '../config';
 import { RootStackParamList } from '../types';
 
 type ProtectedRouteNavProp = NativeStackNavigationProp<RootStackParamList>;
@@ -20,8 +23,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
 }) => {
   const { state } = useApp();
+  const colors = useColors();
   const navigation = useNavigation<ProtectedRouteNavProp>();
-  const { requireAuth, showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
+  const { requireAuth } = useAuthGuard();
+  const { t } = useTranslation();
 
   // When route is focused and user is not authenticated, show login prompt
   // This is a safety net in case navigation wasn't blocked at the source
@@ -35,7 +40,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         const params = currentRoute?.params;
 
         // Show login prompt, preserving the deep-link destination
-        requireAuth('Please log in to access this page.', routeName, params as Record<string, unknown>);
+        requireAuth(t('loginPrompt.accessPage'), routeName, params as Record<string, unknown>);
 
         // Navigate back after a short delay to prevent the protected page from rendering.
         // On cold-start deep links there is no back stack, so fall back to ChallengeLanding.
@@ -57,9 +62,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // DO NOT render protected content when not authenticated
   // This prevents the protected page from mounting at all
   if (!state?.user) {
-    // Return null - don't render anything
-    // The login prompt is shown via useAuthGuard hook
-    return null;
+    return <View style={{ flex: 1, backgroundColor: colors.surface }} />;
   }
 
   // Only render protected content when authenticated

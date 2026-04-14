@@ -1,4 +1,7 @@
 ﻿import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatLocalDate } from '../utils/i18nHelpers';
+import { formatCurrency } from '../utils/helpers';
 import {
   View,
   Text,
@@ -26,7 +29,6 @@ import { goalService } from '../services/GoalService';
 import { userService } from '../services/userService';
 import { experienceGiftService } from '../services/ExperienceGiftService';
 import { notificationService } from '../services/NotificationService';
-import MainScreen from './MainScreen';
 import { storage, db } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, updateDoc, arrayRemove } from 'firebase/firestore';
@@ -48,9 +50,9 @@ import { SkeletonBox } from '../components/SkeletonLoader';
 import ClaimExperienceModal from '../components/ClaimExperienceModal';
 import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
-import { FOOTER_HEIGHT } from '../components/FooterNavigation';
 import { Avatar } from '../components/Avatar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FOOTER_HEIGHT } from '../components/CustomTabBar';
 import { MotiView } from 'moti';
 
 // =========================
@@ -72,6 +74,7 @@ const CapsuleMini: React.FC<{ filled: boolean }> = React.memo(({ filled }) => {
 });
 
 const GoalCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useRootNavigation();
@@ -101,7 +104,7 @@ const GoalCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
 
   const handlePress = useCallback(() => {
     // FIX 3b: Serialize Timestamps before navigation to avoid passing non-serializable objects
-    navigation.navigate('Journey', { goal: serializeNav(goal) });
+    navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Journey', params: { goal: serializeNav(goal) } } });
   }, [navigation, goal]);
 
   return (
@@ -119,7 +122,7 @@ const GoalCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
       {/* Sessions this week */}
       <View style={{ marginTop: Spacing.md }}>
         <View style={styles.progressHeaderRow}>
-          <Text style={styles.progressHeaderLabel}>Sessions this week</Text>
+          <Text style={styles.progressHeaderLabel}>{t('profile.goals.sessionsThisWeek')}</Text>
           <Text style={styles.progressHeaderValue}>
             {weeklyFilled}/{weeklyTotal}
           </Text>
@@ -135,7 +138,7 @@ const GoalCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
       {/* Weeks completed */}
       <View style={{ marginTop: Spacing.md }}>
         <View style={styles.progressHeaderRow}>
-          <Text style={styles.progressHeaderLabel}>Weeks completed</Text>
+          <Text style={styles.progressHeaderLabel}>{t('profile.goals.weeksCompleted')}</Text>
           <Text style={styles.progressHeaderValue}>
             {completedWeeks}/{totalWeeks}
           </Text>
@@ -161,14 +164,14 @@ const GoalCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
                 userName: state.user?.displayName || 'You',
               },
             });
-            navigation.navigate('CategorySelection', {
+            navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection', params: {
               ...(goal.preferredRewardCategory ? { prefilterCategory: goal.preferredRewardCategory } : {}),
-            });
+            } } });
           }}
           style={styles.browseButton}
           activeOpacity={0.7}
         >
-          <Text style={styles.browseButtonText}>Add a Reward</Text>
+          <Text style={styles.browseButtonText}>{t('profile.goals.addReward')}</Text>
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -179,18 +182,19 @@ const GoalCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
 // Achievement Card (Completed goals)
 // ==================================
 const StatsRow: React.FC<{ sessions: number; weeks: number; completedAt: string | null }> = React.memo(({ sessions, weeks, completedAt }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.achStatsRow}>
       <View style={styles.achStatItem}>
         <Text style={styles.achStatValue}>{sessions}</Text>
-        <Text style={styles.achStatLabel}>sessions</Text>
+        <Text style={styles.achStatLabel}>{t('profile.stats.sessions')}</Text>
       </View>
       <View style={styles.achStatDivider} />
       <View style={styles.achStatItem}>
         <Text style={styles.achStatValue}>{weeks}</Text>
-        <Text style={styles.achStatLabel}>weeks</Text>
+        <Text style={styles.achStatLabel}>{t('profile.stats.weeks')}</Text>
       </View>
       {completedAt && (
         <>
@@ -205,6 +209,7 @@ const StatsRow: React.FC<{ sessions: number; weeks: number; completedAt: string 
 });
 
 const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useRootNavigation();
@@ -270,15 +275,17 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
 
   const handlePress = useCallback(() => {
     // FIX 3b: Serialize Timestamps before navigation to avoid passing non-serializable objects
-    navigation.navigate('Journey', { goal: serializeNav(goal) });
+    navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Journey', params: { goal: serializeNav(goal) } } });
   }, [navigation, goal]);
 
   // Completion date
   const completedAt = goal.completedAt
-    ? (goal.completedAt instanceof Date
-        ? goal.completedAt
-        : (goal.completedAt as any)?.toDate?.() ?? new Date()
-      ).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    ? formatLocalDate(
+        goal.completedAt instanceof Date
+          ? goal.completedAt
+          : (goal.completedAt as any)?.toDate?.() ?? new Date(),
+        { month: 'short', day: 'numeric', year: 'numeric' }
+      )
     : null;
 
   // Self-achievement card
@@ -289,7 +296,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
         <View style={styles.achSelfBanner}>
           <Text style={{ ...Typography.display }}>🏆</Text>
           <View style={{ flex: 1 }}>
-            <Text style={styles.achSelfLabel}>Self-Achievement</Text>
+            <Text style={styles.achSelfLabel}>{t('profile.achievements.selfAchievement')}</Text>
             <Text style={styles.achSelfTitle} numberOfLines={2}>{goal.title}</Text>
           </View>
         </View>
@@ -304,7 +311,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
               style={styles.claimExperienceButton}
               activeOpacity={0.7}
             >
-              <Text style={styles.claimExperienceButtonText}>Claim Experience</Text>
+              <Text style={styles.claimExperienceButtonText}>{t('profile.achievements.claimExperience')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -329,14 +336,14 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
           <View>
             <Image source={{ uri: cover }} style={styles.achievementImage} contentFit="cover" cachePolicy="memory-disk" accessibilityLabel={`${pledged.title} cover image`} />
             <View style={styles.achCompletedBadge}>
-              <Text style={styles.achCompletedBadgeText}>Completed</Text>
+              <Text style={styles.achCompletedBadgeText}>{t('profile.achievements.completed')}</Text>
             </View>
           </View>
         ) : (
           <View style={[styles.achColorBanner, { backgroundColor: colors.primarySurface }]}>
             <Text style={{ ...Typography.display }}>🎁</Text>
             <View style={styles.achCompletedBadge}>
-              <Text style={styles.achCompletedBadgeText}>Completed</Text>
+              <Text style={styles.achCompletedBadgeText}>{t('profile.achievements.completed')}</Text>
             </View>
           </View>
         )}
@@ -353,7 +360,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
               style={styles.claimExperienceButton}
               activeOpacity={0.7}
             >
-              <Text style={styles.claimExperienceButtonText}>Claim Experience</Text>
+              <Text style={styles.claimExperienceButtonText}>{t('profile.achievements.claimExperience')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -422,12 +429,13 @@ type ExperienceCardProps = {
 };
 
 const ExperienceCard: React.FC<ExperienceCardProps> = React.memo(({ experience, onRemoveFromWishlist }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useRootNavigation();
 
   const handlePress = useCallback(() => {
-    navigation.navigate('ExperienceDetails', { experience });
+    navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'ExperienceDetails', params: { experience } } });
   }, [navigation, experience]);
 
   const handleRemove = useCallback(() => {
@@ -443,7 +451,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = React.memo(({ experience, 
       activeOpacity={0.8}
       style={styles.experienceCard}
       onPress={handlePress}
-      accessibilityLabel={`View ${experience.title} experience details`}
+      accessibilityLabel={t('profile.wishlist.viewDetailsAccessibility', { title: experience.title })}
     >
       <View style={styles.experienceImageContainer}>
         <Image
@@ -458,7 +466,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = React.memo(({ experience, 
           style={styles.wishlistHeartButton}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel={`Remove ${experience.title} from wishlist`}
+          accessibilityLabel={t('profile.wishlist.removeAccessibility', { title: experience.title })}
         >
           <Heart fill={colors.error} color={colors.error} size={22} />
         </TouchableOpacity>
@@ -471,7 +479,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = React.memo(({ experience, 
           {experience.description}
         </Text>
         <Text style={styles.experiencePrice}>
-          €{Number(experience.price || 0).toFixed(2)}
+          {formatCurrency(Number(experience.price || 0))}
         </Text>
       </View>
     </TouchableOpacity>
@@ -479,6 +487,7 @@ const ExperienceCard: React.FC<ExperienceCardProps> = React.memo(({ experience, 
 });
 
 const UserProfileScreen: React.FC = () => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
@@ -557,7 +566,7 @@ const UserProfileScreen: React.FC = () => {
       logger.error('Error loading profile data:', error);
       if (!loadProfileMountedRef.current) return;
       setError(true);
-      showError('Could not load profile. Please try again.');
+      showError(t('profile.toast.couldNotLoad'));
     } finally {
       if (loadProfileMountedRef.current) setLoading(false);
     }
@@ -594,7 +603,7 @@ const UserProfileScreen: React.FC = () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        showError('We need camera roll permissions to upload photos!');
+        showError(t('profile.toast.cameraPermission'));
         return;
       }
 
@@ -613,7 +622,7 @@ const UserProfileScreen: React.FC = () => {
 
         // S-06: Client-side file size guard (Storage rules enforce server-side too)
         if (blob.size > 5 * 1024 * 1024) {
-          showError('Image must be under 5MB');
+          showError(t('profile.toast.imageTooLarge'));
           return;
         }
 
@@ -626,7 +635,7 @@ const UserProfileScreen: React.FC = () => {
         }));
       } catch (uploadErr: unknown) {
         logger.error('Image pick failed:', uploadErr);
-        showError('Could not open profile image.');
+        showError(t('profile.toast.couldNotOpenImage'));
       }
     }
     } catch (error: unknown) {
@@ -656,16 +665,16 @@ const UserProfileScreen: React.FC = () => {
   const validateField = (field: 'name' | 'description', value: string) => {
     if (field === 'name') {
       if (!value.trim()) {
-        setFormErrors(prev => ({ ...prev, name: 'Name is required' }));
+        setFormErrors(prev => ({ ...prev, name: t('profile.validation.nameRequired') }));
       } else if (value.trim().length < 2) {
-        setFormErrors(prev => ({ ...prev, name: 'Name must be at least 2 characters' }));
+        setFormErrors(prev => ({ ...prev, name: t('profile.validation.nameTooShort') }));
       } else {
         setFormErrors(prev => ({ ...prev, name: undefined }));
       }
     }
     if (field === 'description') {
       if (value.length > 300) {
-        setFormErrors(prev => ({ ...prev, description: 'Maximum 300 characters' }));
+        setFormErrors(prev => ({ ...prev, description: t('profile.validation.descriptionTooLong') }));
       } else {
         setFormErrors(prev => ({ ...prev, description: undefined }));
       }
@@ -679,12 +688,12 @@ const UserProfileScreen: React.FC = () => {
     // Inline validation check
     const nameVal = editFormData.name.trim();
     if (!nameVal || nameVal.length < 2) {
-      setFormErrors(prev => ({ ...prev, name: nameVal ? 'Name must be at least 2 characters' : 'Name is required' }));
+      setFormErrors(prev => ({ ...prev, name: nameVal ? t('profile.validation.nameTooShort') : t('profile.validation.nameRequired') }));
       setIsSaving(false);
       return;
     }
     if (editFormData.description.length > 300) {
-      setFormErrors(prev => ({ ...prev, description: 'Please keep under 300 characters' }));
+      setFormErrors(prev => ({ ...prev, description: t('profile.validation.descriptionTooLong') }));
       setIsSaving(false);
       return;
     }
@@ -705,7 +714,7 @@ const UserProfileScreen: React.FC = () => {
         setPendingImageUri(null);
       } catch (uploadErr: unknown) {
         logger.error('Upload failed during save:', uploadErr);
-        showError('Could not upload profile image. Please try again.');
+        showError(t('profile.toast.couldNotUploadImage'));
         setIsSaving(false);
         return;
       }
@@ -735,7 +744,7 @@ const UserProfileScreen: React.FC = () => {
 
     // 5. Close modal and show success immediately
     setIsEditModalVisible(false);
-    showSuccess('Profile updated!');
+    showSuccess(t('profile.toast.profileUpdated'));
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     // 6. Call API in background
@@ -749,7 +758,7 @@ const UserProfileScreen: React.FC = () => {
         const revertedUser: User = { ...stateUserRef.current, profile: previousProfile };
         dispatch({ type: 'SET_USER', payload: revertedUser });
       }
-      showError('Failed to update profile. Please try again.');
+      showError(t('profile.toast.failedToUpdate'));
     } finally {
       setIsSaving(false);
     }
@@ -757,7 +766,7 @@ const UserProfileScreen: React.FC = () => {
 
   const handleRemoveFromWishlist = useCallback((experienceId: string) => {
     if (!state.user) {
-      showInfo('Please log in to manage wishlist.');
+      showInfo(t('profile.toast.loginToManageWishlist'));
       return;
     }
 
@@ -771,7 +780,7 @@ const UserProfileScreen: React.FC = () => {
 
     // BUG-20: guard against null user to avoid doc(db, 'users', '') empty-string ref
     const uid = state.user?.id;
-    if (!uid) { showError('Not logged in'); return; }
+    if (!uid) { showError(t('profile.toast.notLoggedIn')); return; }
 
     try {
       const userRef = doc(db, 'users', uid);
@@ -793,7 +802,7 @@ const UserProfileScreen: React.FC = () => {
       }
     } catch (error: unknown) {
       logger.error('Error removing from wishlist:', error);
-      showError('Failed to remove item from wishlist. Please try again.');
+      showError(t('profile.toast.failedToRemoveWishlist'));
     }
   };
 
@@ -810,14 +819,14 @@ const UserProfileScreen: React.FC = () => {
     }
 
     if (error) {
-      return <ErrorRetry message="Could not load profile data" onRetry={loadProfileAndGoals} />;
+      return <ErrorRetry message={t('profile.error.couldNotLoad')} onRetry={loadProfileAndGoals} />;
     }
 
     if (tab === 'goals') {
       if (!activeGoals.length) {
         return (
           <View style={styles.emptyGoalsCenter}>
-            <EmptyState title="Your Journey Starts Here" message="Start a goal to track your progress!" actionLabel="Start a Goal" onAction={() => navigation.navigate('ChallengeLanding')} />
+            <EmptyState title={t('profile.empty.goalsTitle')} message={t('profile.empty.goalsMessage')} actionLabel={t('profile.empty.goalsAction')} onAction={() => navigation.navigate('ChallengeLanding')} />
           </View>
         );
       }
@@ -828,7 +837,7 @@ const UserProfileScreen: React.FC = () => {
 
     if (tab === 'achievements') {
       if (!completedGoals.length) {
-        return <EmptyState title="No Achievements Yet" message="Complete goals to earn achievements!" />;
+        return <EmptyState title={t('profile.empty.achievementsTitle')} message={t('profile.empty.achievementsMessage')} />;
       }
       return completedGoals.map((goal) => (
         <AchievementCard key={goal.id} goal={goal} />
@@ -837,7 +846,7 @@ const UserProfileScreen: React.FC = () => {
 
     // wishlist
     if (!wishlist.length) {
-      return <EmptyState title="No Wishlist Yet" message="Add experiences to your wishlist!" />;
+      return <EmptyState title={t('profile.empty.wishlistTitle')} message={t('profile.empty.wishlistMessage')} />;
     }
 
     return wishlist.map((exp) => (
@@ -848,16 +857,14 @@ const UserProfileScreen: React.FC = () => {
   if (error && !loading) {
     return (
       <ErrorBoundary screenName="UserProfileScreen" userId={userId}>
-        <MainScreen activeRoute="Profile">
           <ErrorRetry
-            message="Could not load profile data"
+            message={t('profile.error.couldNotLoad')}
             onRetry={() => {
               setError(false);
               setLoading(true);
               loadProfileAndGoals();
             }}
           />
-        </MainScreen>
       </ErrorBoundary>
     );
   }
@@ -865,7 +872,6 @@ const UserProfileScreen: React.FC = () => {
   return (
     <ErrorBoundary screenName="UserProfileScreen" userId={userId}>
       <StatusBar style="auto" />
-      <MainScreen activeRoute="Profile">
         <ScrollView
           style={styles.container}
           showsVerticalScrollIndicator={false}
@@ -915,15 +921,15 @@ const UserProfileScreen: React.FC = () => {
             <View style={styles.statsRow}>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{activeGoals.length}</Text>
-                <Text style={styles.statLabel}>Active</Text>
+                <Text style={styles.statLabel}>{t('profile.stats.active')}</Text>
               </View>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{completedGoals.length}</Text>
-                <Text style={styles.statLabel}>Completed</Text>
+                <Text style={styles.statLabel}>{t('profile.stats.completed')}</Text>
               </View>
               <View style={styles.statCard}>
                 <Text style={styles.statNumber}>{wishlist.length}</Text>
-                <Text style={styles.statLabel}>Wishlist</Text>
+                <Text style={styles.statLabel}>{t('profile.stats.wishlist')}</Text>
               </View>
             </View>
 
@@ -932,10 +938,10 @@ const UserProfileScreen: React.FC = () => {
               style={styles.friendsButton}
               onPress={() => navigation.navigate('FriendsList')}
               accessibilityRole="button"
-              accessibilityLabel="View friends list"
+              accessibilityLabel={t('profile.friendsButtonAccessibility')}
             >
               <Users color={colors.secondary} size={20} />
-              <Text style={styles.friendsButtonText}>View Friends</Text>
+              <Text style={styles.friendsButtonText}>{t('profile.viewFriends')}</Text>
               {unreadFriendRequests > 0 && (
                 <View style={styles.notificationBadge}>
                   <Text style={styles.badgeText}>{unreadFriendRequests}</Text>
@@ -947,9 +953,9 @@ const UserProfileScreen: React.FC = () => {
           {/* Tabs */}
           <View style={styles.tabsContainer}>
             {([
-              { key: 'goals' as const, label: 'Goals', icon: Target },
-              { key: 'achievements' as const, label: 'Achievements', icon: Award },
-              { key: 'wishlist' as const, label: 'Wishlist', icon: Heart },
+              { key: 'goals' as const, label: t('profile.tabs.goals'), icon: Target },
+              { key: 'achievements' as const, label: t('profile.tabs.achievements'), icon: Award },
+              { key: 'wishlist' as const, label: t('profile.tabs.wishlist'), icon: Heart },
             ] as const).map((tab) => (
               <TouchableOpacity
                 key={tab.key}
@@ -964,7 +970,7 @@ const UserProfileScreen: React.FC = () => {
                   activeTab === tab.key && styles.tabButtonActive,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel={`View ${tab.label} tab`}
+                accessibilityLabel={t('profile.tabAccessibility', { label: tab.label })}
               >
                 <Text
                   style={[
@@ -1012,7 +1018,7 @@ const UserProfileScreen: React.FC = () => {
         <BaseModal
           visible={isEditModalVisible}
           onClose={closeEditModal}
-          title="Edit Profile"
+          title={t('profile.editModal.title')}
           variant="bottom"
           noPadding
         >
@@ -1025,16 +1031,16 @@ const UserProfileScreen: React.FC = () => {
                 onPress={closeEditModal}
                 style={styles.modalCancelButton}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalCancelText}>{t('profile.editModal.cancel')}</Text>
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>Edit Profile</Text>
+              <Text style={styles.modalTitle}>{t('profile.editModal.title')}</Text>
               <TouchableOpacity
                 onPress={handleSaveProfile}
                 style={styles.modalSaveButton}
                 disabled={isSaving}
               >
                 <Text style={styles.modalSaveText}>
-                  {isSaving ? 'Saving…' : 'Save'}
+                  {isSaving ? t('profile.editModal.saving') : t('profile.editModal.save')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1061,29 +1067,29 @@ const UserProfileScreen: React.FC = () => {
                     <Text style={styles.imageOverlayText}>📷</Text>
                   </View>
                 </TouchableOpacity>
-                <Text style={styles.imagePickerLabel}>Tap to change photo</Text>
+                <Text style={styles.imagePickerLabel}>{t('profile.editModal.tapToChangePhoto')}</Text>
               </View>
 
               <TextInput
-                label="Name"
+                label={t('profile.editModal.nameLabel')}
                 value={editFormData.name}
                 onChangeText={(text) => {
                   setEditFormData((prev) => ({ ...prev, name: text }));
                   validateField('name', text);
                 }}
-                placeholder="Enter your name"
+                placeholder={t('profile.editModal.namePlaceholder')}
                 maxLength={50}
                 error={formErrors.name}
               />
 
               <TextInput
-                label={`About You (${editFormData.description.length}/300)`}
+                label={t('profile.editModal.aboutLabel', { count: editFormData.description.length })}
                 value={editFormData.description}
                 onChangeText={(text) => {
                   setEditFormData((prev) => ({ ...prev, description: text }));
                   validateField('description', text);
                 }}
-                placeholder="Tell us about yourself..."
+                placeholder={t('profile.editModal.aboutPlaceholder')}
                 multiline
                 numberOfLines={6}
                 maxLength={300}
@@ -1093,12 +1099,11 @@ const UserProfileScreen: React.FC = () => {
             </ScrollView>
           </KeyboardAvoidingView>
         </BaseModal>
-      </MainScreen>
       <ConfirmationDialog
         visible={wishlistRemoveId !== null}
-        title="Remove from Wishlist"
-        message="Are you sure you want to remove this experience from your wishlist?"
-        confirmLabel="Remove"
+        title={t('profile.wishlist.removeTitle')}
+        message={t('profile.wishlist.removeMessage')}
+        confirmLabel={t('profile.wishlist.removeConfirm')}
         onConfirm={confirmRemoveFromWishlist}
         onCancel={() => setWishlistRemoveId(null)}
         variant="danger"

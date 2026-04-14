@@ -4,9 +4,10 @@
 // PaymentElement in setup mode so the giver's card is saved for off-session charging later.
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
-import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
+import { FOOTER_HEIGHT } from '../../components/CustomTabBar';
 import {
   View,
   Text,
@@ -32,7 +33,6 @@ import { BorderRadius } from '../../config/borderRadius';
 import { Spacing } from '../../config/spacing';
 import { Typography } from '../../config/typography';
 import { Shadows } from '../../config/shadows';
-import MainScreen from '../MainScreen';
 import Button from '../../components/Button';
 import { vh } from '../../utils/responsive';
 import { getUserMessage } from '../../utils/AppError';
@@ -56,6 +56,7 @@ type SetupInnerProps = {
 };
 
 const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -93,7 +94,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
       if (error) {
         // Validation or integration errors — stay on screen so user can retry
         if (error.type === 'validation_error' || error.type === 'invalid_request_error') {
-          showError(getUserMessage(error, 'Card validation failed. Please check your card details and try again.'));
+          showError(getUserMessage(error, t('giver.deferred.toast.cardValidationFailed')));
           await AsyncStorage.removeItem('pending_sca_gift').catch(() => {});
           return;
         }
@@ -104,7 +105,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
           feature: 'ConfirmSetupIntent',
           userId: state.user?.id,
         });
-        showError(getUserMessage(error, 'Could not save your card. Please verify your details and try again.'));
+        showError(getUserMessage(error, t('giver.deferred.toast.cardSaveFailed')));
         return;
       }
 
@@ -120,7 +121,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
           feature: 'ConfirmSetupIntent',
           userId: state.user?.id,
         });
-        showError('Card verification incomplete. Please try again.');
+        showError(t('giver.deferred.toast.verificationIncomplete'));
       }
     } catch (err: unknown) {
       logger.error('Error confirming SetupIntent:', err);
@@ -129,19 +130,18 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
         feature: 'ConfirmSetupIntent',
         userId: state.user?.id,
       });
-      showError('Something went wrong. Please try again.');
+      showError(t('giver.deferred.toast.genericError'));
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleSkip = useCallback(() => {
-    showInfo('You can add payment details later from Purchased Gifts.');
+    showInfo(t('giver.deferred.toast.skipInfo'));
     navigation.replace('Confirmation', { experienceGift });
   }, [navigation, experienceGift]);
 
   return (
-    <MainScreen activeRoute="Home">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -153,12 +153,12 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
               onPress={() => navigation.goBack()}
               style={styles.backButton}
               accessibilityRole="button"
-              accessibilityLabel="Go back"
+              accessibilityLabel={t('giver.deferred.accessibility.goBack')}
               disabled={isProcessing}
             >
               <ChevronLeft color={colors.textPrimary} size={24} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Secure Your Gift</Text>
+            <Text style={styles.headerTitle}>{t('giver.deferred.screenTitle')}</Text>
             <View style={styles.lockIcon}>
               <Lock color={colors.secondary} size={20} />
             </View>
@@ -172,10 +172,9 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
           >
             {/* Info card */}
             <View style={styles.infoCard}>
-              <Text style={styles.infoTitle}>Zero charge until they succeed</Text>
+              <Text style={styles.infoTitle}>{t('giver.deferred.infoCard.title')}</Text>
               <Text style={styles.infoSubtitle}>
-                Save your card now. We'll only charge you once your recipient completes their goal.
-                You can remove it any time from Purchased Gifts.
+                {t('giver.deferred.infoCard.subtitle')}
               </Text>
             </View>
 
@@ -183,7 +182,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <CreditCard color={colors.secondary} size={20} />
-                <Text style={[styles.sectionTitle, { marginLeft: Spacing.sm }]}>Card Details</Text>
+                <Text style={[styles.sectionTitle, { marginLeft: Spacing.sm }]}>{t('giver.deferred.cardDetails')}</Text>
               </View>
               <View style={styles.paymentBox}>
                 <PaymentElement
@@ -198,7 +197,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
             <View style={styles.securityNotice}>
               <Lock color={colors.textSecondary} size={16} />
               <Text style={styles.securityText}>
-                Your payment information is encrypted and secure
+                {t('giver.deferred.securityText')}
               </Text>
             </View>
 
@@ -209,7 +208,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
           <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.md }]}>
             <Button
               variant="primary"
-              title="Save Card & Continue"
+              title={t('giver.deferred.saveCard')}
               onPress={handleSaveCard}
               disabled={isProcessing}
               loading={isProcessing}
@@ -220,14 +219,13 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
               disabled={isProcessing}
               style={styles.skipButton}
               accessibilityRole="button"
-              accessibilityLabel="Skip card setup for now"
+              accessibilityLabel={t('giver.deferred.accessibility.skipCard')}
             >
-              <Text style={styles.skipText}>Skip for now</Text>
+              <Text style={styles.skipText}>{t('giver.deferred.skipForNow')}</Text>
             </TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>
-    </MainScreen>
   );
 };
 
@@ -235,6 +233,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
 // Native setup — uses @stripe/stripe-react-native PaymentSheet for card setup
 // ──────────────────────────────────────────────────────────────────────────────
 const NativeDeferredSetup: React.FC = () => {
+  const { t } = useTranslation();
   const { usePaymentSheet } = require('../../hooks/useNativePaymentSheet');
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -281,14 +280,14 @@ const NativeDeferredSetup: React.FC = () => {
         });
         if (error) {
           logger.error('PaymentSheet setup init error:', error);
-          showError('Could not set up card form. Please try again.');
+          showError(t('giver.deferred.toast.setupFailed'));
           initRef.current = false;
         } else {
           setSheetReady(true);
         }
       } catch (err: unknown) {
         logger.error('Error initializing native deferred setup:', err);
-        showError('Something went wrong. Please try again.');
+        showError(t('giver.deferred.toast.genericError'));
         initRef.current = false;
       }
     };
@@ -319,14 +318,14 @@ const NativeDeferredSetup: React.FC = () => {
         feature: 'NativeConfirmSetupIntent',
         userId: state.user?.id,
       });
-      showError('Could not save your card. Please try again.');
+      showError(t('giver.deferred.toast.cardSaveFailed'));
     } finally {
       setIsProcessing(false);
     }
   }, [isProcessing, sheetReady, experienceGift, navigation]);
 
   const handleSkip = React.useCallback(() => {
-    showInfo('You can add payment details later from Purchased Gifts.');
+    showInfo(t('giver.deferred.toast.skipInfo'));
     if (experienceGift) {
       navigation.replace('Confirmation', { experienceGift });
     } else {
@@ -338,19 +337,18 @@ const NativeDeferredSetup: React.FC = () => {
 
   return (
     <ErrorBoundary screenName="DeferredSetupScreen" userId={state.user?.id}>
-      <MainScreen activeRoute="Home">
         <View style={styles.container}>
             <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
             <TouchableOpacity
               onPress={() => navigation.goBack()}
               style={styles.backButton}
               accessibilityRole="button"
-              accessibilityLabel="Go back"
+              accessibilityLabel={t('giver.deferred.accessibility.goBack')}
               disabled={isProcessing}
             >
               <ChevronLeft color={colors.textPrimary} size={24} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Secure Your Gift</Text>
+            <Text style={styles.headerTitle}>{t('giver.deferred.screenTitle')}</Text>
             <View style={styles.lockIcon}>
               <Lock color={colors.secondary} size={20} />
             </View>
@@ -361,17 +359,16 @@ const NativeDeferredSetup: React.FC = () => {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.infoCard}>
-              <Text style={styles.infoTitle}>Zero charge until they succeed</Text>
+              <Text style={styles.infoTitle}>{t('giver.deferred.infoCard.title')}</Text>
               <Text style={styles.infoSubtitle}>
-                Save your card now. We'll only charge you once your recipient completes their goal.
-                You can remove it any time from Purchased Gifts.
+                {t('giver.deferred.infoCard.subtitle')}
               </Text>
             </View>
 
             <View style={styles.securityNotice}>
               <Lock color={colors.textSecondary} size={16} />
               <Text style={styles.securityText}>
-                Your payment information is encrypted and secure
+                {t('giver.deferred.securityText')}
               </Text>
             </View>
 
@@ -381,7 +378,7 @@ const NativeDeferredSetup: React.FC = () => {
           <View style={[styles.bottomBar, { paddingBottom: insets.bottom + Spacing.md }]}>
             <Button
               variant="primary"
-              title={sheetReady ? 'Save Card & Continue' : 'Setting up...'}
+              title={sheetReady ? t('giver.deferred.saveCard') : t('giver.deferred.settingUp')}
               onPress={handleSaveCard}
               disabled={isProcessing || !sheetReady}
               loading={isProcessing}
@@ -392,13 +389,12 @@ const NativeDeferredSetup: React.FC = () => {
               disabled={isProcessing}
               style={styles.skipButton}
               accessibilityRole="button"
-              accessibilityLabel="Skip card setup for now"
+              accessibilityLabel={t('giver.deferred.accessibility.skipCard')}
             >
-              <Text style={styles.skipText}>Skip for now</Text>
+              <Text style={styles.skipText}>{t('giver.deferred.skipForNow')}</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </MainScreen>
     </ErrorBoundary>
   );
 };

@@ -100,6 +100,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - unified AchievementDetailScreen handles both completion and review modes
 - add GDPR onUserDeleted Auth trigger for full user data cleanup on account deletion
 - add _Test Cloud Function variants targeting ernitclone2 sandbox database
+- add ShareScreen for sharing goal achievements to social media
+- new ShareScreen — dedicated share page with live card preview, story/post toggle, light/dark theme, toggleable stats and reward display. Replaces inline share cards in AchievementDetailScreen and JourneyScreen.
+- unify ExperienceDetailsScreen — Android now uses the full web version (image carousel, wishlist, cart, quantity selector, duration chip)
+- add analytics tracking to EmpowerChoiceModal, MotivationModal, CTAService, ExperienceDetailsScreen, CategorySelectionScreen, AuthScreen
+- add analytics tracking events to App, GoalSettingScreen, ChallengeSetupScreen, GiftFlowScreen, AddFriendScreen, NotificationsScreen
+- upgrade GA4 integration with recommended event names, rich parameters, user properties, and 14 new tracking events
+- add analytics tracking to GoalsScreen (FAB menu, empty state, goal limit) and enrich landing CTA events with destination
+- integrate Microsoft Clarity for heatmaps and session replays with user identification
+- create complete English i18n translation file with 23 top-level sections and 1467 keys
+- add European Portuguese (pt-PT) translation file
+- i18n Phase 0 — infrastructure setup with i18next, react-i18next, expo-localization, LanguageContext, 1183-key EN/PT translation files, providers wired into App.tsx
+- add i18n support and language toggle to SideMenu
+- i18n Phase 1 — SideMenu language toggle (EN/PT) with all strings translated, handleMenuPress refactored to constants
+- add i18n support to AuthScreen — all hardcoded strings replaced with t() calls
+- add i18n support to 11 core shared components (CustomTabBar, FooterNavigation, SharedHeader, ErrorBoundary, ErrorRetry, ConfirmationDialog, LoginPrompt, LogoutConfirmation, Toast, ProtectedRoute, BaseModal)
+- i18n Phase 2+3 — translated 11 core shared components (CustomTabBar, ErrorBoundary, LoginPrompt, etc.) and AuthScreen
+- add i18n support to wizard screens (ChallengeSetupScreen, GiftFlowScreen, GoalSettingScreen)
+- add i18n useTranslation support to 9 main screens (GoalsScreen, FeedScreen, GoalDetailScreen, UserProfileScreen, NotificationsScreen, FriendsListScreen, AddFriendScreen, FriendProfileScreen, PurchasedGiftsScreen)
+- add wizard i18n translation keys to en.json and pt.json (challenge, gift, goal namespaces)
+- i18n Phase 4+5 — translated 9 main screens (Goals, Feed, Profile, Notifications, Friends, etc.) and 3 wizard screens (ChallengeSetup, GiftFlow, GoalSetting)
+- add i18n support to ChallengeLandingScreen — all hardcoded English strings replaced with t() calls
+- add i18n support to all giver screens
+- i18n Phase 6+7 — translated ChallengeLandingScreen and all 8 giver screens
+- add i18n support to all 19 modal/dialog components
+- add i18n support to recipient sub-components and utility files
+- complete i18n for 5 recipient screens (CouponEntry, Share, Journey, AchievementDetail, DetailedGoalCard)
+- i18n Phase 8+9 — translated all 15 recipient screens/components and 19 modal/dialog components
+- add i18n support to Phase 10-11 notification and feed components
+- i18n Phase 10+11 — translated 6 notification components, feed components, reaction components, and all remaining screens
+- i18n cleanup — dynamic locale in helpers, preferredLanguage sync via useLanguageSync, GoalSessionService locale-aware dates, JSON key audit
+- i18n Phase 12 — final cleanup: helpers.ts locale-aware, userService preferredLanguage, LanguageSync hook, GoalSessionService date fix, JSON key reconciliation (1933 keys)
+- add 36 missing i18n keys to en/pt locales and replace 'lista de desejos' with 'favoritos' in pt.json
+- motivate button shows 'Motivation sent' disabled state after send (one per session)
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
@@ -392,6 +425,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - merge reward section into hero card on AchievementDetailScreen, remove gift emoji, auto-generate coupon for all completed goals with rewards
 - merge reward section into hero card on JourneyScreen, remove gift emoji, auto-generate coupon code on load
 - wrap reward experience in outlined Card on JourneyScreen and AchievementDetailScreen
+- migrate ChallengeLandingScreen toggle from RNAnimated to Reanimated — all color interpolations now run on UI thread at 60fps on Android
+- migrate all ChallengeLandingScreen animations to Reanimated — content fade with slide+scale, zero RNAnimated usage, full UI-thread 60fps
+- replace inline share card and share section in AchievementDetailScreen with navigation to ShareGoal screen
+- replace inline share card and section in JourneyScreen with navigation to ShareGoal screen
+- add bottom padding below logout button in SideMenu
+- remove BlurView, spring animation, and MotiText from footer nav on Android
+- remove MainScreen wrapper from all screen files (tab navigator handles footer/navigation)
+- migrate footer navigation to bottom tab navigator — instant tab switches, no white flash
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -982,6 +1023,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add returnURL to PaymentSheet init — enables MB Way and other redirect payment methods on Android/iOS
 - web checkout PaymentElement renders full-width (scrollContent flexGrow + maxWidth 560), Android footer glow reverted to single soft halo circle
 - use expo-crypto instead of global crypto in CouponService — fixes Hermes ReferenceError
+- ChallengeLandingScreen Android — title glow fallback for native, clamp card/spacing to avoid vh() OEM variance
+- ChallengeLandingScreen Android card animations — cross-fade swap instead of unreliable 3D flip, remove backfaceVisibility, lift glow overlays out of Reanimated views, fix card positioning vh() variance
+- Android colored glows via native boxShadow (RN 0.81 New Arch), enhanced card flip with scaleX squeeze, app-wide shadow token rewrite
+- ChallengeLandingScreen — smooth crossfade, glows inside flip containers (web regression), title glow visible, toggle 60fps on Android
+- password text invisible in dark mode — add color: textPrimary to raw RNTextInput fields in AuthScreen
+- AuthScreen content fits on Android screen — reduced logo size, padding, and margins
+- remove deadline urgency warning from DetailedGoalCard — progress bar already shows pace, warnings should be notifications not persistent UI
+- force single-line tabs in PurchasedGiftsScreen on Android
+- use gesture-handler TouchableOpacity in footer nav for instant Android taps
+- revert gesture-handler TouchableOpacity — caused first-tap miss on SideMenu items on Android
+- SideMenu first-tap not registering on Android — add keyboardShouldPersistTaps to ScrollView
+- SideMenu first-tap not working on Android — replace overlay TouchableWithoutFeedback with Pressable, add pointerEvents box-none to container and stagger wrappers
+- add backgroundColor to MotiView/Animated.View opacity animations to prevent Android white flash
+- remove double bottom padding on GoalsScreen — MainScreen already accounts for footer height
+- align pt.json landing.challenge keys to match en.json and ChallengeLandingScreen usage
+- add 36 missing i18n keys (feed filters, profile stats, friends profile, journey stats, etc.) and replace 'lista de desejos' with 'favoritos' in pt.json
+- add 231 missing i18n keys found by exhaustive audit (goals, profile, feed, notifications, friends, journey, etc.) — 0 broken keys remaining
+- 8 interpolation variable mismatches (weekNumber→number, percent→pct, giverName→name, etc.) causing raw placeholder display
+- add surface backgroundColor to 5 screen roots to prevent white flash on navigation
+- allow blob: in CSP connect-src for web image uploads
+- resize ExperienceDetailsScreen for mobile and pin sticky CTA via flex layout
 
 ### Added
 - Automatic changelog system with `npm run log` script

@@ -11,7 +11,7 @@
 import { collection, addDoc, writeBatch, doc } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { Platform, AppState, type AppStateStatus } from 'react-native';
-import { trackPageView, trackEvent as trackGA4Event } from '../utils/analytics';
+import { trackPageView, trackGA4Event, setGA4UserId, setGA4UserProperties } from '../utils/analytics';
 import { logger } from '../utils/logger';
 import type { AnalyticsEvent, AnalyticsEventCategory, AnalyticsEventName } from '../types';
 
@@ -36,6 +36,12 @@ class AnalyticsService {
   /** Set the current user for all subsequent events */
   setUserId(userId: string | null) {
     this.userId = userId;
+    setGA4UserId(userId);
+  }
+
+  /** Set user properties for GA4 audience segmentation */
+  setUserProperties(properties: Record<string, string | number | boolean>) {
+    setGA4UserProperties(properties);
   }
 
   /** Track a screen view */
@@ -58,8 +64,8 @@ class AnalyticsService {
     properties: Record<string, unknown> = {},
     screenName?: string
   ) {
-    // GA4 bridge
-    trackGA4Event(category, eventName, screenName);
+    // GA4 bridge — forward full properties for rich reporting
+    trackGA4Event(eventName, category, properties, screenName);
 
     this.enqueue({ eventName, category, properties, screenName });
   }

@@ -7,6 +7,7 @@ import {
     Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { useTranslation } from 'react-i18next';
 import { MessageCircle } from 'lucide-react-native';
 import ImageViewer from './ImageViewer';
 import { useNavigation } from '@react-navigation/native';
@@ -45,6 +46,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     const { state, dispatch } = useApp();
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const [userReaction, setUserReaction] = useState<ReactionType | null>(null);
     const [comments, setComments] = useState<CommentType[]>([]);
     const [reactionCounts, setReactionCounts] = useState(post.reactionCounts ?? { muscle: 0, heart: 0, like: 0 });
@@ -55,6 +57,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     const [fullscreenMedia, setFullscreenMedia] = useState(false);
     const [showEmpowerModal, setShowEmpowerModal] = useState(false);
     const [canMotivate, setCanMotivate] = useState(false);
+    const [alreadySent, setAlreadySent] = useState(false);
     const [goalHasGift, setGoalHasGift] = useState(false);
 
     // Check goal state: gift status + motivate visibility
@@ -97,13 +100,15 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                         return;
                     }
                 }
-                // Check if user already sent motivation for this session
+                // Structural checks passed — user is eligible to motivate this session.
+                setCanMotivate(true);
+                // Separately track whether they've already sent one (for disabled-state UI).
                 const targetSession = post.sessionNumber ? post.sessionNumber + 1 : 1;
-                const alreadySent = await motivationService.hasUserSentMotivation(
+                const sent = await motivationService.hasUserSentMotivation(
                     post.goalId, state.user?.id ?? "", targetSession
                 );
                 if (!mounted) return;
-                setCanMotivate(!alreadySent);
+                setAlreadySent(sent);
             } catch (error: unknown) {
                 if (!mounted) return;
                 logger.error('Error checking goal:', error);
@@ -255,13 +260,13 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         if (!post.pledgedExperienceId && !post.preferredRewardCategory) {
             // No pledged experience and no category — go straight to browse
             setEmpowerContext();
-            navigation.navigate('CategorySelection');
+            navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection' } });
             return;
         }
         if (!post.pledgedExperienceId && post.preferredRewardCategory) {
             // Has category preference but no specific experience — browse pre-filtered
             setEmpowerContext();
-            navigation.navigate('CategorySelection', { prefilterCategory: post.preferredRewardCategory });
+            navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection', params: { prefilterCategory: post.preferredRewardCategory } } });
             return;
         }
         // Has pledged experience — show choice modal
@@ -279,57 +284,57 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         switch (post.type) {
             case 'goal_started':
                 return {
-                    text: 'set a new goal',
+                    text: t('feed.post.typeInfo.setNewGoal'),
                     color: colors.accent,
-                    typeLabel: 'New Goal',
+                    typeLabel: t('feed.post.postTypes.newGoalChip'),
                 };
             case 'goal_approved':
                 return {
-                    text: 'got goal approved!',
+                    text: t('feed.post.typeInfo.gotGoalApproved'),
                     color: colors.secondary,
-                    typeLabel: 'Approved',
+                    typeLabel: t('feed.post.postTypes.approvedChip'),
                 };
             case 'session_progress':
             case 'goal_progress': // Support migrated posts with this type
                 return {
-                    text: (<>completed <Text style={{ fontWeight: '500' }}>{getActivityType(post.goalDescription)}</Text> session</>),
+                    text: (<>{t('feed.post.typeInfo.completedSession')} <Text style={{ fontWeight: '500' }}>{getActivityType(post.goalDescription)}</Text> {t('feed.post.typeInfo.session')}</>),
                     color: colors.secondary,
-                    typeLabel: 'Session',
+                    typeLabel: t('feed.post.postTypes.sessionChip'),
                 };
             case 'goal_completed':
                 if (post.isFreeGoal && !post.experienceGiftId) {
                     // Free goal without attached gift — they completed a challenge, not earned a reward
                     return {
-                        text: 'completed their challenge!',
+                        text: t('feed.post.typeInfo.completedChallenge'),
                         color: colors.successText,
-                        typeLabel: 'Completed!',
+                        typeLabel: t('feed.post.postTypes.completedChip'),
                     };
                 }
                 if (post.experienceTitle) {
                     return {
-                        text: (<>completed their goal and earned:</>),
+                        text: (<>{t('feed.post.typeInfo.completedGoalEarned')}</>),
                         color: colors.successText,
-                        typeLabel: 'Completed!',
+                        typeLabel: t('feed.post.postTypes.completedChip'),
                     };
                 }
                 return {
-                    text: 'completed their goal!',
+                    text: t('feed.post.typeInfo.completedGoal'),
                     color: colors.successText,
-                    typeLabel: 'Completed!',
+                    typeLabel: t('feed.post.postTypes.completedChip'),
                 };
             default:
                 // Fallback for unknown post types
                 return {
-                    text: 'made progress',
+                    text: t('feed.post.typeInfo.madeProgress'),
                     color: colors.textSecondary,
                     typeLabel: '',
                 };
         }
-    }, [post.type, post.goalDescription, post.isFreeGoal, post.experienceGiftId, post.experienceTitle, colors]);
+    }, [post.type, post.goalDescription, post.isFreeGoal, post.experienceGiftId, post.experienceTitle, colors, t]);
 
     const handleUserPress = () => {
         if (post.userId === state.user?.id) {
-            navigation.navigate('Profile');
+            navigation.navigate('MainTabs', { screen: 'ProfileTab', params: { screen: 'Profile' } });
         } else {
             navigation.navigate('FriendProfile', { userId: post.userId });
         }
@@ -368,12 +373,12 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
         <Animated.View
             accessibilityLabel={`${post.userName} - ${
                 post.type === 'session_progress' || post.type === 'goal_progress'
-                    ? 'logged a session'
+                    ? t('feed.post.accessibility.loggedSession')
                     : post.type === 'goal_completed'
-                    ? 'completed a goal'
+                    ? t('feed.post.accessibility.completedGoal')
                     : post.type === 'goal_started'
-                    ? 'set a new goal'
-                    : 'made progress'
+                    ? t('feed.post.accessibility.setNewGoal')
+                    : t('feed.post.accessibility.madeProgress')
             } - ${timeAgo}`}
             style={[
             styles.container,
@@ -411,7 +416,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     onPress={handleOpenFullscreen}
                     style={styles.sessionMediaContainer}
                     accessibilityRole="button"
-                    accessibilityLabel="View session media in fullscreen"
+                    accessibilityLabel={t('feed.post.accessibility.viewSessionMedia')}
                 >
                     <Image
                         source={{ uri: post.mediaUrl }}
@@ -461,7 +466,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     onPress={handleOpenComments}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel={`View ${commentCount} comment${commentCount !== 1 ? 's' : ''}`}
+                    accessibilityLabel={t(commentCount === 1 ? 'feed.post.accessibility.commentCount_one' : 'feed.post.accessibility.commentCount_other', { count: commentCount })}
                 >
                     <MessageCircle color={colors.textSecondary} size={18} />
                     {commentCount > 0 && (
@@ -474,6 +479,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                 post={post}
                 currentUserId={state.user?.id}
                 canMotivate={canMotivate}
+                alreadySent={alreadySent}
                 goalHasGift={goalHasGift}
                 onEmpower={handleEmpower}
                 onMotivate={() => setShowMotivationModal(true)}
@@ -500,6 +506,7 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
                     goalId={post.goalId}
                     targetSession={post.sessionNumber ? post.sessionNumber + 1 : 1}
                     onClose={() => setShowMotivationModal(false)}
+                    onSent={() => setAlreadySent(true)}
                 />
             )}
 

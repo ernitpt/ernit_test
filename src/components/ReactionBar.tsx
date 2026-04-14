@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { ReactionType } from '../types';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
@@ -24,6 +25,7 @@ const ReactionBar: React.FC<ReactionBarProps> = ({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const reactions = [
         { type: 'muscle' as ReactionType, emoji: '💪', count: reactionCounts.muscle },
         { type: 'heart' as ReactionType, emoji: '❤️', count: reactionCounts.heart },
@@ -49,8 +51,8 @@ const ReactionBar: React.FC<ReactionBarProps> = ({
                         onPress={() => handleReact(reaction.type)}
                         activeOpacity={0.7}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        accessibilityLabel={`React with ${reaction.type}`}
-                        accessibilityHint="Double tap to react"
+                        accessibilityLabel={t('accessibility.reactionBar.reactWith', { type: reaction.type })}
+                        accessibilityHint={t('accessibility.reactionBar.doubleTapToReact')}
                     >
                         <Text style={styles.emoji}>{reaction.emoji}</Text>
                         {reaction.count > 0 && (

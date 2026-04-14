@@ -25,6 +25,7 @@ import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 import { useToast } from '../context/ToastContext';
+import { useTranslation } from 'react-i18next';
 
 export interface HintSubmission {
     type: 'text' | 'audio' | 'image' | 'mixed';
@@ -54,6 +55,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const commonStyles = useMemo(() => createCommonStyles(colors), [colors]);
+    const { t } = useTranslation();
 
     const { showError } = useToast();
     const [mode, setMode] = useState<'text' | 'voice'>('text');
@@ -94,7 +96,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                 };
             } else {
                 if (!hintText.trim() && !media.imageUri) {
-                    showError('Please enter a hint message');
+                    showError(t('modals.personalizedHint.errorEmpty'));
                     setSubmitting(false);
                     return;
                 }
@@ -112,7 +114,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
             onClose();
         } catch (error: unknown) {
             logger.error('Error submitting hint:', error);
-            showError('Failed to send hint. Please try again.');
+            showError(t('modals.personalizedHint.errorSendFailed'));
         } finally {
             setSubmitting(false);
         }
@@ -140,7 +142,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                     activeOpacity={1}
                     onPress={onClose}
                     accessibilityRole="button"
-                    accessibilityLabel="Close hint modal"
+                    accessibilityLabel={t('modals.personalizedHint.closeHintModal')}
                 />
 
                 <Animated.View style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]} accessibilityViewIsModal={true}>
@@ -156,9 +158,9 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                             end={{ x: 1, y: 1 }}
                             style={styles.header}
                         >
-                            <Text style={styles.headerTitle}>Leave a Hint</Text>
+                            <Text style={styles.headerTitle}>{t('modals.personalizedHint.title')}</Text>
                             <Text style={styles.headerSubtitle}>
-                                For session #{sessionNumber}
+                                {t('modals.personalizedHint.sessionSubtitle', { number: sessionNumber })}
                             </Text>
                         </LinearGradient>
 
@@ -168,22 +170,22 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                 style={[styles.tab, mode === 'text' && styles.activeTab]}
                                 onPress={() => setMode('text')}
                                 accessibilityRole="tab"
-                                accessibilityLabel="Text and photo hint"
+                                accessibilityLabel={t('modals.personalizedHint.tabTextA11y')}
                                 accessibilityState={{ selected: mode === 'text' }}
                             >
                                 <Text style={[styles.tabText, mode === 'text' && styles.activeTabText]}>
-                                    Text & Photo
+                                    {t('modals.personalizedHint.tabText')}
                                 </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.tab, mode === 'voice' && styles.activeTab]}
                                 onPress={() => setMode('voice')}
                                 accessibilityRole="tab"
-                                accessibilityLabel="Voice memo hint"
+                                accessibilityLabel={t('modals.personalizedHint.tabVoiceA11y')}
                                 accessibilityState={{ selected: mode === 'voice' }}
                             >
                                 <Text style={[styles.tabText, mode === 'voice' && styles.activeTabText]}>
-                                    Voice Memo
+                                    {t('modals.personalizedHint.tabVoice')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -195,7 +197,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                     <View style={styles.inputContainer}>
                                         <TextInput
                                             style={styles.textInput}
-                                            placeholder="Your encouraging hint..."
+                                            placeholder={t('modals.personalizedHint.placeholder')}
                                             placeholderTextColor={colors.textMuted}
                                             value={hintText}
                                             onChangeText={setHintText}
@@ -204,7 +206,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                             textAlignVertical="top"
                                         />
                                         <Text style={styles.charCount}>
-                                            {remainingChars} characters remaining
+                                            {t('modals.personalizedHint.charRemaining', { count: remainingChars })}
                                         </Text>
                                     </View>
 
@@ -223,9 +225,9 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                                 </TouchableOpacity>
                                             </View>
                                         ) : (
-                                            <TouchableOpacity style={styles.attachButton} onPress={media.pickImage} accessibilityRole="button" accessibilityLabel="Add photo">
+                                            <TouchableOpacity style={styles.attachButton} onPress={media.pickImage} accessibilityRole="button" accessibilityLabel={t('modals.personalizedHint.addPhoto')}>
                                                 <ImageIcon size={20} color={colors.primary} />
-                                                <Text style={styles.attachButtonText}>Add Photo</Text>
+                                                <Text style={styles.attachButtonText}>{t('modals.personalizedHint.addPhoto')}</Text>
                                             </TouchableOpacity>
                                         )}
                                     </View>
@@ -235,10 +237,10 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                         style={styles.examplesToggle}
                                         onPress={() => setShowExamples(!showExamples)}
                                         accessibilityRole="button"
-                                        accessibilityLabel={showExamples ? 'Hide hint examples' : 'Show hint examples'}
+                                        accessibilityLabel={showExamples ? t('modals.personalizedHint.hideExamples') : t('modals.personalizedHint.showExamples')}
                                     >
                                         <Text style={styles.examplesToggleText}>
-                                            {showExamples ? '▼' : '▶'} Need inspiration?
+                                            {showExamples ? '▼' : '▶'} {t('modals.personalizedHint.needInspiration')}
                                         </Text>
                                     </TouchableOpacity>
 
@@ -279,7 +281,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                                 )}
                                             </TouchableOpacity>
                                             <Text style={styles.recordingStatus}>
-                                                {media.isRecording ? 'Recording...' : 'Tap to Record'}
+                                                {media.isRecording ? t('modals.personalizedHint.recordingStatus') : t('modals.personalizedHint.tapToRecord')}
                                             </Text>
                                         </View>
                                     ) : (
@@ -300,7 +302,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                         </View>
                                     )}
                                     <Text style={styles.voiceNote}>
-                                        Max 30 seconds. Voice hints are audio only.
+                                        {t('modals.personalizedHint.voiceNote')}
                                     </Text>
                                 </View>
                             )}
@@ -313,7 +315,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                 onPress={onClose}
                                 disabled={submitting}
                             >
-                                <Text style={styles.cancelButtonText}>Cancel</Text>
+                                <Text style={styles.cancelButtonText}>{t('modals.personalizedHint.cancel')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -335,7 +337,7 @@ export const PersonalizedHintModal: React.FC<PersonalizedHintModalProps> = React
                                     style={styles.submitButtonGradient}
                                 >
                                     <Text style={styles.submitButtonText}>
-                                        {submitting ? 'Sending...' : 'Send Hint'}
+                                        {submitting ? t('modals.personalizedHint.sending') : t('modals.personalizedHint.sendHint')}
                                     </Text>
                                 </LinearGradient>
                             </TouchableOpacity>

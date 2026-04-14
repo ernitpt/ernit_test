@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
+import { useTranslation } from 'react-i18next';
 import { Trophy, Gift } from 'lucide-react-native';
 import Button from '../Button';
 import type { FeedPost as FeedPostType, RootStackParamList } from '../../types';
@@ -24,6 +25,7 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
 
     // P3-18: Array.from() moved out of render body into memoised values
     const weeklyCapsules = useMemo(
@@ -42,7 +44,7 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
                 <>
                     <View style={styles.progressBlock}>
                         <View style={styles.progressHeader}>
-                            <Text style={styles.progressLabel}>Sessions this week</Text>
+                            <Text style={styles.progressLabel}>{t('feed.postContent.sessionsThisWeek')}</Text>
                             <Text style={styles.progressText}>
                                 {post.weeklyCount || 0}/{post.sessionsPerWeek || 1}
                             </Text>
@@ -64,7 +66,7 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
 
                     <View style={styles.progressBlock}>
                         <View style={styles.progressHeader}>
-                            <Text style={styles.progressLabel}>Weeks completed</Text>
+                            <Text style={styles.progressLabel}>{t('feed.postContent.weeksCompleted')}</Text>
                             <Text style={styles.progressText}>
                                 {Math.max(0, Math.floor((post.sessionNumber - (post.weeklyCount || 0)) / (post.sessionsPerWeek || 1)))}/{Math.floor((post.totalSessions || 1) / (post.sessionsPerWeek || 1))}
                             </Text>
@@ -100,7 +102,7 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
                     )}
                     <View style={styles.experienceContent}>
                         <Text style={styles.experienceTitle} numberOfLines={1}>
-                            {post.isMystery ? 'Mystery Experience' : post.experienceTitle}
+                            {post.isMystery ? t('feed.postContent.mysteryExperience') : post.experienceTitle}
                         </Text>
                         {!post.isMystery && post.partnerName && (
                             <Text style={styles.partnerName} numberOfLines={1}>
@@ -108,7 +110,7 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
                             </Text>
                         )}
                         <Text style={styles.goalDescriptionText} numberOfLines={2}>
-                            Goal: {post.goalDescription}
+                            {t('feed.postContent.goal', { description: post.goalDescription })}
                         </Text>
                         {post.totalSessions && post.sessionsPerWeek && (
                             <Text style={styles.experienceMeta}>
@@ -134,7 +136,7 @@ const FeedPostContent: React.FC<FeedPostContentProps> = ({
                     </View>
                     {post.userId !== currentUserId && !post.isFreeGoal && !goalHasGift && (
                         <Button
-                            title="Gift an Experience"
+                            title={t('feed.postContent.giftAnExperience')}
                             onPress={() => {
                                 onEmpowerContext();
                                 onNavigate('CategorySelection');

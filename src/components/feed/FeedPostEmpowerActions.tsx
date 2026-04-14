@@ -1,6 +1,7 @@
 import React, { useRef, useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { Image } from 'expo-image';
+import { useTranslation } from 'react-i18next';
 import { Gift, Heart } from 'lucide-react-native';
 import type { FeedPost as FeedPostType } from '../../types';
 import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows, Animations } from '../../config';
@@ -9,6 +10,7 @@ interface FeedPostEmpowerActionsProps {
     post: FeedPostType;
     currentUserId?: string;
     canMotivate: boolean;
+    alreadySent?: boolean;
     goalHasGift?: boolean;
     onEmpower: () => void;
     onMotivate: () => void;
@@ -18,12 +20,14 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
     post,
     currentUserId,
     canMotivate,
+    alreadySent = false,
     goalHasGift,
     onEmpower,
     onMotivate,
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const empowerScale = useRef(new Animated.Value(1)).current;
     const motivateScale = useRef(new Animated.Value(1)).current;
 
@@ -64,7 +68,7 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
                             )}
                         </View>
                         <View style={styles.experiencePreviewCta}>
-                            <Text style={styles.experiencePreviewCtaText}>Gift</Text>
+                            <Text style={styles.experiencePreviewCtaText}>{t('feed.empowerActions.gift')}</Text>
                         </View>
                     </TouchableOpacity>
                 )}
@@ -79,11 +83,11 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
                     </Text>
                     <View style={styles.categoryHintInfo}>
                         <Text style={styles.categoryHintText}>
-                            Loves {post.preferredRewardCategory.charAt(0).toUpperCase() + post.preferredRewardCategory.slice(1)} experiences
+                            {t('feed.empowerActions.lovesCategory', { category: post.preferredRewardCategory.charAt(0).toUpperCase() + post.preferredRewardCategory.slice(1) })}
                         </Text>
                     </View>
                     <View style={styles.experiencePreviewCta}>
-                        <Text style={styles.experiencePreviewCtaText}>Gift</Text>
+                        <Text style={styles.experiencePreviewCtaText}>{t('feed.empowerActions.gift')}</Text>
                     </View>
                 </TouchableOpacity>
             )}
@@ -108,28 +112,37 @@ const FeedPostEmpowerActions: React.FC<FeedPostEmpowerActionsProps> = ({
                                     onPressOut={handleEmpowerPressOut}
                                     activeOpacity={0.8}
                                     accessibilityRole="button"
-                                    accessibilityLabel={`Empower ${post.userName} with this experience`}
+                                    accessibilityLabel={t('feed.empowerActions.empowerA11y', { name: post.userName })}
                                 >
                                     <Gift color={colors.white} size={16} />
-                                    <Text style={styles.empowerButtonText}>Empower</Text>
+                                    <Text style={styles.empowerButtonText}>{t('feed.empowerActions.empower')}</Text>
                                 </TouchableOpacity>
                             </Animated.View>
                         )}
                         {canMotivate && (
-                            <Animated.View style={[{ flex: 1, transform: [{ scale: motivateScale }] }]}>
-                                <TouchableOpacity
-                                    style={styles.motivateButton}
-                                    onPress={onMotivate}
-                                    onPressIn={handleMotivatePressIn}
-                                    onPressOut={handleMotivatePressOut}
-                                    activeOpacity={0.8}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={`Send motivation message to ${post.userName}`}
-                                >
-                                    <Heart color={colors.primary} size={16} />
-                                    <Text style={styles.motivateButtonText}>Motivate</Text>
-                                </TouchableOpacity>
-                            </Animated.View>
+                            alreadySent ? (
+                                <View style={[styles.motivateButton, styles.motivateButtonDisabled, { flex: 1 }]}>
+                                    <Heart color={colors.textMuted} size={16} />
+                                    <Text style={[styles.motivateButtonText, styles.motivateButtonTextDisabled]}>
+                                        {t('feed.empowerActions.motivationSent')}
+                                    </Text>
+                                </View>
+                            ) : (
+                                <Animated.View style={[{ flex: 1, transform: [{ scale: motivateScale }] }]}>
+                                    <TouchableOpacity
+                                        style={styles.motivateButton}
+                                        onPress={onMotivate}
+                                        onPressIn={handleMotivatePressIn}
+                                        onPressOut={handleMotivatePressOut}
+                                        activeOpacity={0.8}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={t('feed.empowerActions.motivateA11y', { name: post.userName })}
+                                    >
+                                        <Heart color={colors.primary} size={16} />
+                                        <Text style={styles.motivateButtonText}>{t('feed.empowerActions.motivate')}</Text>
+                                    </TouchableOpacity>
+                                </Animated.View>
+                            )
                         )}
                     </View>
                 );
@@ -180,6 +193,20 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     motivateButtonText: {
         ...Typography.smallBold,
         color: colors.primary,
+    },
+    motivateButtonDisabled: {
+        backgroundColor: colors.backgroundLight,
+        borderColor: colors.border,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: Spacing.xs,
+        paddingVertical: Spacing.md,
+        borderRadius: BorderRadius.sm,
+        borderWidth: 1,
+    },
+    motivateButtonTextDisabled: {
+        color: colors.textMuted,
     },
     experiencePreviewCard: {
         flexDirection: 'row',

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Platform, Pressable } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
@@ -74,6 +75,7 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
   timeProgress,
   totalGoalSeconds,
 }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const fillAnim = useRef(new Animated.Value(0)).current;
@@ -130,7 +132,7 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
     setPressing(false);
   };
 
-  // Native glow styles (animated) — iOS only; Android uses overlay
+  // Native glow styles (animated) — iOS only; Android uses overlay below
   const nativeGlowStyle = Platform.OS === 'ios' ? {
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 0 },
@@ -144,7 +146,7 @@ const LongPressFinishButton: React.FC<LongPressFinishButtonProps> = React.memo((
     boxShadow: `0 0 8px ${colors.primary}80, 0 0 20px ${colors.primary}40, 0 0 40px ${colors.primary}20`,
   } as any : {};
 
-  const buttonLabel = !canFinish ? 'Keep Going...' : pressing ? 'Hold...' : 'Hold to Finish';
+  const buttonLabel = !canFinish ? t('recipient.timer.keepGoing') : pressing ? t('recipient.timer.holding') : t('recipient.timer.holdToFinish');
 
   if (Platform.OS === 'web') {
     return (
@@ -301,6 +303,7 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
   onFinish,
   onCancel,
 }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -396,10 +399,10 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
             <View style={styles.timerTextOverlay}>
               <Text style={[styles.timerText, { color: timerColor }]}>{formatTime(timeElapsed)}</Text>
               {almostDone && !isOvertime && (
-                <Text style={styles.almostDoneText}>Almost there!</Text>
+                <Text style={styles.almostDoneText}>{t('recipient.timer.almostThere')}</Text>
               )}
               {isOvertime && (
-                <Text style={styles.overtimeText}>Time's up!</Text>
+                <Text style={styles.overtimeText}>{t('recipient.timer.timesUp')}</Text>
               )}
             </View>
           </View>
@@ -423,10 +426,10 @@ const TimerDisplay: React.FC<TimerDisplayProps> = ({
           onPress={onCancel}
           disabled={loading}
           activeOpacity={0.85}
-          accessibilityLabel="Cancel session"
+          accessibilityLabel={t('recipient.timer.cancelSession')}
           accessibilityRole="button"
         >
-          <Text style={styles.cancelButtonText}>Cancel</Text>
+          <Text style={styles.cancelButtonText}>{t('recipient.timer.cancel')}</Text>
         </TouchableOpacity>
       </View>
 

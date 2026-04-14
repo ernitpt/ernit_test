@@ -6,10 +6,12 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
+  Pressable,
   TouchableWithoutFeedback,
   Modal,
   ScrollView,
   Platform,
+  BackHandler,
 } from 'react-native';
 
 import Animated2, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -25,7 +27,9 @@ import { Avatar } from './Avatar';
 import PurchaseIcon from '../assets/icons/PurchaseIcon';
 import RedeemIcon from '../assets/icons/Redeem';
 import LogoutIcon from '../assets/icons/Logout';
-import { LogIn, Download, MessageSquare, LifeBuoy, HelpCircle, Bell, X, ChevronRight, Moon } from 'lucide-react-native';
+import { LogIn, Download, MessageSquare, LifeBuoy, HelpCircle, Bell, X, ChevronRight, Moon, Globe } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../themes/ThemeContext';
 import LogoutConfirmation from './LogoutConfirmation';
 import LoginPrompt from './LoginPrompt';
@@ -60,6 +64,16 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const { width: screenWidth } = Dimensions.get('window');
 
 const STAGGER_COUNT = 4;
+
+const MENU_ACTIONS = {
+  INSTALL_APP: 'install_app',
+  REDEEM: 'redeem_coupon',
+  PURCHASED: 'purchased_gifts',
+  FEEDBACK: 'feedback',
+  SUPPORT: 'support',
+  HOW_IT_WORKS: 'how_it_works',
+  LOGOUT: 'logout',
+} as const;
 
 type SideMenuStyles = ReturnType<typeof createStyles>;
 
@@ -109,8 +123,11 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   const { showError } = useToast();
   const { isDark, toggleTheme, colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
+  const { language, setLanguage } = useLanguage();
 
   const [shouldRender, setShouldRender] = useState(false);
+  const [menuReady, setMenuReady] = useState(false);
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const itemAnims = useRef(
@@ -150,6 +167,16 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
     }
   }, [state.user?.profile]);
 
+  // Android: close side menu on hardware back button press
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !visible) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true; // swallow the event
+    });
+    return () => sub.remove();
+  }, [visible, onClose]);
+
   // Check if app is installed as PWA
   useEffect(() => {
     if (Platform.OS !== 'web') {
@@ -168,41 +195,48 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
   useEffect(() => {
     if (visible) {
       setShouldRender(true);
+      setMenuReady(false);
       // Lock body scroll on web to prevent white space on drag
       if (Platform.OS === 'web') {
         document.body.style.overflow = 'hidden';
         document.documentElement.style.overflow = 'hidden';
       }
-      // Open: spring panel + fade overlay + stagger sections
+      // Android: use fast timing instead of spring — Pressability cancels
+      // onPress when the view-local coords drift during slow spring oscillation.
+      // Timing (200ms, ease-out) stabilizes quickly, eliminating the tap delay.
+      const slideAnimation = Platform.OS === 'android'
+        ? Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 200,
+            easing: Animations.easing.decelerate,
+            useNativeDriver: true,
+          })
+        : Animated.spring(slideAnim, {
+            toValue: 0,
+            ...Animations.springs.gentle,
+          });
+
       Animated.parallel([
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          ...Animations.springs.gentle,
-        }),
+        slideAnimation,
         Animated.timing(overlayOpacity, {
           toValue: 0.5,
-          duration: Animations.durations.normal,
+          duration: Platform.OS === 'android' ? 200 : Animations.durations.normal,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => setMenuReady(true));
 
-      // Header fade in with slight delay
-      Animated.spring(headerAnim, {
-        toValue: 1,
-        delay: 80,
-        ...Animations.springs.gentle,
-      }).start();
-
-      // Stagger section groups
-      Animated.stagger(
-        60,
-        itemAnims.map(anim =>
-          Animated.spring(anim, {
-            toValue: 1,
-            ...Animations.springs.snappy,
-          })
-        )
-      ).start();
+      if (Platform.OS === 'android') {
+        // Items/header visible immediately — tap delay fix
+        headerAnim.setValue(1);
+        itemAnims.forEach(anim => anim.setValue(1));
+      } else {
+        Animated.spring(headerAnim, {
+          toValue: 1,
+          delay: 80,
+          ...Animations.springs.gentle,
+        }).start();
+        itemAnims.forEach(anim => anim.setValue(1));
+      }
     } else {
       // Close: fade out items + header, slide panel out, fade overlay
       Animated.parallel([
@@ -248,7 +282,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
 
   const handleMenuPress = async (action: string) => {
     switch (action) {
-      case 'Install App':
+      case MENU_ACTIONS.INSTALL_APP:
         onClose();
         // Clear dismissal flag and trigger page reload to show install prompt
         if (Platform.OS === 'web') {
@@ -258,35 +292,35 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
         }
         break;
 
-      case 'Redeem Coupon':
+      case MENU_ACTIONS.REDEEM:
         onClose();
         navigation.navigate('RecipientFlow', { screen: 'CouponEntry' });
         break;
 
-      case 'Purchased Gifts':
+      case MENU_ACTIONS.PURCHASED:
         onClose();
-        navigation.navigate('PurchasedGifts');
+        navigation.navigate('MainTabs', { screen: 'ProfileTab', params: { screen: 'PurchasedGifts' } });
         break;
 
-      case 'Give Feedback':
+      case MENU_ACTIONS.FEEDBACK:
         setContactModalType('feedback');
         setContactModalVisible(true);
         break;
 
-      case 'Get Support':
+      case MENU_ACTIONS.SUPPORT:
         setContactModalType('support');
         setContactModalVisible(true);
         break;
 
-      case 'How It Works':
+      case MENU_ACTIONS.HOW_IT_WORKS:
         setHowItWorksVisible(true);
         break;
 
-      case 'Logout':
+      case MENU_ACTIONS.LOGOUT:
         if (isAuthenticated) {
           setShowLogoutConfirmation(true);
         } else {
-          requireAuth('Please log in to access your account.');
+          requireAuth(t('loginPrompt.accessAccount'));
         }
         break;
 
@@ -312,7 +346,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
       navigation.reset({ index: 0, routes: [{ name: 'ChallengeLanding' }] });
     } catch (error: unknown) {
       logger.error('Logout failed:', error);
-      showError('Failed to log out. Please try again.');
+      showError(t('sideMenu.errors.logoutFailed'));
     } finally {
       setIsLoggingOut(false);
     }
@@ -351,7 +385,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
       });
     } catch (error: unknown) {
       setReminderTime(previousTime); // rollback on failure
-      showError('Failed to save reminder time. Please try again.');
+      showError(t('sideMenu.errors.reminderTimeFailed'));
       logger.error('Error saving reminder time:', error);
     }
   };
@@ -381,25 +415,21 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
     setShowTimePicker(false);
   };
 
-  // Helper to create stagger animated style
+  // Helper to create stagger animated style — opacity only, no translateX
+  // (translateX shifts touch targets on Android during native-driven animation,
+  // causing taps to miss until the animation completes)
   const staggerStyle = (index: number) => ({
     opacity: itemAnims[index],
-    transform: [{
-      translateX: itemAnims[index].interpolate({
-        inputRange: [0, 1],
-        outputRange: [30, 0],
-      }),
-    }],
   });
 
   return (
     <>
       {shouldRender && (
-        <View style={styles.container} accessibilityViewIsModal={true}>
-          {/* Overlay */}
-          <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.container} pointerEvents="box-none" accessibilityViewIsModal={true}>
+          {/* Overlay — only tappable after open animation finishes */}
+          <Pressable onPress={onClose} style={StyleSheet.absoluteFill} pointerEvents={menuReady ? 'auto' : 'none'}>
             <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]} />
-          </TouchableWithoutFeedback>
+          </Pressable>
 
           {/* Sliding panel */}
           <Animated.View
@@ -414,7 +444,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                   style={styles.closeButton}
                   activeOpacity={0.7}
                   accessibilityRole="button"
-                  accessibilityLabel="Close menu"
+                  accessibilityLabel={t('accessibility.closeMenu')}
                 >
                   <X size={20} color={colors.textMuted} />
                 </TouchableOpacity>
@@ -425,10 +455,10 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                     activeOpacity={0.7}
                     onPress={() => {
                       onClose();
-                      navigation.navigate('Profile');
+                      navigation.navigate('MainTabs', { screen: 'ProfileTab', params: { screen: 'Profile' } });
                     }}
                     accessibilityRole="button"
-                    accessibilityLabel="Go to profile"
+                    accessibilityLabel={t('accessibility.goToProfile')}
                   >
                     <Avatar
                       size="lg"
@@ -440,15 +470,15 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                 ) : (
                   <View style={styles.brandSection}>
                     <Text style={styles.brandName}>Ernit</Text>
-                    <Text style={styles.brandTagline}>Experiences worth giving</Text>
+                    <Text style={styles.brandTagline}>{t('sideMenu.brandTagline')}</Text>
                     <TouchableOpacity
-                      onPress={() => handleMenuPress('Logout')}
+                      onPress={() => handleMenuPress(MENU_ACTIONS.LOGOUT)}
                       style={styles.signInButton}
                       activeOpacity={0.7}
                       accessibilityRole="button"
-                      accessibilityLabel="Sign in"
+                      accessibilityLabel={t('accessibility.signIn')}
                     >
-                      <Text style={styles.signInButtonText}>Sign In</Text>
+                      <Text style={styles.signInButtonText}>{t('sideMenu.signIn')}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -457,74 +487,76 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
               {/* Menu Body */}
               <ScrollView
                 style={styles.menuBody}
+                contentContainerStyle={styles.menuBodyContent}
                 bounces={false}
                 showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
               >
                 {/* Install App (standalone, web only) */}
                 {showInstallButton && (
-                  <Animated.View style={staggerStyle(0)}>
+                  <Animated.View style={staggerStyle(0)} >
                     <MenuItem
                       Icon={({ width, height, color }) => <Download size={width} color={color} />}
-                      title="Install App"
-                      onPress={() => handleMenuPress('Install App')}
+                      title={t('sideMenu.items.installApp')}
+                      onPress={() => handleMenuPress(MENU_ACTIONS.INSTALL_APP)}
                       styles={styles}
                     />
                   </Animated.View>
                 )}
 
                 {/* Section: Actions */}
-                <Animated.View style={staggerStyle(0)}>
-                  <SectionHeader title="ACTIONS" styles={styles} />
+                <Animated.View style={staggerStyle(0)} >
+                  <SectionHeader title={t('sideMenu.sections.actions')} styles={styles} />
                   <MenuItem
                     Icon={RedeemIcon}
-                    title="Redeem Coupon"
-                    onPress={() => handleMenuPress('Redeem Coupon')}
+                    title={t('sideMenu.items.redeemCoupon')}
+                    onPress={() => handleMenuPress(MENU_ACTIONS.REDEEM)}
                     showChevron
                     styles={styles}
                   />
                   <MenuItem
                     Icon={PurchaseIcon}
-                    title="Purchased Gifts"
-                    onPress={() => handleMenuPress('Purchased Gifts')}
+                    title={t('sideMenu.items.purchasedGifts')}
+                    onPress={() => handleMenuPress(MENU_ACTIONS.PURCHASED)}
                     showChevron
                     styles={styles}
                   />
                 </Animated.View>
 
                 {/* Section: Help & Info */}
-                <Animated.View style={staggerStyle(1)}>
-                  <SectionHeader title="HELP & INFO" styles={styles} />
+                <Animated.View style={staggerStyle(1)} >
+                  <SectionHeader title={t('sideMenu.sections.helpInfo')} styles={styles} />
                   <MenuItem
                     Icon={({ width, height, color }) => <HelpCircle size={width} color={color} />}
-                    title="How It Works"
-                    onPress={() => handleMenuPress('How It Works')}
+                    title={t('sideMenu.items.howItWorks')}
+                    onPress={() => handleMenuPress(MENU_ACTIONS.HOW_IT_WORKS)}
                     styles={styles}
                   />
                   <MenuItem
                     Icon={({ width, height, color }) => <MessageSquare size={width} color={color} />}
-                    title="Give Feedback"
-                    onPress={() => handleMenuPress('Give Feedback')}
+                    title={t('sideMenu.items.giveFeedback')}
+                    onPress={() => handleMenuPress(MENU_ACTIONS.FEEDBACK)}
                     styles={styles}
                   />
                   <MenuItem
                     Icon={({ width, height, color }) => <LifeBuoy size={width} color={color} />}
-                    title="Get Support"
-                    onPress={() => handleMenuPress('Get Support')}
+                    title={t('sideMenu.items.getSupport')}
+                    onPress={() => handleMenuPress(MENU_ACTIONS.SUPPORT)}
                     styles={styles}
                   />
                 </Animated.View>
 
                 {/* Section: Settings (auth only) */}
                 {isAuthenticated && (
-                  <Animated.View style={staggerStyle(2)}>
-                    <SectionHeader title="SETTINGS" styles={styles} />
+                  <Animated.View style={staggerStyle(2)} >
+                    <SectionHeader title={t('sideMenu.sections.settings')} styles={styles} />
                     {/* Dark Mode toggle */}
                     <View style={styles.darkModeRow}>
                       <View style={styles.darkModeLeft}>
                         <View style={styles.iconWrapper}>
                           <Moon size={20} color={colors.primary} />
                         </View>
-                        <Text style={styles.menuTitle}>Dark Mode</Text>
+                        <Text style={styles.menuTitle}>{t('sideMenu.items.darkMode')}</Text>
                       </View>
                       <TouchableOpacity
                         onPress={() => {
@@ -534,27 +566,80 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                         style={[styles.toggle, isDark && styles.toggleActive]}
                         activeOpacity={0.8}
                         accessibilityRole="switch"
-                        accessibilityLabel="Toggle dark mode"
+                        accessibilityLabel={t('accessibility.toggleDarkMode')}
                         accessibilityState={{ checked: isDark }}
                       >
                         <View style={[styles.toggleThumb, isDark && styles.toggleThumbActive]} />
                       </TouchableOpacity>
+                    </View>
+                    {/* Language toggle */}
+                    <View style={styles.darkModeRow}>
+                      <View style={styles.darkModeLeft}>
+                        <View style={styles.iconWrapper}>
+                          <Globe size={20} color={colors.primary} />
+                        </View>
+                        <Text style={styles.menuTitle}>{t('sideMenu.language')}</Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', borderRadius: BorderRadius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            setLanguage('en');
+                          }}
+                          style={{
+                            paddingHorizontal: Spacing.md,
+                            paddingVertical: Spacing.xs,
+                            backgroundColor: language === 'en' ? colors.primary : 'transparent',
+                          }}
+                          activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel="English"
+                          accessibilityState={{ selected: language === 'en' }}
+                        >
+                          <Text style={{
+                            ...Typography.caption,
+                            fontWeight: '600',
+                            color: language === 'en' ? '#FFFFFF' : colors.textSecondary,
+                          }}>EN</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => {
+                            if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            setLanguage('pt');
+                          }}
+                          style={{
+                            paddingHorizontal: Spacing.md,
+                            paddingVertical: Spacing.xs,
+                            backgroundColor: language === 'pt' ? colors.primary : 'transparent',
+                          }}
+                          activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel="Português"
+                          accessibilityState={{ selected: language === 'pt' }}
+                        >
+                          <Text style={{
+                            ...Typography.caption,
+                            fontWeight: '600',
+                            color: language === 'pt' ? '#FFFFFF' : colors.textSecondary,
+                          }}>PT</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                     <View style={styles.reminderSection}>
                       <View style={styles.reminderHeader}>
                         <View style={styles.iconWrapper}>
                           <Bell size={20} color={colors.primary} />
                         </View>
-                        <Text style={styles.menuTitle}>Reminders</Text>
+                        <Text style={styles.menuTitle}>{t('sideMenu.items.reminders')}</Text>
                       </View>
                       <View style={styles.reminderRow}>
-                        <Text style={styles.reminderLabel}>Session reminders</Text>
+                        <Text style={styles.reminderLabel}>{t('sideMenu.reminders.sessionReminders')}</Text>
                         <TouchableOpacity
                           onPress={handleReminderToggle}
                           style={[styles.toggle, reminderEnabled && styles.toggleActive]}
                           activeOpacity={0.8}
                           accessibilityRole="switch"
-                          accessibilityLabel="Toggle session reminders"
+                          accessibilityLabel={t('accessibility.toggleSessionReminders')}
                           accessibilityState={{ checked: reminderEnabled }}
                         >
                           <View style={[styles.toggleThumb, reminderEnabled && styles.toggleThumbActive]} />
@@ -562,13 +647,13 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                       </View>
                       {reminderEnabled && (
                         <Animated2.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={styles.reminderRow}>
-                          <Text style={styles.reminderLabel}>Remind me at</Text>
+                          <Text style={styles.reminderLabel}>{t('sideMenu.reminders.remindMeAt')}</Text>
                           <TouchableOpacity
                             onPress={openTimePicker}
                             style={styles.timeChipActive}
                             activeOpacity={0.8}
                             accessibilityRole="button"
-                            accessibilityLabel={`Change reminder time, currently ${formatTime12h(reminderTime)}`}
+                            accessibilityLabel={t('accessibility.changeReminderTime', { time: formatTime12h(reminderTime) })}
                           >
                             <Text style={styles.timeChipTextActive}>
                               {formatTime12h(reminderTime)}
@@ -584,11 +669,11 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                 <View style={styles.divider} />
 
                 {/* Login/Logout */}
-                <Animated.View style={staggerStyle(3)}>
+                <Animated.View style={staggerStyle(3)} >
                   <MenuItem
                     Icon={isAuthenticated ? LogoutIcon : LoginIcon}
-                    title={isAuthenticated ? (isLoggingOut ? 'Logging out…' : 'Logout') : 'Login'}
-                    onPress={isLoggingOut ? () => {} : () => handleMenuPress('Logout')}
+                    title={isAuthenticated ? (isLoggingOut ? t('sideMenu.items.loggingOut') : t('sideMenu.items.logout')) : t('sideMenu.items.login')}
+                    onPress={isLoggingOut ? () => {} : () => handleMenuPress(MENU_ACTIONS.LOGOUT)}
                     iconColor={isAuthenticated ? colors.error : colors.primary}
                     textColor={isAuthenticated ? (isLoggingOut ? colors.textMuted : colors.error) : colors.primary}
                     styles={styles}
@@ -598,7 +683,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
 
               {/* Footer */}
               <View style={styles.menuFooter}>
-                <Text style={styles.footerText}>Ernit App v1.0.0</Text>
+                <Text style={styles.footerText}>{t('sideMenu.footer')}</Text>
               </View>
             </SafeAreaView>
           </Animated.View>
@@ -662,11 +747,11 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                   },
                 ]}
               >
-                <Text style={styles.pickerTitle}>Set Reminder Time</Text>
+                <Text style={styles.pickerTitle}>{t('sideMenu.timePicker.title')}</Text>
                 <View style={styles.pickerColumns}>
                   {/* Hour column */}
                   <View style={styles.pickerColumn}>
-                    <Text style={styles.pickerColumnLabel}>Hour</Text>
+                    <Text style={styles.pickerColumnLabel}>{t('sideMenu.timePicker.hourLabel')}</Text>
                     <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
                       {Array.from({ length: 24 }, (_, h) => {
                         const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`;
@@ -689,7 +774,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                   </View>
                   {/* Minute column */}
                   <View style={styles.pickerColumn}>
-                    <Text style={styles.pickerColumnLabel}>Minute</Text>
+                    <Text style={styles.pickerColumnLabel}>{t('sideMenu.timePicker.minuteLabel')}</Text>
                     <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
                       {[0, 15, 30, 45].map((m) => (
                         <TouchableOpacity
@@ -713,9 +798,9 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
                   style={styles.pickerConfirm}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel="Confirm reminder time"
+                  accessibilityLabel={t('accessibility.confirmReminderTime')}
                 >
-                  <Text style={styles.pickerConfirmText}>Set Time</Text>
+                  <Text style={styles.pickerConfirmText}>{t('sideMenu.timePicker.setTime')}</Text>
                 </TouchableOpacity>
               </Animated.View>
             </TouchableWithoutFeedback>
@@ -732,10 +817,9 @@ const createStyles = (colors: typeof Colors) =>
       ...StyleSheet.absoluteFillObject,
       flexDirection: 'row',
       zIndex: 9999,
-      overflow: 'hidden',
     },
     overlay: {
-      flex: 1,
+      ...StyleSheet.absoluteFillObject,
       backgroundColor: colors.black,
     },
     menuPanel: {
@@ -815,6 +899,9 @@ const createStyles = (colors: typeof Colors) =>
     menuBody: {
       flex: 1,
       paddingTop: Spacing.sm,
+    },
+    menuBodyContent: {
+      paddingBottom: Spacing.xxl,
     },
     sectionHeader: {
       paddingHorizontal: Spacing.xxl,

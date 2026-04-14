@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { vh } from '../utils/responsive';
 import { useColors } from '../config';
 import { Typography } from '../config/typography';
@@ -68,6 +69,7 @@ const computePasswordChecks = (pwd: string) => ({
 });
 
 const AuthScreen = () => {
+  const { t } = useTranslation();
   const colors = useColors();
   const { width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -179,6 +181,12 @@ const AuthScreen = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isLogin) {
+      analyticsService.trackEvent('signup_started', 'conversion', {}, 'AuthScreen');
+    }
+  }, [isLogin]);
+
 
   // Button press animation handler
   const handleButtonPressIn = useCallback(() => {
@@ -257,7 +265,7 @@ const AuthScreen = () => {
   useEffect(() => {
     if (response?.type !== 'success') {
       if (response?.type === 'error') {
-        showError('The sign-in process was canceled or failed.');
+        showError(t('authErrors.googleSignInCanceled'));
       }
       return;
     }
@@ -338,7 +346,7 @@ const AuthScreen = () => {
             } catch (error: unknown) {
               logger.error('Error handling pending gift flow after auth:', error);
               await removeStorageItem('pending_gift_flow').catch(() => {});
-              showInfo('Your previous progress could not be restored. Please start again.');
+              showInfo(t('authErrors.previousProgressLost'));
             }
             // Check for pending free challenge
             try {
@@ -353,10 +361,10 @@ const AuthScreen = () => {
             } catch (error: unknown) {
               logger.error('Error handling pending challenge after auth:', error);
               await removeStorageItem('pending_free_challenge').catch(() => {});
-              showInfo('Your previous progress could not be restored. Please start again.');
+              showInfo(t('authErrors.previousProgressLost'));
             }
             // Navigate directly — bypasses navigationRef which can be null on Android
-            navigation.reset({ index: 0, routes: [{ name: 'Goals' }] });
+            navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'GoalsTab', params: { screen: 'Goals' } } }] });
           }, 1500);
 
         })
@@ -371,7 +379,7 @@ const AuthScreen = () => {
               if (email) {
                 // Try signing in with Google credential directly — Firebase handles provider merging
                 // Note: fetchSignInMethodsForEmail is deprecated in Firebase Auth v10+
-                showInfo('An account with this email already exists. Both Google and email/password sign-in will be enabled for your account.');
+                showInfo(t('authErrors.accountExistsDifferentCredential'));
                 {
 
                   // The account is already linked by Firebase automatically in newer versions
@@ -422,7 +430,7 @@ const AuthScreen = () => {
                     } catch (error: unknown) {
                       logger.error('Error handling pending gift flow after auth:', error);
                       await removeStorageItem('pending_gift_flow').catch(() => {});
-                      showInfo('Your previous progress could not be restored. Please start again.');
+                      showInfo(t('authErrors.previousProgressLost'));
                     }
                     // Check for pending free challenge
                     try {
@@ -436,10 +444,10 @@ const AuthScreen = () => {
                     } catch (error: unknown) {
                       logger.error('Error handling pending challenge after auth:', error);
                       await removeStorageItem('pending_free_challenge').catch(() => {});
-                      showInfo('Your previous progress could not be restored. Please start again.');
+                      showInfo(t('authErrors.previousProgressLost'));
                     }
                     // Navigate directly — bypasses navigationRef which can be null on Android
-                    navigation.reset({ index: 0, routes: [{ name: 'Goals' }] });
+                    navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'GoalsTab', params: { screen: 'Goals' } } }] });
                   }, 1500);
                   return;
                 }
@@ -456,7 +464,7 @@ const AuthScreen = () => {
           });
 
           if (mounted) {
-            showError('Unable to sign in with Google. Please try again.');
+            showError(t('authErrors.googleSignInFailed'));
             setIsLoading(false);
           }
         })
@@ -490,7 +498,7 @@ const AuthScreen = () => {
     const sanitized = sanitizeText(text, 254);
     setEmail(sanitized);
     if (sanitized && !EMAIL_REGEX.test(sanitized)) {
-      setEmailError('Please enter a valid email address');
+      setEmailError(t('authErrors.invalidEmail'));
     } else {
       setEmailError('');
     }
@@ -521,25 +529,25 @@ const AuthScreen = () => {
     const rawConfirmPassword = confirmPassword;
 
     if (!sanitizedEmail || !rawPassword) {
-      showError('Please fill in all fields');
+      showError(t('authErrors.fillAllFields'));
       return;
     }
     if (!validateEmail(sanitizedEmail)) {
-      showError('Please enter a valid email address');
+      showError(t('authErrors.invalidEmail'));
       return;
     }
 
     if (!isLogin) {
       if (!sanitizedDisplayName.trim()) {
-        showError('Please enter your name');
+        showError(t('authErrors.enterName'));
         return;
       }
       if (!isPasswordValid()) {
-        showError('Password does not meet security requirements');
+        showError(t('authErrors.passwordRequirements'));
         return;
       }
       if (rawPassword !== rawConfirmPassword) {
-        showError('Passwords do not match');
+        showError(t('authErrors.passwordsDoNotMatch'));
         return;
       }
     }
@@ -574,7 +582,7 @@ const AuthScreen = () => {
         });
 
         // ? Show verification message to user
-        showInfo('A verification email has been sent to ' + sanitizedEmail + '. Please verify your email to secure your account.');
+        showInfo(t('authErrors.verificationEmailSent', { email: sanitizedEmail }));
       }
 
       const user = userCredential.user;
@@ -634,7 +642,7 @@ const AuthScreen = () => {
         } catch (error: unknown) {
           logger.error('Error handling pending gift flow after auth:', error);
           await removeStorageItem('pending_gift_flow').catch(() => {});
-          showInfo('Your previous progress could not be restored. Please start again.');
+          showInfo(t('authErrors.previousProgressLost'));
         }
         // Check for pending free challenge
         try {
@@ -648,7 +656,7 @@ const AuthScreen = () => {
         } catch (error: unknown) {
           logger.error('Error handling pending challenge after auth:', error);
           await removeStorageItem('pending_free_challenge').catch(() => {});
-          showInfo('Your previous progress could not be restored. Please start again.');
+          showInfo(t('authErrors.previousProgressLost'));
         }
         // Check for pending coupon claim code
         try {
@@ -663,7 +671,7 @@ const AuthScreen = () => {
           await removeStorageItem('pending_claim_code').catch(() => {});
         }
         // Navigate directly — bypasses navigationRef which can be null on Android
-        navigation.reset({ index: 0, routes: [{ name: 'Goals' }] });
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'GoalsTab', params: { screen: 'Goals' } } }] });
       }, 1500); // Show success for 1.5 seconds
 
     } catch (error: unknown) {
@@ -681,7 +689,7 @@ const AuthScreen = () => {
         });
       }
 
-      let errorMessage = 'An unexpected error occurred. Please try again.';
+      let errorMessage = t('authErrors.unexpectedError');
 
       // Clear previous errors
       setEmailError('');
@@ -697,20 +705,20 @@ const AuthScreen = () => {
       if (isLogin) {
         switch (firebaseError.code) {
           case 'auth/user-not-found':
-            errorMessage = 'No account found with this email address.';
+            errorMessage = t('authErrors.emailNotFound');
             setEmailError(errorMessage);
             break;
           case 'auth/wrong-password':
           case 'auth/invalid-credential':
-            errorMessage = 'Incorrect email or password. Please check your credentials and try again.';
-            setPasswordError('Email or password is incorrect.');
+            errorMessage = t('authErrors.incorrectCredentials');
+            setPasswordError(t('authErrors.emailOrPasswordIncorrect'));
             break;
           case 'auth/invalid-email':
-            errorMessage = 'Invalid email address.';
+            errorMessage = t('authErrors.invalidEmailAddress');
             setEmailError(errorMessage);
             break;
           case 'auth/too-many-requests':
-            errorMessage = 'Too many failed attempts. Please try again later or reset your password.';
+            errorMessage = t('authErrors.tooManyAttempts');
             setPasswordError(errorMessage);
             break;
           default:
@@ -722,15 +730,15 @@ const AuthScreen = () => {
         // Sign up errors
         switch (firebaseError.code) {
           case 'auth/email-already-in-use':
-            errorMessage = 'An account with this email already exists.';
+            errorMessage = t('authErrors.emailAlreadyInUse');
             setEmailError(errorMessage);
             break;
           case 'auth/weak-password':
-            errorMessage = 'Password is too weak. Please choose a stronger password.';
+            errorMessage = t('authErrors.weakPassword');
             setPasswordError(errorMessage);
             break;
           case 'auth/invalid-email':
-            errorMessage = 'Invalid email address.';
+            errorMessage = t('authErrors.invalidEmailAddress');
             setEmailError(errorMessage);
             break;
           default:
@@ -755,13 +763,13 @@ const AuthScreen = () => {
 
   const handlePasswordReset = async () => {
     if (!email) {
-      showInfo('Please enter your email address first.');
+      showInfo(t('authErrors.enterEmailFirst'));
       return;
     }
 
     try {
       await sendPasswordResetEmail(auth, sanitizeText(email, 254));
-      showSuccess('A password reset link has been sent to your email. Please check your spam folder.');
+      showSuccess(t('authErrors.passwordResetEmailSent'));
     } catch (error: unknown) {
       const firebaseError = error as { code?: string };
       await logErrorToFirestore(error instanceof Error ? error : new Error('Password reset failed'), {
@@ -769,9 +777,9 @@ const AuthScreen = () => {
         feature: 'PasswordReset',
         additionalData: { emailDomain: email.split('@')[1] || 'unknown' }
       });
-      let message = 'Failed to send reset email.';
-      if (firebaseError.code === 'auth/invalid-email') message = 'Invalid email address.';
-      if (firebaseError.code === 'auth/user-not-found') message = 'No account found with that email.';
+      let message = t('authErrors.passwordResetFailed');
+      if (firebaseError.code === 'auth/invalid-email') message = t('authErrors.invalidEmailAddress');
+      if (firebaseError.code === 'auth/user-not-found') message = t('authErrors.passwordResetUserNotFound');
       showError(message);
     }
   };
@@ -802,7 +810,7 @@ const AuthScreen = () => {
           style={{ flex: 1 }}
         >
           <ScrollView
-            contentContainerStyle={{ flexGrow: 1, paddingVertical: Spacing.huge }}
+            contentContainerStyle={{ flexGrow: 1, paddingVertical: Platform.OS === 'android' ? Spacing.lg : Spacing.huge }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="on-drag"
@@ -826,32 +834,21 @@ const AuthScreen = () => {
                 }}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Go back"
+                accessibilityLabel={t('accessibility.goBack')}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
                 <ChevronLeft color={colors.textPrimary} size={24} />
               </TouchableOpacity>
             </View>
 
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.xxxl, paddingTop: vh(56) }}>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.xxxl, paddingTop: Platform.OS === 'android' ? Spacing.xl : vh(56) }}>
 
-              {/* Logo */}
-              <View style={{ marginBottom: Spacing.huge, alignItems: 'center' }}>
-                <Image
-                  source={require('../assets/icon.png')}
-                  style={{
-                    width: 120,
-                    height: 120,
-                    marginBottom: Spacing.xxl,
-                  }}
-                  resizeMode="contain"
-                  accessibilityLabel="Ernit app logo"
-                />
+              <View style={{ marginBottom: Platform.OS === 'android' ? Spacing.xl : Spacing.huge, alignItems: 'center', marginTop: Platform.OS === 'android' ? 80 + Spacing.lg : 120 + Spacing.xxl }}>
                 <Text style={{ ...Typography.displayLarge, color: colors.textPrimary, textAlign: 'center', marginBottom: Spacing.lg }}>
-                  {isLogin ? 'Welcome Back' : 'Join Ernit'}
+                  {isLogin ? t('auth.welcomeBack') : t('auth.joinErnit')}
                 </Text>
                 <Text style={{ ...Typography.heading3, color: colors.textSecondary, textAlign: 'center', maxWidth: 280 }}>
-                  {isLogin ? 'Sign in to your account below' : 'Create your account to start gifting experiences'}
+                  {isLogin ? t('auth.signInSubtitle') : t('auth.signUpSubtitle')}
                 </Text>
               </View>
 
@@ -864,7 +861,7 @@ const AuthScreen = () => {
                     onPress={() => promptAsync()}
                     disabled={isLoading || !request}
                     fullWidth
-                    title="Continue with Google"
+                    title={t('auth.continueWithGoogle')}
                     icon={<Text style={{ ...Typography.heading3, color: colors.googleBlue }}>G</Text>}
                     style={{ marginBottom: Spacing.xl }}
                   />
@@ -876,21 +873,21 @@ const AuthScreen = () => {
                     marginBottom: Spacing.xl,
                   }}>
                     <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-                    <Text style={{ marginHorizontal: Spacing.lg, color: colors.textSecondary, ...Typography.smallMedium }}>or</Text>
+                    <Text style={{ marginHorizontal: Spacing.lg, color: colors.textSecondary, ...Typography.smallMedium }}>{t('auth.orDivider')}</Text>
                     <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
                   </View>
 
                   {!isLogin && (
                     <View style={{ marginBottom: Spacing.xl }}>
                       <TextInput
-                        label="Username"
-                        placeholder="Username"
+                        label={t('auth.fields.username')}
+                        placeholder={t('auth.fields.username')}
                         placeholderTextColor={colors.textMuted}
                         maxLength={50}
                         value={displayName}
                         onChangeText={handleDisplayNameChange}
                         autoCapitalize="words"
-                        accessibilityLabel="Username"
+                        accessibilityLabel={t('auth.fields.username')}
                         returnKeyType="next"
                         onSubmitEditing={() => passwordRef.current?.focus()}
                       />
@@ -899,15 +896,15 @@ const AuthScreen = () => {
 
                   <View style={{ marginBottom: Spacing.xl }}>
                     <TextInput
-                      label="Email address"
-                      placeholder="Email address"
+                      label={t('auth.fields.emailAddress')}
+                      placeholder={t('auth.fields.emailAddress')}
                       placeholderTextColor={colors.textMuted}
                       maxLength={254}
                       value={email}
                       onChangeText={handleEmailChange}
                       keyboardType="email-address"
                       autoCapitalize="none"
-                      accessibilityLabel="Email address"
+                      accessibilityLabel={t('auth.fields.emailAddress')}
                       returnKeyType="next"
                       onSubmitEditing={() => passwordRef.current?.focus()}
                       error={emailError || undefined}
@@ -925,16 +922,17 @@ const AuthScreen = () => {
                           paddingVertical: Spacing.md,
                           paddingRight: vh(60),
                           ...Typography.subheading,
+                          color: colors.textPrimary,
                           borderWidth: 1,
                           borderColor: passwordError ? colors.error : colors.border,
                         }}
-                        placeholder="Password"
+                        placeholder={t('auth.fields.password')}
                         placeholderTextColor={colors.textMuted}
                         maxLength={128}
                         value={password}
                         onChangeText={handlePasswordChange}
                         secureTextEntry={!showPassword}
-                        accessibilityLabel="Password"
+                        accessibilityLabel={t('auth.fields.password')}
                         returnKeyType={isLogin ? "done" : "next"}
                         onSubmitEditing={isLogin ? handleAuth : () => confirmPasswordRef.current?.focus()}
                       />
@@ -943,7 +941,7 @@ const AuthScreen = () => {
                         style={{ position: 'absolute', right: 16, top: '50%', transform: [{ translateY: -12 }] }}
                         activeOpacity={0.7}
                         accessibilityRole="button"
-                        accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                        accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                       >
                         {showPassword ? (
                           <EyeOff size={20} color={colors.textMuted} />
@@ -961,7 +959,7 @@ const AuthScreen = () => {
                     {!isLogin && password.length > 0 && (
                       <View style={{ marginTop: Spacing.md, padding: Spacing.md, backgroundColor: colors.backgroundLight, borderRadius: BorderRadius.sm }}>
                         <Text style={{ ...Typography.captionBold, color: colors.gray700, marginBottom: Spacing.sm }}>
-                          Password Requirements:
+                          {t('auth.passwordRequirements.title')}
                         </Text>
                         <View style={{ gap: Spacing.xs }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -971,7 +969,7 @@ const AuthScreen = () => {
                               <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: colors.textMuted, marginRight: Spacing.sm }} />
                             )}
                             <Text style={{ ...Typography.caption, color: passwordChecks.minLength ? colors.secondary : colors.textSecondary }}>
-                              At least 8 characters
+                              {t('auth.passwordRequirements.minLength')}
                             </Text>
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -981,7 +979,7 @@ const AuthScreen = () => {
                               <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: colors.textMuted, marginRight: Spacing.sm }} />
                             )}
                             <Text style={{ ...Typography.caption, color: passwordChecks.hasUpperCase ? colors.secondary : colors.textSecondary }}>
-                              One uppercase letter
+                              {t('auth.passwordRequirements.uppercase')}
                             </Text>
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -991,7 +989,7 @@ const AuthScreen = () => {
                               <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: colors.textMuted, marginRight: Spacing.sm }} />
                             )}
                             <Text style={{ ...Typography.caption, color: passwordChecks.hasLowerCase ? colors.secondary : colors.textSecondary }}>
-                              One lowercase letter
+                              {t('auth.passwordRequirements.lowercase')}
                             </Text>
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -1001,7 +999,7 @@ const AuthScreen = () => {
                               <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: colors.textMuted, marginRight: Spacing.sm }} />
                             )}
                             <Text style={{ ...Typography.caption, color: passwordChecks.hasNumber ? colors.secondary : colors.textSecondary }}>
-                              One number
+                              {t('auth.passwordRequirements.number')}
                             </Text>
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -1011,7 +1009,7 @@ const AuthScreen = () => {
                               <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 1.5, borderColor: colors.textMuted, marginRight: Spacing.sm }} />
                             )}
                             <Text style={{ ...Typography.caption, color: passwordChecks.hasSpecialChar ? colors.secondary : colors.textSecondary }}>
-                              One special character
+                              {t('auth.passwordRequirements.specialChar')}
                             </Text>
                           </View>
                         </View>
@@ -1022,7 +1020,7 @@ const AuthScreen = () => {
                       <Button
                         variant="ghost"
                         onPress={handlePasswordReset}
-                        title="Forgot password?"
+                        title={t('auth.forgotPassword')}
                         style={{ alignSelf: 'flex-end', marginTop: Spacing.sm }}
                         textStyle={{ color: colors.primary, ...Typography.smallMedium }}
                       />
@@ -1041,10 +1039,11 @@ const AuthScreen = () => {
                             paddingVertical: Spacing.md,
                             paddingRight: vh(60),
                             ...Typography.subheading,
+                            color: colors.textPrimary,
                             borderWidth: 1,
                             borderColor: confirmPassword && password !== confirmPassword ? colors.error : colors.border,
                           }}
-                          placeholder="Confirm password"
+                          placeholder={t('auth.fields.confirmPassword')}
                           placeholderTextColor={colors.textMuted}
                           maxLength={128}
                           value={confirmPassword}
@@ -1053,7 +1052,7 @@ const AuthScreen = () => {
                             setConfirmPassword(text);
                           }}
                           secureTextEntry={!showConfirmPassword}
-                          accessibilityLabel="Confirm password"
+                          accessibilityLabel={t('auth.fields.confirmPassword')}
                           returnKeyType="done"
                           onSubmitEditing={handleAuth}
                         />
@@ -1062,7 +1061,7 @@ const AuthScreen = () => {
                           style={{ position: 'absolute', right: 16, top: '50%', transform: [{ translateY: -12 }] }}
                           activeOpacity={0.7}
                           accessibilityRole="button"
-                          accessibilityLabel={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                          accessibilityLabel={showConfirmPassword ? t('auth.hideConfirmPassword') : t('auth.showConfirmPassword')}
                         >
                           {showConfirmPassword ? (
                             <EyeOff size={20} color={colors.textMuted} />
@@ -1073,7 +1072,7 @@ const AuthScreen = () => {
                       </View>
                       {confirmPassword && password !== confirmPassword && (
                         <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.xs, marginLeft: Spacing.xs }}>
-                          Passwords do not match
+                          {t('authErrors.passwordsDoNotMatch')}
                         </Text>
                       )}
                     </View>
@@ -1159,7 +1158,7 @@ const AuthScreen = () => {
                                   letterSpacing: 0.5,
                                 }}
                               >
-                                Success!
+                                {t('auth.buttons.success')}
                               </Text>
                             </Animated.View>
                           ) : isLoading ? (
@@ -1171,7 +1170,7 @@ const AuthScreen = () => {
                                 letterSpacing: 0.5,
                               }}
                             >
-                              {isLogin ? 'Signing in...' : 'Creating account...'}
+                              {isLogin ? t('auth.buttons.signingIn') : t('auth.buttons.creatingAccount')}
                             </Text>
                           ) : (
                             <Text
@@ -1182,7 +1181,7 @@ const AuthScreen = () => {
                                 letterSpacing: 0.5,
                               }}
                             >
-                              {isLogin ? 'Sign In' : 'Create Account'}
+                              {isLogin ? t('auth.buttons.signIn') : t('auth.buttons.createAccount')}
                             </Text>
                           )}
                         </LinearGradient>
@@ -1210,9 +1209,9 @@ const AuthScreen = () => {
                         hasSpecialChar: false,
                       });
                     }}
-                    title={isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
+                    title={isLogin ? t('auth.toggleSignUp') : t('auth.toggleSignIn')}
                     style={{ alignSelf: 'center' }}
-                    textStyle={{ ...Typography.subheading, color: colors.primary }}
+                    textStyle={{ ...Typography.smallMedium, color: colors.primary }}
                   />
                 </Card>
               </View>

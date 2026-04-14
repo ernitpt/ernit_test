@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import FooterNavigation, { FOOTER_HEIGHT } from '../components/FooterNavigation';
 import SideMenu from '../components/SideMenu';
@@ -28,6 +29,7 @@ const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
   const [sideMenuVisible, setSideMenuVisible] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const { showLoginPrompt, loginMessage, closeLoginPrompt } = useAuthGuard();
@@ -58,7 +60,7 @@ const MainScreen: React.FC<MainScreenProps> = ({ children, activeRoute }) => {
         {/* Offline Banner */}
         {!isConnected && (
           <View style={{ backgroundColor: colors.error, paddingVertical: Spacing.xs, paddingHorizontal: Spacing.md, alignItems: 'center' }}>
-            <Text style={{ ...Typography.caption, color: colors.white }}>You're offline — some features may not work</Text>
+            <Text style={{ ...Typography.caption, color: colors.white }}>{t('modals.offlineBanner.message')}</Text>
           </View>
         )}
 

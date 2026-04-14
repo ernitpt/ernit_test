@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef, ReactNode, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     View,
     Text,
@@ -7,12 +8,11 @@ import {
     StyleSheet,
     Platform,
     Linking,
-    Animated as RNAnimated,
     useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import Animated2, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import Animated2, { useSharedValue, useAnimatedStyle, withTiming, withSpring, Easing, interpolate, interpolateColor, Extrapolation, LinearTransition } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -37,7 +37,7 @@ import { logger } from '../utils/logger';
 import ErrorRetry from '../components/ErrorRetry';
 
 // ─── Constants ────────────────────────────────────────────────────
-const WORD_SLOT_HEIGHT = Math.max(vh(58), 44);
+const WORD_SLOT_HEIGHT = Platform.OS === 'android' ? 44 : Math.max(vh(58), 44);
 const CONTENT_FADE_MS = 250;
 const CARDS_PADDING = 16;
 
@@ -87,7 +87,7 @@ interface ModeConfig {
     loginColor: string;
 }
 
-const getSelfConfig = (colors: typeof Colors): ModeConfig => ({
+const getSelfConfig = (colors: typeof Colors, t: (key: string) => string): ModeConfig => ({
     accentColor: colors.secondary,
     gradient: [colors.primarySurface, colors.successLighter, colors.white] as const,
     rotatingWords: [
@@ -96,18 +96,18 @@ const getSelfConfig = (colors: typeof Colors): ModeConfig => ({
         { word: 'dance', color: colors.error },
         { word: 'run', color: colors.cyan },
     ],
-    titlePrefix: 'I want to',
-    titleSuffix: '',
-    subtitle: 'Set your goal. Commit to a reward.\nGo earn it.',
-    stat: 'People with a reward on the line are ',
-    statHighlight: '2x more likely',
-    statSuffix: ' to build the habit.',
+    titlePrefix: t('landing.challenge.self.titlePrefix'),
+    titleSuffix: t('landing.challenge.self.titleSuffix'),
+    subtitle: t('landing.challenge.self.subtitle'),
+    stat: t('landing.challenge.self.stat'),
+    statHighlight: t('landing.challenge.self.statHighlight'),
+    statSuffix: t('landing.challenge.self.statSuffix'),
     statColor: colors.secondary,
-    statSource: '– University of California',
-    ctaText: 'Start My Challenge',
+    statSource: t('landing.challenge.self.statSource'),
+    ctaText: t('landing.challenge.self.cta'),
     ctaGradient: [colors.primaryDark, colors.primaryDeeper] as const,
     ctaShadowColor: colors.primaryDark,
-    badgeText: '100% Free',
+    badgeText: t('landing.challenge.self.badge'),
     badgeBg: colors.primarySurface,
     badgeBorder: colors.primaryLight,
     badgeTextColor: colors.secondary,
@@ -116,33 +116,33 @@ const getSelfConfig = (colors: typeof Colors): ModeConfig => ({
         {
             icon: <Target color={colors.primary} size={24} strokeWidth={2.5} />,
             iconBg: colors.primarySurface,
-            title: 'Pick Your Challenge',
-            desc: 'Choose what you want to improve and for how long. Gym, yoga, running, reading, or anything you want',
+            title: t('landing.challenge.self.step1Title'),
+            desc: t('landing.challenge.self.step1Desc'),
         },
         {
             icon: <Calendar color={colors.accent} size={24} strokeWidth={2.5} />,
             iconBg: colors.accentDeep + '18',
-            title: 'Stick to It',
-            desc: 'Do your sessions, build streaks, and get motivated by friends who follow your journey, and can even reward you along the way',
+            title: t('landing.challenge.self.step2Title'),
+            desc: t('landing.challenge.self.step2Desc'),
         },
         {
             icon: <Users color={colors.pink} size={24} strokeWidth={2.5} />,
             iconBg: colors.pinkLight,
-            title: 'Earn it',
-            desc: 'Finish your challenge and have the reward you deserve!',
+            title: t('landing.challenge.self.step3Title'),
+            desc: t('landing.challenge.self.step3Desc'),
         },
     ],
     stepNumberBg: colors.gray800,
     stepDividerColor: colors.backgroundLight,
     sectionLabelColor: colors.primary,
-    finalTitle: 'Ready to challenge\nyourself?',
-    finalSubtitle: 'Join thousands building better habits with friends.',
-    finalCtaText: 'Create My Challenge',
+    finalTitle: t('landing.challenge.self.finalTitle'),
+    finalSubtitle: t('landing.challenge.self.finalSubtitle'),
+    finalCtaText: t('landing.challenge.self.finalCta'),
     brandDotColor: colors.secondary,
     loginColor: colors.primary,
 });
 
-const getGiftConfig = (colors: typeof Colors): ModeConfig => ({
+const getGiftConfig = (colors: typeof Colors, t: (key: string) => string): ModeConfig => ({
     accentColor: colors.warning,
     gradient: [colors.warningLighter, colors.white, colors.white] as const,
     rotatingWords: [
@@ -151,18 +151,18 @@ const getGiftConfig = (colors: typeof Colors): ModeConfig => ({
         { word: 'dance', color: colors.decorativeRose },
         { word: 'run', color: colors.decorativeYellow },
     ],
-    titlePrefix: 'Help them',
-    titleSuffix: '',
-    subtitle: 'Empower someone you care about.\nYou only pay when they succeed.',
-    stat: 'A reward + someone backing them makes them ',
-    statHighlight: '2x more likely',
-    statSuffix: ' to succeed.',
+    titlePrefix: t('landing.challenge.gift.titlePrefix'),
+    titleSuffix: t('landing.challenge.gift.titleSuffix'),
+    subtitle: t('landing.challenge.gift.subtitle'),
+    stat: t('landing.challenge.gift.stat'),
+    statHighlight: t('landing.challenge.gift.statHighlight'),
+    statSuffix: t('landing.challenge.gift.statSuffix'),
     statColor: colors.warning,
-    statSource: '– University of Pennsylvania',
-    ctaText: 'Gift an Experience',
+    statSource: t('landing.challenge.gift.statSource'),
+    ctaText: t('landing.challenge.gift.cta'),
     ctaGradient: [colors.warning, colors.warningMedium] as const,
     ctaShadowColor: colors.warning,
-    badgeText: 'Pay only on success',
+    badgeText: t('landing.challenge.gift.badge'),
     badgeBg: colors.warningLight,
     badgeBorder: colors.warningBorder,
     badgeTextColor: colors.warningDark,
@@ -171,28 +171,28 @@ const getGiftConfig = (colors: typeof Colors): ModeConfig => ({
         {
             icon: <Sparkles color={colors.warning} size={24} strokeWidth={2.5} />,
             iconBg: colors.warningLight,
-            title: 'Pick a Reward',
-            desc: 'Choose an experience they\'ll earn once they achieve their goal',
+            title: t('landing.challenge.gift.step1Title'),
+            desc: t('landing.challenge.gift.step1Desc'),
         },
         {
             icon: <Target color={colors.warningMedium} size={24} strokeWidth={2.5} />,
             iconBg: colors.warningLighter,
-            title: 'They Set the Goal',
-            desc: 'They pick their challenge and work towards it, day by day',
+            title: t('landing.challenge.gift.step2Title'),
+            desc: t('landing.challenge.gift.step2Desc'),
         },
         {
             icon: <Trophy color={colors.warningDark} size={24} strokeWidth={2.5} />,
             iconBg: colors.warningLight,
-            title: 'Pay When They Succeed',
-            desc: 'You only pay when they achieve their goal. Zero risk. All reward.',
+            title: t('landing.challenge.gift.step3Title'),
+            desc: t('landing.challenge.gift.step3Desc'),
         },
     ],
     stepNumberBg: colors.warningMedium,
     stepDividerColor: colors.warningBorder,
     sectionLabelColor: colors.warning,
-    finalTitle: 'Ready to empower\nsomeone?',
-    finalSubtitle: 'Give the gift that actually means something.',
-    finalCtaText: 'Gift an Experience',
+    finalTitle: t('landing.challenge.gift.finalTitle'),
+    finalSubtitle: t('landing.challenge.gift.finalSubtitle'),
+    finalCtaText: t('landing.challenge.gift.finalCta'),
     brandDotColor: colors.warning,
     loginColor: colors.warning,
 });
@@ -233,7 +233,7 @@ function shuffleNoRepeat(arr: string[], lastItem?: string): string[] {
     return shuffled;
 }
 
-const FLIP_DURATION = 800;
+const FLIP_DURATION = Platform.OS === 'android' ? 400 : 800;
 
 // ─── FlippableCard ────────────────────────────────────────────────
 interface FlippableCardProps {
@@ -242,75 +242,132 @@ interface FlippableCardProps {
     style?: any;
     glowSelfStyle?: any;
     glowGiftStyle?: any;
-    glowSelfOpacity: RNAnimated.AnimatedInterpolation<number>;
-    glowGiftOpacity: RNAnimated.AnimatedValue;
+    glowSelfOpacityStyle: any;
+    glowGiftOpacityStyle: any;
     label: string;
-    labelOpacity: RNAnimated.Value;
     flipIndices?: number[];
     cardW: number;
     cardH: number;
 }
 
-function FlippableCard({ images, currentIndex, style, glowSelfStyle, glowGiftStyle, glowSelfOpacity, glowGiftOpacity, label, labelOpacity, flipIndices = [], cardW, cardH }: FlippableCardProps) {
+function FlippableCard({ images, currentIndex, style, glowSelfStyle, glowGiftStyle, glowSelfOpacityStyle, glowGiftOpacityStyle, label, flipIndices = [], cardW, cardH }: FlippableCardProps) {
     const fStyles = useMemo(() => createFlipStyles(cardW, cardH), [cardW, cardH]);
+    const isAndroid = Platform.OS === 'android';
+
+    // ─── Web/iOS: 3D flip with rotation ───
     const rotation = useSharedValue(0);
     const [frontIndex, setFrontIndex] = useState(currentIndex);
     const [backIndex, setBackIndex] = useState(currentIndex);
     const isShowingFront = useRef(true);
     const prevIndex = useRef(currentIndex);
 
+    // ─── Android: simple crossfade between two layers ───
+    const crossfade = useSharedValue(0); // 0 = show A, 1 = show B
+    const [imageA, setImageA] = useState(currentIndex);
+    const [imageB, setImageB] = useState(currentIndex);
+    const showingA = useRef(true);
+    const prevAndroidIndex = useRef(currentIndex);
+
     useEffect(() => {
-        if (currentIndex === prevIndex.current) return;
-        prevIndex.current = currentIndex;
-
-        if (isShowingFront.current) {
-            // Load next image on the back, then flip to show it
-            setBackIndex(currentIndex);
-            rotation.value = withTiming(180, {
-                duration: FLIP_DURATION,
-                easing: Easing.inOut(Easing.cubic),
-            }, (finished) => {
-                if (finished) {
-                    isShowingFront.current = false;
-                }
-            });
+        if (isAndroid) {
+            if (currentIndex === prevAndroidIndex.current) return;
+            prevAndroidIndex.current = currentIndex;
+            if (showingA.current) {
+                // Load new image on B, crossfade to it
+                setImageB(currentIndex);
+                crossfade.value = withTiming(1, { duration: FLIP_DURATION, easing: Easing.inOut(Easing.cubic) });
+                showingA.current = false;
+            } else {
+                // Load new image on A, crossfade to it
+                setImageA(currentIndex);
+                crossfade.value = withTiming(0, { duration: FLIP_DURATION, easing: Easing.inOut(Easing.cubic) });
+                showingA.current = true;
+            }
         } else {
-            // Load next image on the front, then flip to show it
-            setFrontIndex(currentIndex);
-            rotation.value = withTiming(360, {
-                duration: FLIP_DURATION,
-                easing: Easing.inOut(Easing.cubic),
-            }, (finished) => {
-                if (finished) {
-                    isShowingFront.current = true;
-                    rotation.value = 0;
-                }
-            });
+            if (currentIndex === prevIndex.current) return;
+            prevIndex.current = currentIndex;
+            if (isShowingFront.current) {
+                setBackIndex(currentIndex);
+                rotation.value = withTiming(180, {
+                    duration: FLIP_DURATION,
+                    easing: Easing.inOut(Easing.cubic),
+                });
+                isShowingFront.current = false;
+            } else {
+                setFrontIndex(currentIndex);
+                rotation.value = withTiming(0, {
+                    duration: FLIP_DURATION,
+                    easing: Easing.inOut(Easing.cubic),
+                });
+                isShowingFront.current = true;
+            }
         }
-    }, [currentIndex, rotation]);
+    }, [currentIndex]);
 
+    // ─── Android animated styles ───
+    const layerAStyle = useAnimatedStyle(() => ({
+        opacity: interpolate(crossfade.value, [0, 1], [1, 0]),
+        transform: [{ scale: interpolate(crossfade.value, [0, 0.5, 1], [1, 1.04, 1.08], Extrapolation.CLAMP) }],
+    } as any));
+    const layerBStyle = useAnimatedStyle(() => ({
+        opacity: crossfade.value,
+        transform: [{ scale: interpolate(crossfade.value, [0, 0.5, 1], [1.08, 1.04, 1], Extrapolation.CLAMP) }],
+    } as any));
+
+    // ─── Web/iOS animated styles ───
     const frontAnimStyle = useAnimatedStyle(() => ({
         transform: [
             { perspective: 3000 },
             { rotateY: rotation.value + 'deg' },
         ],
-        opacity: Platform.OS === 'android' ? (rotation.value <= 90 || rotation.value > 270 ? 1 : 0) : 1,
-    }));
-
+    } as any));
     const backAnimStyle = useAnimatedStyle(() => ({
         transform: [
             { perspective: 3000 },
             { rotateY: (rotation.value - 180) + 'deg' },
         ],
-        opacity: Platform.OS === 'android' ? (rotation.value > 90 && rotation.value <= 270 ? 1 : 0) : 1,
-    }));
+    } as any));
 
+    if (isAndroid) {
+        // Android: two stacked layers with crossfade — simple, reliable, smooth
+        return (
+            <View style={style}>
+                <Animated2.View style={[fStyles.glow, glowSelfStyle, glowSelfOpacityStyle]} pointerEvents="none" />
+                <Animated2.View style={[fStyles.glow, glowGiftStyle, glowGiftOpacityStyle]} pointerEvents="none" />
+                <View style={fStyles.face}>
+                    <Animated2.View style={[fStyles.crossfadeLayer, layerAStyle]}>
+                        <Image
+                            source={{ uri: images[imageA] }}
+                            style={[fStyles.img, flipIndices.includes(imageA) && { transform: [{ scaleX: -1 }] }]}
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                        />
+                    </Animated2.View>
+                    <Animated2.View style={[fStyles.crossfadeLayer, layerBStyle]}>
+                        <Image
+                            source={{ uri: images[imageB] }}
+                            style={[fStyles.img, flipIndices.includes(imageB) && { transform: [{ scaleX: -1 }] }]}
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                        />
+                    </Animated2.View>
+                    <View style={fStyles.labelWrap}>
+                        <View style={fStyles.labelPill}>
+                            <Text style={fStyles.label}>{label}</Text>
+                        </View>
+                    </View>
+                </View>
+            </View>
+        );
+    }
+
+    // Web/iOS: 3D flip
     return (
         <View style={style}>
-            {/* Back face (sits behind, pre-rotated 180) */}
+            {/* Back face */}
             <Animated2.View style={[fStyles.faceOuter, backAnimStyle]}>
-                <RNAnimated.View style={[fStyles.glow, glowSelfStyle, { opacity: glowSelfOpacity }]} />
-                <RNAnimated.View style={[fStyles.glow, glowGiftStyle, { opacity: glowGiftOpacity }]} />
+                <Animated2.View style={[fStyles.glow, glowSelfStyle, glowSelfOpacityStyle]} pointerEvents="none" />
+                <Animated2.View style={[fStyles.glow, glowGiftStyle, glowGiftOpacityStyle]} pointerEvents="none" />
                 <View style={fStyles.face}>
                     <Image
                         source={{ uri: images[backIndex] }}
@@ -327,8 +384,8 @@ function FlippableCard({ images, currentIndex, style, glowSelfStyle, glowGiftSty
             </Animated2.View>
             {/* Front face */}
             <Animated2.View style={[fStyles.faceOuter, frontAnimStyle]}>
-                <RNAnimated.View style={[fStyles.glow, glowSelfStyle, { opacity: glowSelfOpacity }]} />
-                <RNAnimated.View style={[fStyles.glow, glowGiftStyle, { opacity: glowGiftOpacity }]} />
+                <Animated2.View style={[fStyles.glow, glowSelfStyle, glowSelfOpacityStyle]} pointerEvents="none" />
+                <Animated2.View style={[fStyles.glow, glowGiftStyle, glowGiftOpacityStyle]} pointerEvents="none" />
                 <View style={fStyles.face}>
                     <Image
                         source={{ uri: images[frontIndex] }}
@@ -352,6 +409,8 @@ const createFlipStyles = (cardW: number, cardH: number) => StyleSheet.create({
         position: 'absolute',
         width: cardW,
         height: cardH,
+        // Web/iOS: backfaceVisibility hides the reverse side during 3D rotateY
+        // Android: ignored (opacity crossfade handles it instead)
         backfaceVisibility: 'hidden',
     } as any,
     face: {
@@ -376,6 +435,9 @@ const createFlipStyles = (cardW: number, cardH: number) => StyleSheet.create({
             },
         }),
     } as any,
+    crossfadeLayer: {
+        ...StyleSheet.absoluteFillObject,
+    },
     img: {
         width: '100%',
         height: '100%',
@@ -404,13 +466,16 @@ const createFlipStyles = (cardW: number, cardH: number) => StyleSheet.create({
 type LandingNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ChallengeLanding'>;
 
 export default function ChallengeLandingScreen() {
+    const { t } = useTranslation();
     const colors = useColors();
     const { width: screenW } = useWindowDimensions();
     const cardW = Math.min((screenW - CARDS_PADDING * 2) / 2, 260);
-    const cardH = cardW * (0.9 + 0.75 * VH);
+    const cardH = Platform.OS === 'android'
+        ? Math.min(cardW * 1.5, 340)
+        : cardW * (0.9 + 0.75 * VH);
     const styles = useMemo(() => createStyles(colors, screenW, cardW, cardH), [colors, screenW, cardW, cardH]);
-    const SELF_CONFIG = useMemo(() => getSelfConfig(colors), [colors]);
-    const GIFT_CONFIG = useMemo(() => getGiftConfig(colors), [colors]);
+    const SELF_CONFIG = useMemo(() => getSelfConfig(colors, t), [colors, t]);
+    const GIFT_CONFIG = useMemo(() => getGiftConfig(colors, t), [colors, t]);
     const navigation = useNavigation<LandingNavigationProp>();
     const route = useRoute<RouteProp<RootStackParamList, 'ChallengeLanding'>>();
     const { state } = useApp();
@@ -452,8 +517,8 @@ export default function ChallengeLandingScreen() {
     }, []);
 
     // Animation values
-    const sliderAnim = useRef(new RNAnimated.Value(initialMode === 'gift' ? 1 : 0)).current;
-    const contentOpacity = useRef(new RNAnimated.Value(1)).current;
+    const sliderAnim = useSharedValue(initialMode === 'gift' ? 1 : 0);
+    const contentFade = useSharedValue(1);
 
     const config = mode === 'self' ? SELF_CONFIG : GIFT_CONFIG;
 
@@ -490,45 +555,48 @@ export default function ChallengeLandingScreen() {
         }
     }, [wordIndex, rewardImages.length]);
 
+    // Animated style for content fade + subtle slide on toggle
+    const contentFadeStyle = useAnimatedStyle(() => ({
+        opacity: contentFade.value,
+        transform: [
+            { translateY: interpolate(contentFade.value, [0, 1], [6, 0], Extrapolation.CLAMP) },
+            { scale: interpolate(contentFade.value, [0, 1], [0.98, 1], Extrapolation.CLAMP) },
+        ],
+    } as any));
+
     const switchMode = useCallback((newMode: LandingMode) => {
         if (newMode === mode) return;
-
-        // Cancel any in-progress fade animation to prevent stuck opacity
-        contentOpacity.stopAnimation();
 
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         analyticsService.trackEvent('landing_mode_toggled', 'engagement', { mode: newMode });
 
-        // Animate slider + color transitions
-        RNAnimated.spring(sliderAnim, {
-            toValue: newMode === 'gift' ? 1 : 0,
+        // Animate slider + color transitions (Reanimated — runs on UI thread, 60fps everywhere)
+        sliderAnim.value = withSpring(newMode === 'gift' ? 1 : 0, {
             damping: 18,
             stiffness: 140,
             mass: 0.8,
-            useNativeDriver: false,
-        }).start();
-
-        // Fade out text content, swap, fade in (only for text that changes words)
-        RNAnimated.timing(contentOpacity, {
-            toValue: 0,
-            duration: CONTENT_FADE_MS,
-            useNativeDriver: false,
-        }).start(() => {
-            setMode(newMode);
-            RNAnimated.timing(contentOpacity, {
-                toValue: 1,
-                duration: CONTENT_FADE_MS,
-                useNativeDriver: false,
-            }).start();
         });
-    }, [mode, sliderAnim, contentOpacity]);
+
+        // Fade out, swap content (hidden behind opacity 0), then fade in after React renders
+        contentFade.value = withTiming(0, { duration: CONTENT_FADE_MS });
+        setTimeout(() => {
+            setMode(newMode);
+            // Wait one frame for React to render new content, then fade in
+            requestAnimationFrame(() => {
+                contentFade.value = withTiming(1, { duration: CONTENT_FADE_MS });
+            });
+        }, CONTENT_FADE_MS);
+    }, [mode]);
 
     const ctaNavigatingRef = useRef(false);
     const handleCta = useCallback(() => {
         if (ctaNavigatingRef.current) return;
         ctaNavigatingRef.current = true;
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        analyticsService.trackEvent('landing_cta_tapped', 'conversion', { mode });
+        analyticsService.trackEvent('landing_cta_tapped', 'conversion', {
+            mode,
+            destination: config.navigateTo,
+        });
         navigation.navigate(config.navigateTo);
         setTimeout(() => { ctaNavigatingRef.current = false; }, 1000);
     }, [navigation, config.navigateTo, mode]);
@@ -540,62 +608,50 @@ export default function ChallengeLandingScreen() {
     const SLIDER_FALLBACK_WIDTH = 150;
     const sliderWidth = toggleBarWidth > 0 ? (toggleBarWidth - TOGGLE_PAD * 2) / 2 : SLIDER_FALLBACK_WIDTH;
 
-    const sliderBgColor = sliderAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [colors.primaryDark, colors.warning],
-    });
-    // Hero gradient cross-fade: gift overlay opacity
-    const giftGradientOpacity = sliderAnim;
-    // Accent colors
-    const animBrandDot = sliderAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [colors.secondary, colors.warning],
-    });
-    const animLoginColor = sliderAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [colors.primary, colors.warning],
-    });
-    const animStatColor = sliderAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [colors.secondary, colors.warning],
-    });
-    const animSectionLabel = sliderAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [colors.primary, colors.warning],
-    });
-    const animStepNumberBg = sliderAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [colors.gray800, colors.warningMedium],
-    });
-    const animStepDivider = sliderAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [colors.backgroundLight, colors.warningBorder],
-    });
-    const animBadgeBg = sliderAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [Colors.primaryAlpha10, Colors.warningAlpha10],
-    });
-    const animBadgeBorder = sliderAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [Colors.primaryAlpha30, Colors.warningAlpha30],
-    });
-    const animBadgeText = sliderAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [colors.gray800, colors.gray800],
-    });
-    // Founders section colors
-    const animFoundersBg = sliderAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [colors.white, colors.white],
-    });
-    const animFounderRole = sliderAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [colors.primary, colors.warning],
-    });
-    const animIncubatorBorder = sliderAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [colors.primaryBorder, colors.warningBorder],
-    });
+    // ─── Reanimated animated styles (UI thread — 60fps on all platforms) ───
+    const sliderBgStyle = useAnimatedStyle(() => ({
+        backgroundColor: interpolateColor(sliderAnim.value, [0, 1], [colors.primaryDark, colors.warning]),
+    }));
+    const giftGradientStyle = useAnimatedStyle(() => ({
+        opacity: sliderAnim.value,
+    }));
+    const toggleSliderAnimStyle = useAnimatedStyle(() => ({
+        backgroundColor: interpolateColor(sliderAnim.value, [0, 1], [colors.primaryDark, colors.warning]),
+        transform: [{ translateX: interpolate(sliderAnim.value, [0, 1], [0, sliderWidth]) }],
+    }));
+    const brandDotStyle = useAnimatedStyle(() => ({
+        color: interpolateColor(sliderAnim.value, [0, 1], [colors.secondary, colors.warning]),
+    }));
+    const statColorStyle = useAnimatedStyle(() => ({
+        color: interpolateColor(sliderAnim.value, [0, 1], [colors.secondary, colors.warning]),
+    }));
+    const sectionLabelStyle = useAnimatedStyle(() => ({
+        color: interpolateColor(sliderAnim.value, [0, 1], [colors.primary, colors.warning]),
+    }));
+    const stepNumberBgStyle = useAnimatedStyle(() => ({
+        backgroundColor: interpolateColor(sliderAnim.value, [0, 1], [colors.gray800, colors.warningMedium]),
+    }));
+    const stepDividerStyle = useAnimatedStyle(() => ({
+        backgroundColor: interpolateColor(sliderAnim.value, [0, 1], [colors.backgroundLight, colors.warningBorder]),
+    }));
+    const badgeBgStyle = useAnimatedStyle(() => ({
+        backgroundColor: interpolateColor(sliderAnim.value, [0, 1], [Colors.primaryAlpha10, Colors.warningAlpha10]),
+    }));
+    const badgeBorderStyle = useAnimatedStyle(() => ({
+        borderColor: interpolateColor(sliderAnim.value, [0, 1], [Colors.primaryAlpha30, Colors.warningAlpha30]),
+    }));
+    const founderRoleStyle = useAnimatedStyle(() => ({
+        color: interpolateColor(sliderAnim.value, [0, 1], [colors.primary, colors.warning]),
+    }));
+    const incubatorBorderStyle = useAnimatedStyle(() => ({
+        borderColor: interpolateColor(sliderAnim.value, [0, 1], [colors.primaryBorder, colors.warningBorder]),
+    }));
+    const glowSelfOpacityStyle = useAnimatedStyle(() => ({
+        opacity: interpolate(sliderAnim.value, [0, 1], [1, 0]),
+    }));
+    const glowGiftOpacityStyle = useAnimatedStyle(() => ({
+        opacity: sliderAnim.value,
+    }));
 
     return (
         <ErrorBoundary screenName="ChallengeLandingScreen" userId={state.user?.id}>
@@ -614,14 +670,14 @@ export default function ChallengeLandingScreen() {
                             end={{ x: 0, y: 1 }}
                             style={StyleSheet.absoluteFill}
                         />
-                        <RNAnimated.View style={[StyleSheet.absoluteFill, { opacity: giftGradientOpacity }]}>
+                        <Animated2.View style={[StyleSheet.absoluteFill, giftGradientStyle]}>
                             <LinearGradient
                                 colors={[...GIFT_CONFIG.gradient]}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 0, y: 1 }}
                                 style={StyleSheet.absoluteFill}
                             />
-                        </RNAnimated.View>
+                        </Animated2.View>
 
                         {/* Top bar */}
                         {navigation.canGoBack() && (
@@ -630,7 +686,7 @@ export default function ChallengeLandingScreen() {
                                 onPress={() => navigation.goBack()}
                                 activeOpacity={0.8}
                                 accessibilityRole="button"
-                                accessibilityLabel="Go back"
+                                accessibilityLabel={t('landing.challenge.nav.goBackAlt')}
                             >
                                 <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2.5} />
                             </TouchableOpacity>
@@ -639,15 +695,15 @@ export default function ChallengeLandingScreen() {
                         <TouchableOpacity
                             style={[styles.loginButton, { top: Math.max(insets.top, 16) + 14 }]}
                             onPress={() => isLoggedIn
-                                ? navigation.navigate('Goals')
+                                ? navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Goals' } })
                                 : navigation.navigate('Auth', { mode: 'signin' })
                             }
                             activeOpacity={0.7}
                             accessibilityRole="button"
-                            accessibilityLabel={isLoggedIn ? 'Go to app' : 'Log in to your account'}
+                            accessibilityLabel={isLoggedIn ? t('landing.challenge.nav.goToAppAlt') : t('landing.challenge.nav.logInAlt')}
                         >
                             <Text style={styles.loginButtonText}>
-                                {isLoggedIn ? 'Go to App' : 'Log In'}
+                                {isLoggedIn ? t('landing.challenge.nav.goToApp') : t('landing.challenge.nav.logIn')}
                             </Text>
                             <Text style={[styles.loginButtonText, { lineHeight: 18 }]}>{'\u203A'}</Text>
                         </TouchableOpacity>
@@ -655,7 +711,7 @@ export default function ChallengeLandingScreen() {
                         {/* Brand — centered, aligned with login button */}
                         <View style={[styles.brandSection, { top: Math.max(insets.top, 16) }]}>
                             <Text style={styles.brandTitle}>
-                                ernit<RNAnimated.Text style={{ color: animBrandDot }}>.</RNAnimated.Text>
+                                ernit<Animated2.Text style={brandDotStyle}>.</Animated2.Text>
                             </Text>
                         </View>
 
@@ -672,19 +728,11 @@ export default function ChallengeLandingScreen() {
                                         style={styles.toggleBar}
                                         onLayout={(e) => setToggleBarWidth(e.nativeEvent.layout.width)}
                                     >
-                                        <RNAnimated.View
+                                        <Animated2.View
                                             style={[
                                                 styles.toggleSlider,
-                                                {
-                                                    width: sliderWidth,
-                                                    backgroundColor: sliderBgColor,
-                                                    transform: [{
-                                                        translateX: sliderAnim.interpolate({
-                                                            inputRange: [0, 1],
-                                                            outputRange: [0, sliderWidth],
-                                                        }),
-                                                    }],
-                                                },
+                                                { width: sliderWidth },
+                                                toggleSliderAnimStyle,
                                             ]}
                                         />
                                         <TouchableOpacity
@@ -692,13 +740,13 @@ export default function ChallengeLandingScreen() {
                                             onPress={() => switchMode('self')}
                                             activeOpacity={0.8}
                                             accessibilityRole="button"
-                                            accessibilityLabel="For myself"
+                                            accessibilityLabel={t('landing.challenge.toggle.self')}
                                         >
                                             <Text style={[
                                                 styles.toggleBtnText,
                                                 mode === 'self' && styles.toggleBtnTextActive,
                                             ]}>
-                                                For myself
+                                                {t('landing.challenge.toggle.self')}
                                             </Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
@@ -706,25 +754,23 @@ export default function ChallengeLandingScreen() {
                                             onPress={() => switchMode('gift')}
                                             activeOpacity={0.8}
                                             accessibilityRole="button"
-                                            accessibilityLabel="For a loved one"
+                                            accessibilityLabel={t('landing.challenge.toggle.gift')}
                                         >
                                             <Text style={[
                                                 styles.toggleBtnText,
                                                 mode === 'gift' && styles.toggleBtnTextActive,
                                             ]}>
-                                                For a loved one
+                                                {t('landing.challenge.toggle.gift')}
                                             </Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
 
                                 {/* ─── Text content (fades on toggle) ─── */}
-                                <RNAnimated.View style={{ opacity: contentOpacity }}>
+                                <Animated2.View style={contentFadeStyle}>
                                     <View style={styles.heroTitleContainer}>
                                         {/* Ambient glow behind title */}
-                                        <RNAnimated.View style={[styles.titleGlow, {
-                                            backgroundColor: sliderBgColor,
-                                        }]} />
+                                        <Animated2.View style={[styles.titleGlow, sliderBgStyle]} />
                                         <Text style={styles.heroTitle}>{config.titlePrefix}</Text>
                                         <View style={styles.dialRow}>
                                             <View style={styles.dialSlot}>
@@ -765,7 +811,7 @@ export default function ChallengeLandingScreen() {
                                     <Text style={styles.heroSubtitle}>
                                         {config.subtitle}
                                     </Text>
-                                </RNAnimated.View>
+                                </Animated2.View>
                             </MotiView>
 
                             {/* ─── Tilted card stack ─── */}
@@ -784,10 +830,9 @@ export default function ChallengeLandingScreen() {
                                                 style={styles.cardImageCard}
                                                 glowSelfStyle={styles.cardGlowSelf}
                                                 glowGiftStyle={styles.cardGlowGift}
-                                                glowSelfOpacity={sliderAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })}
-                                                glowGiftOpacity={sliderAnim}
-                                                label={mode === 'self' ? 'Your goal' : 'The goal'}
-                                                labelOpacity={contentOpacity}
+                                                glowSelfOpacityStyle={glowSelfOpacityStyle}
+                                                glowGiftOpacityStyle={glowGiftOpacityStyle}
+                                                label={mode === 'self' ? t('landing.challenge.cards.goalSelf') : t('landing.challenge.cards.goalGift')}
                                                 flipIndices={[3]}
                                                 cardW={cardW}
                                                 cardH={cardH}
@@ -802,10 +847,9 @@ export default function ChallengeLandingScreen() {
                                                 style={styles.cardImageCard}
                                                 glowSelfStyle={styles.cardGlowSelf}
                                                 glowGiftStyle={styles.cardGlowGift}
-                                                glowSelfOpacity={sliderAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })}
-                                                glowGiftOpacity={sliderAnim}
-                                                label={mode === 'self' ? 'Your reward' : 'The reward'}
-                                                labelOpacity={contentOpacity}
+                                                glowSelfOpacityStyle={glowSelfOpacityStyle}
+                                                glowGiftOpacityStyle={glowGiftOpacityStyle}
+                                                label={mode === 'self' ? t('landing.challenge.cards.rewardSelf') : t('landing.challenge.cards.rewardGift')}
                                                 cardW={cardW}
                                                 cardH={cardH}
                                             />
@@ -828,7 +872,7 @@ export default function ChallengeLandingScreen() {
                                                         })
                                                         .finally(() => setRewardImagesLoading(false));
                                                 }}
-                                                message="Could not load reward images."
+                                                message={t('landing.challenge.errors.couldNotLoadRewardImages')}
                                             />
                                         )}
                                     </View>
@@ -841,20 +885,20 @@ export default function ChallengeLandingScreen() {
                                 animate={{ opacity: 1, translateY: 0 }}
                                 transition={{ type: 'timing', duration: 500, delay: 400 }}
                             >
-                                <RNAnimated.View style={{ opacity: contentOpacity }}>
+                                <Animated2.View style={contentFadeStyle}>
                                     <View style={styles.statContainer}>
                                         <Text style={styles.statText} numberOfLines={2}>
                                             {config.stat}
-                                            <RNAnimated.Text style={{ color: animStatColor, ...Typography.subheading }}>
+                                            <Animated2.Text style={[Typography.subheading, statColorStyle]}>
                                                 {config.statHighlight}
-                                            </RNAnimated.Text>
+                                            </Animated2.Text>
                                             {config.statSuffix}
                                         </Text>
                                         {config.statSource && (
                                             <Text style={styles.statSource}>{config.statSource}</Text>
                                         )}
                                     </View>
-                                </RNAnimated.View>
+                                </Animated2.View>
 
                                 {/* CTA — stacked gradients for smooth color transition */}
                                 <TouchableOpacity
@@ -871,33 +915,30 @@ export default function ChallengeLandingScreen() {
                                             end={{ x: 1, y: 1 }}
                                             style={StyleSheet.absoluteFill}
                                         />
-                                        <RNAnimated.View style={[StyleSheet.absoluteFill, { opacity: giftGradientOpacity }]}>
+                                        <Animated2.View style={[StyleSheet.absoluteFill, giftGradientStyle]}>
                                             <LinearGradient
                                                 colors={[...GIFT_CONFIG.ctaGradient]}
                                                 start={{ x: 0, y: 0 }}
                                                 end={{ x: 1, y: 1 }}
                                                 style={StyleSheet.absoluteFill}
                                             />
-                                        </RNAnimated.View>
-                                        <RNAnimated.View style={[styles.ctaInner, { opacity: contentOpacity }]}>
+                                        </Animated2.View>
+                                        <Animated2.View style={[styles.ctaInner, contentFadeStyle]} layout={LinearTransition.duration(250)}>
                                             <Text style={styles.ctaText}>{config.ctaText}</Text>
                                             <ChevronRight color={colors.gray800} size={20} strokeWidth={3} />
-                                        </RNAnimated.View>
+                                        </Animated2.View>
                                     </View>
                                 </TouchableOpacity>
 
                                 {/* Badge — animated colors */}
                                 <View style={styles.badgeWrapper}>
-                                    <RNAnimated.View style={[styles.badge, {
-                                        backgroundColor: animBadgeBg,
-                                        borderColor: animBadgeBorder,
-                                    }]}>
-                                        <RNAnimated.View style={{ opacity: contentOpacity }}>
-                                            <RNAnimated.Text style={[styles.badgeText, { color: animBadgeText }]}>
+                                    <Animated2.View style={[styles.badge, badgeBgStyle, badgeBorderStyle]} layout={LinearTransition.duration(250)}>
+                                        <Animated2.View style={contentFadeStyle}>
+                                            <Text style={[styles.badgeText, { color: colors.gray800 }]}>
                                                 {config.badgeText}
-                                            </RNAnimated.Text>
-                                        </RNAnimated.View>
-                                    </RNAnimated.View>
+                                            </Text>
+                                        </Animated2.View>
+                                    </Animated2.View>
                                 </View>
                             </MotiView>
                         </View>
@@ -913,17 +954,17 @@ export default function ChallengeLandingScreen() {
                                 animate={{ opacity: 1, translateY: 0 }}
                                 transition={{ type: 'timing', duration: 500 }}
                             >
-                                <RNAnimated.Text style={[styles.sectionLabel, { color: animSectionLabel }]}>
-                                    How It Works
-                                </RNAnimated.Text>
-                                <Text style={styles.sectionTitle}>Three Simple Steps</Text>
+                                <Animated2.Text style={[styles.sectionLabel, sectionLabelStyle]}>
+                                    {t('landing.challenge.howItWorks.title')}
+                                </Animated2.Text>
+                                <Text style={styles.sectionTitle}>{t('landing.challenge.howItWorks.sectionTitle')}</Text>
                             </MotiView>
 
-                            <RNAnimated.View style={[styles.stepsContainer, { opacity: contentOpacity }]}>
+                            <Animated2.View style={[styles.stepsContainer, contentFadeStyle]}>
                                 {config.steps.map((step, i) => (
                                     <React.Fragment key={`${mode}-step-${i}`}>
                                         {i > 0 && (
-                                            <RNAnimated.View style={[styles.stepDivider, { backgroundColor: animStepDivider }]} />
+                                            <Animated2.View style={[styles.stepDivider, stepDividerStyle]} />
                                         )}
                                         <MotiView
                                             from={{ opacity: 0, translateX: -20 }}
@@ -939,9 +980,9 @@ export default function ChallengeLandingScreen() {
                                                     <View style={[styles.stepIconBg, { backgroundColor: step.iconBg }]}>
                                                         {step.icon}
                                                     </View>
-                                                    <RNAnimated.View style={[styles.stepNumber, { backgroundColor: animStepNumberBg }]}>
+                                                    <Animated2.View style={[styles.stepNumber, stepNumberBgStyle]}>
                                                         <Text style={styles.stepNumberText}>{i + 1}</Text>
-                                                    </RNAnimated.View>
+                                                    </Animated2.View>
                                                 </View>
                                                 <View style={styles.stepContent}>
                                                     <Text style={styles.stepTitle}>{step.title}</Text>
@@ -951,33 +992,33 @@ export default function ChallengeLandingScreen() {
                                         </MotiView>
                                     </React.Fragment>
                                 ))}
-                            </RNAnimated.View>
+                            </Animated2.View>
                         </View>
                     </View>
 
                     {/* Co-Founders Section */}
-                    <RNAnimated.View style={[styles.foundersSection, { backgroundColor: animFoundersBg }]}>
+                    <View style={[styles.foundersSection, { backgroundColor: colors.white }]}>
                         <View style={styles.foundersWrapper}>
                             <MotiView
                                 from={{ opacity: 0, translateY: 20 }}
                                 animate={{ opacity: 1, translateY: 0 }}
                                 transition={{ type: 'timing', duration: 500 }}
                             >
-                                <RNAnimated.Text style={[styles.sectionLabel, { color: animSectionLabel, marginBottom: Spacing.md }]}>
-                                    The Team
-                                </RNAnimated.Text>
+                                <Animated2.Text style={[styles.sectionLabel, sectionLabelStyle, { marginBottom: Spacing.md }]}>
+                                    {t('landing.challenge.team.title')}
+                                </Animated2.Text>
                             </MotiView>
 
                             <View style={styles.foundersRow}>
                                 {[
                                     {
                                         name: 'Raul Marquez',
-                                        role: 'Co-Founder & CEO',
+                                        role: t('landing.challenge.team.coFounderCeo'),
                                         image: 'https://firebasestorage.googleapis.com/v0/b/ernit-3fc0b.firebasestorage.app/o/founder%20photos%2F20260116_DBP0431.jpg?alt=media&token=c8e102c4-7068-4d45-8bcb-32f8714cc62c',
                                     },
                                     {
                                         name: 'Nuno Castilho',
-                                        role: 'Co-Founder & CTO',
+                                        role: t('landing.challenge.team.coFounderCto'),
                                         image: 'https://firebasestorage.googleapis.com/v0/b/ernit-3fc0b.firebasestorage.app/o/founder%20photos%2Ffoto.jpeg?alt=media&token=4c4b8d02-1741-40ee-88fc-8cd658133864',
                                     },
                                 ].map((founder, i) => (
@@ -1000,7 +1041,7 @@ export default function ChallengeLandingScreen() {
                                             accessibilityLabel={`${founder.name}, ${founder.role}`}
                                         />
                                         <Text style={styles.founderName}>{founder.name}</Text>
-                                        <RNAnimated.Text style={[styles.founderRole, { color: animFounderRole }]}>{founder.role}</RNAnimated.Text>
+                                        <Animated2.Text style={[styles.founderRole, founderRoleStyle]}>{founder.role}</Animated2.Text>
                                     </MotiView>
                                 ))}
                             </View>
@@ -1010,26 +1051,26 @@ export default function ChallengeLandingScreen() {
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ type: 'spring', damping: 28, delay: 400 }}
                             >
-                                <RNAnimated.View style={[styles.incubatorBadge, { borderColor: animIncubatorBorder }]}>
-                                    <Text style={styles.incubatorText}>Incubated at</Text>
+                                <Animated2.View style={[styles.incubatorBadge, incubatorBorderStyle]}>
+                                    <Text style={styles.incubatorText}>{t('landing.challenge.incubator.incubatedAt')}</Text>
                                     <TouchableOpacity
                                         onPress={() => Linking.openURL('https://unicornfactorylisboa.com')}
                                         activeOpacity={0.7}
                                         accessibilityRole="button"
-                                        accessibilityLabel="Visit Unicorn Factory Lisboa website"
+                                        accessibilityLabel={t('landing.challenge.incubator.visitWebsite')}
                                     >
                                         <Image
                                             source={{ uri: 'https://unicornfactorylisboa.com/wp-content/uploads/2021/11/Layer-1-2.png' }}
                                             style={styles.incubatorLogo}
                                             contentFit="contain"
                                             cachePolicy="memory-disk"
-                                            accessibilityLabel="Unicorn Factory Lisboa logo"
+                                            accessibilityLabel={t('landing.challenge.incubator.logoAlt')}
                                         />
                                     </TouchableOpacity>
-                                </RNAnimated.View>
+                                </Animated2.View>
                             </MotiView>
                         </View>
-                    </RNAnimated.View>
+                    </View>
 
                     {/* Final CTA */}
                     <MotiView
@@ -1038,10 +1079,10 @@ export default function ChallengeLandingScreen() {
                         transition={{ type: 'timing', duration: 500, delay: 300 }}
                         style={styles.finalCtaSection}
                     >
-                        <RNAnimated.View style={{ opacity: contentOpacity }}>
+                        <Animated2.View style={contentFadeStyle}>
                             <Text style={styles.finalCtaTitle}>{config.finalTitle}</Text>
                             <Text style={styles.finalCtaSubtitle}>{config.finalSubtitle}</Text>
-                        </RNAnimated.View>
+                        </Animated2.View>
 
                         <TouchableOpacity
                             style={styles.primaryCta}
@@ -1057,22 +1098,22 @@ export default function ChallengeLandingScreen() {
                                     end={{ x: 1, y: 1 }}
                                     style={StyleSheet.absoluteFill}
                                 />
-                                <RNAnimated.View style={[StyleSheet.absoluteFill, { opacity: giftGradientOpacity }]}>
+                                <Animated2.View style={[StyleSheet.absoluteFill, giftGradientStyle]}>
                                     <LinearGradient
                                         colors={[...GIFT_CONFIG.ctaGradient]}
                                         start={{ x: 0, y: 0 }}
                                         end={{ x: 1, y: 1 }}
                                         style={StyleSheet.absoluteFill}
                                     />
-                                </RNAnimated.View>
-                                <RNAnimated.View style={[styles.ctaInner, { opacity: contentOpacity }]}>
+                                </Animated2.View>
+                                <Animated2.View style={[styles.ctaInner, contentFadeStyle]} layout={LinearTransition.duration(250)}>
                                     <Text style={styles.ctaText}>{config.finalCtaText}</Text>
                                     <ChevronRight color={colors.gray800} size={20} strokeWidth={3} />
-                                </RNAnimated.View>
+                                </Animated2.View>
                             </View>
                         </TouchableOpacity>
                         <Text style={styles.footerBrand}>
-                            ernit<RNAnimated.Text style={{ color: animBrandDot }}>.</RNAnimated.Text>
+                            ernit<Animated2.Text style={brandDotStyle}>.</Animated2.Text>
                         </Text>
                         <View style={styles.finalFooterSocials}>
                             <TouchableOpacity
@@ -1080,7 +1121,7 @@ export default function ChallengeLandingScreen() {
                                 onPress={() => Linking.openURL('https://www.linkedin.com/company/ernit-app/')}
                                 activeOpacity={0.7}
                                 accessibilityRole="button"
-                                accessibilityLabel="Visit Ernit on LinkedIn"
+                                accessibilityLabel={t('landing.challenge.footer.linkedinAlt')}
                             >
                                 <Svg width={20} height={20} viewBox="0 0 24 24" fill={colors.gray800}>
                                     <Path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
@@ -1091,7 +1132,7 @@ export default function ChallengeLandingScreen() {
                                 onPress={() => Linking.openURL('https://www.instagram.com/ernitapp__/')}
                                 activeOpacity={0.7}
                                 accessibilityRole="button"
-                                accessibilityLabel="Visit Ernit on Instagram"
+                                accessibilityLabel={t('landing.challenge.footer.instagramAlt')}
                             >
                                 <Svg width={20} height={20} viewBox="0 0 24 24" fill={colors.gray800}>
                                     <Path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
@@ -1102,7 +1143,7 @@ export default function ChallengeLandingScreen() {
                                 onPress={() => Linking.openURL('https://www.tiktok.com/@ernitapp')}
                                 activeOpacity={0.7}
                                 accessibilityRole="button"
-                                accessibilityLabel="Visit Ernit on TikTok"
+                                accessibilityLabel={t('landing.challenge.footer.tiktokAlt')}
                             >
                                 <Svg width={20} height={20} viewBox="0 0 24 24" fill={colors.gray800}>
                                     <Path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.48v-7.1a8.16 8.16 0 005.58 2.2V11.3a4.85 4.85 0 01-3.58-1.58V6.69h3.58z" />
@@ -1110,7 +1151,7 @@ export default function ChallengeLandingScreen() {
                             </TouchableOpacity>
                         </View>
                         <Text style={styles.footerCopy}>
-                            {new Date().getFullYear()} Ernit. All rights reserved.
+                            {t('landing.challenge.footer.copyright', { year: new Date().getFullYear() })}
                         </Text>
                     </MotiView>
                 </ScrollView>
@@ -1130,7 +1171,7 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
         backgroundColor: colors.white,
     },
     hero: {
-        paddingTop: vh(Platform.OS === 'ios' ? 100 : 80),
+        paddingTop: Platform.OS === 'android' ? 64 : vh(Platform.OS === 'ios' ? 100 : 80),
         paddingHorizontal: Spacing.xxl,
         backgroundColor: colors.white,
         position: 'relative',
@@ -1190,7 +1231,8 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
     // ── Toggle Bar ──────────────────────────────────
     toggleWrap: {
         alignItems: 'center',
-        marginBottom: vh(18),
+        marginTop: vh(18),
+        marginBottom: vh(8),
         paddingHorizontal: Spacing.lg,
     },
     toggleBar: {
@@ -1237,15 +1279,25 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
     },
     titleGlow: {
         position: 'absolute',
-        top: '20%',
-        left: '10%',
-        right: '10%',
-        bottom: '10%',
         borderRadius: BorderRadius.circle,
-        opacity: 0.15,
         ...Platform.select({
-            web: { filter: 'blur(40px)' },
-            default: {},
+            web: {
+                top: '20%', left: '10%', right: '10%', bottom: '10%',
+                opacity: 0.12,
+                filter: 'blur(40px)',
+            },
+            ios: {
+                top: '20%', left: '10%', right: '10%', bottom: '10%',
+                opacity: 0.12,
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 0 },
+                shadowRadius: 40,
+                shadowOpacity: 1,
+            },
+            android: {
+                // No blur/shadow spread on Android — hide entirely
+                opacity: 0,
+            },
         }),
     } as any,
     heroTitle: {
@@ -1278,7 +1330,7 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
         height: WORD_SLOT_HEIGHT,
     },
     dialWord: {
-        ...Typography.display,
+        ...Typography.brandLogo,
         fontFamily: Platform.select({ web: '"Plus Jakarta Sans", system-ui, sans-serif', default: 'Outfit_800ExtraBold' }),
         fontWeight: '800',
         textTransform: 'uppercase',
@@ -1325,12 +1377,12 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
         position: 'absolute',
     },
     cardGoalPos: {
-        left: screenW / 2 - cardW + 5 + vh(5),
+        left: screenW / 2 - cardW + 5,
         transform: [{ rotate: '-6deg' }],
         zIndex: 1,
     },
     cardRewardPos: {
-        left: screenW / 2 - 15 + vh(0),
+        left: screenW / 2 - 15,
         transform: [{ rotate: '6deg' }],
         zIndex: 2,
     },
@@ -1349,8 +1401,7 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
             },
             android: {
                 borderColor: colors.primary,
-                elevation: 8,
-                shadowColor: colors.primary,
+                boxShadow: `0 0 12 2 ${colors.primary}99, 0 0 24 0 ${colors.primary}40`,
             },
         }),
     } as any,
@@ -1369,8 +1420,7 @@ const createStyles = (colors: typeof Colors, screenW: number, cardW: number, car
             },
             android: {
                 borderColor: colors.warning,
-                elevation: 8,
-                shadowColor: colors.warning,
+                boxShadow: `0 0 12 2 ${colors.warning}99, 0 0 24 0 ${colors.warning}40`,
             },
         }),
     } as any,

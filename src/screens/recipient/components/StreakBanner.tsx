@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Animated, Easing, Platform } from 'react-native
 import { MotiView } from 'moti';
 import { Flame } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 import { Colors, useColors } from '../../../config';
 import { Typography } from '../../../config/typography';
 import { BorderRadius } from '../../../config/borderRadius';
@@ -110,16 +111,65 @@ interface StreakBannerProps {
   weeklyTarget?: number;
 }
 
-// ─── Compact Streak Banner (streaks 0-2) ────────────────────────────
+// ─── Zero Streak Banner (streak = 0) ────────────────────────────────
+// Same layout as the full banner (streak 3+) but with a grey flame and no yellow card.
+
+const ZeroStreakBanner: React.FC<{ weeklyDone?: number; weeklyTarget?: number }> = ({ weeklyDone, weeklyTarget }) => {
+  const { t } = useTranslation();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  return (
+    <MotiView
+      from={{ opacity: 0, translateY: -20 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 500 }}
+    >
+      <View
+        style={styles.banner}
+        accessibilityLabel="Start your streak"
+        accessibilityRole="text"
+      >
+        <View style={styles.bannerContent}>
+          <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+            <View
+              style={[
+                styles.flameContainer,
+                { backgroundColor: colors.backgroundLight },
+              ]}
+            >
+              <Flame color={colors.textMuted} size={36} fill={colors.textMuted} />
+            </View>
+          </View>
+          <View style={styles.textContainer}>
+            <Text style={[styles.titleText, { color: colors.textSecondary }]}>
+              {t('recipient.streak.compact.zeroTitle')}
+            </Text>
+            <Text style={styles.subtitle}>
+              {t('recipient.streak.compact.zeroSubtitle')}
+            </Text>
+            {weeklyTarget != null && weeklyTarget > 0 && (
+              <Text style={styles.weeklyRow}>
+                {t('recipient.streak.thisWeek', { done: weeklyDone ?? 0, target: weeklyTarget })}
+              </Text>
+            )}
+          </View>
+        </View>
+      </View>
+    </MotiView>
+  );
+};
+
+// ─── Compact Streak Banner (streaks 1-2) ────────────────────────────
 
 const CompactStreakBanner: React.FC<{ streak: number; weeklyDone?: number; weeklyTarget?: number }> = ({ streak, weeklyDone, weeklyTarget }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const getMessage = () => {
-    if (streak === 0) return { title: 'Start your streak today!', emoji: '🔥', subtitle: 'Complete a session to light the flame' };
-    if (streak === 1) return { title: '1 day streak!', emoji: '🔥', subtitle: 'Keep it going — come back tomorrow!' };
-    return { title: '2 days strong!', emoji: '🔥🔥', subtitle: 'One more day and your streak is on fire!' };
+    if (streak === 1) return { title: t('recipient.streak.compact.oneTitle'), emoji: '🔥', subtitle: t('recipient.streak.compact.oneSubtitle') };
+    return { title: t('recipient.streak.compact.twoTitle'), emoji: '🔥🔥', subtitle: t('recipient.streak.compact.twoSubtitle') };
   };
 
   const { title, emoji, subtitle } = getMessage();
@@ -132,7 +182,7 @@ const CompactStreakBanner: React.FC<{ streak: number; weeklyDone?: number; weekl
     >
       <View
         style={styles.compactBanner}
-        accessibilityLabel={streak === 0 ? 'Start your streak' : `${streak} day streak`}
+        accessibilityLabel={`${streak} day streak`}
         accessibilityRole="text"
       >
         <Text style={styles.compactEmoji}>{emoji}</Text>
@@ -141,7 +191,7 @@ const CompactStreakBanner: React.FC<{ streak: number; weeklyDone?: number; weekl
           <Text style={styles.compactSubtitle}>{subtitle}</Text>
           {weeklyTarget != null && weeklyTarget > 0 && (
             <Text style={styles.weeklyRow}>
-              This week: {weeklyDone ?? 0}/{weeklyTarget} sessions
+              {t('recipient.streak.thisWeek', { done: weeklyDone ?? 0, target: weeklyTarget })}
             </Text>
           )}
         </View>
@@ -153,6 +203,7 @@ const CompactStreakBanner: React.FC<{ streak: number; weeklyDone?: number; weekl
 // ─── Full Streak Banner (streaks 3+) ────────────────────────────────
 
 const StreakBanner: React.FC<StreakBannerProps> = ({ streak, weeklyDone, weeklyTarget }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const config = useMemo(() => getStreakConfig(streak), [streak]);
@@ -268,7 +319,9 @@ const StreakBanner: React.FC<StreakBannerProps> = ({ streak, weeklyDone, weeklyT
     };
   }, [streak, config, pulseAnim, glowAnim, numberScale, sparkAnims]);
 
-  // For streaks 0-2, show compact motivational variant (after all hooks)
+  // Streak = 0: full banner layout with grey flame, no yellow card
+  if (streak === 0) return <ZeroStreakBanner weeklyDone={weeklyDone} weeklyTarget={weeklyTarget} />;
+  // Streaks 1-2: compact motivational variant
   if (streak < 3) return <CompactStreakBanner streak={streak} weeklyDone={weeklyDone} weeklyTarget={weeklyTarget} />;
 
   return (
@@ -343,15 +396,15 @@ const StreakBanner: React.FC<StreakBannerProps> = ({ streak, weeklyDone, weeklyT
                 {streak}
               </Animated.Text>
               <Text style={[styles.titleText, { color: config.flameColor }]}>
-                Session Streak!
+                {t('recipient.streak.sessionStreak')}
               </Text>
             </View>
             <Text style={styles.subtitle}>
-              Keep it up! Your streak resets after 7 days of inactivity
+              {t('recipient.streak.resetWarning')}
             </Text>
             {weeklyTarget != null && weeklyTarget > 0 && (
               <Text style={styles.weeklyRow}>
-                This week: {weeklyDone ?? 0}/{weeklyTarget} sessions
+                {t('recipient.streak.thisWeek', { done: weeklyDone ?? 0, target: weeklyTarget })}
               </Text>
             )}
           </View>

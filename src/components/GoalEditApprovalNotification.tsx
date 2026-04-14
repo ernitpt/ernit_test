@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { Notification } from '../types';
 import { goalService } from '../services/GoalService';
@@ -23,6 +24,7 @@ const GoalEditApprovalNotification: React.FC<GoalEditApprovalNotificationProps> 
 }) => {
   const [loading, setLoading] = useState<'approve' | 'reject' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -51,7 +53,7 @@ const GoalEditApprovalNotification: React.FC<GoalEditApprovalNotificationProps> 
     } catch (err: unknown) {
       logger.error('Error approving goal edit request:', err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(err instanceof Error ? err.message : 'Failed to approve. Please try again.');
+      setError(err instanceof Error ? err.message : t('notifications.notificationComponents.goalEditApproval.errors.approveFailed'));
     } finally {
       setLoading(null);
     }
@@ -69,7 +71,7 @@ const GoalEditApprovalNotification: React.FC<GoalEditApprovalNotificationProps> 
     } catch (err: unknown) {
       logger.error('Error rejecting goal edit request:', err);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(err instanceof Error ? err.message : 'Failed to decline. Please try again.');
+      setError(err instanceof Error ? err.message : t('notifications.notificationComponents.goalEditApproval.errors.declineFailed'));
     } finally {
       setLoading(null);
     }
@@ -81,13 +83,17 @@ const GoalEditApprovalNotification: React.FC<GoalEditApprovalNotificationProps> 
         <Text style={styles.title}>{notification.title}</Text>
         {requestedWeeks !== undefined && requestedSessions !== undefined && (
           <Text style={styles.details}>
-            Requested: {requestedWeeks} week{requestedWeeks !== 1 ? 's' : ''},{' '}
-            {requestedSessions} session{requestedSessions !== 1 ? 's' : ''}/week
+            {t('notifications.notificationComponents.goalEditApproval.requested', {
+              weeks: requestedWeeks,
+              weekPlural: requestedWeeks !== 1 ? 's' : '',
+              sessions: requestedSessions,
+              sessionPlural: requestedSessions !== 1 ? 's' : '',
+            })}
           </Text>
         )}
         {message ? (
           <View style={styles.messageBox}>
-            <Text style={styles.messageLabel}>Message:</Text>
+            <Text style={styles.messageLabel}>{t('notifications.notificationComponents.goalEditApproval.messageLabel')}</Text>
             <Text style={styles.messageText}>{message}</Text>
           </View>
         ) : null}
@@ -101,7 +107,7 @@ const GoalEditApprovalNotification: React.FC<GoalEditApprovalNotificationProps> 
       <View style={styles.buttons}>
         <Button
           variant="primary"
-          title="Approve"
+          title={t('notifications.notificationComponents.goalEditApproval.approve')}
           onPress={handleApprove}
           loading={loading === 'approve'}
           disabled={loading !== null}
@@ -109,7 +115,7 @@ const GoalEditApprovalNotification: React.FC<GoalEditApprovalNotificationProps> 
         />
         <Button
           variant="secondary"
-          title="Decline"
+          title={t('notifications.notificationComponents.goalEditApproval.decline')}
           onPress={handleReject}
           loading={loading === 'reject'}
           disabled={loading !== null}

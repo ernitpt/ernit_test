@@ -1,4 +1,5 @@
 import React, { Component, ReactNode, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet } from 'react-native';
 import Button from './Button';
 import { analyticsService } from '../services/AnalyticsService';
@@ -8,12 +9,20 @@ import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 import { logger } from '../utils/logger';
 
+interface BoundaryStrings {
+    title: string;
+    messageCrashing: string;
+    messageLoadFailed: string;
+    tryAgain: string;
+}
+
 interface Props {
     children: ReactNode;
     screenName: string;
     userId?: string;
     colors: typeof Colors;
     styles: ReturnType<typeof createStyles>;
+    strings: BoundaryStrings;
 }
 
 interface State {
@@ -66,21 +75,21 @@ class ErrorBoundaryClass extends Component<Props, State> {
     };
 
     render() {
-        const { styles } = this.props;
+        const { styles, strings } = this.props;
         if (this.state.hasError) {
             const tooManyAttempts = this.state.resetAttempts >= 2;
             return (
                 <View style={styles.container}>
                     <Text style={styles.emoji}>😔</Text>
-                    <Text style={styles.title}>Something went wrong</Text>
+                    <Text style={styles.title}>{strings.title}</Text>
                     <Text style={styles.message}>
                         {tooManyAttempts
-                            ? 'This section keeps crashing.\nPlease restart the app.'
-                            : 'We\'re having trouble loading this page.\nPlease try refreshing.'}
+                            ? strings.messageCrashing
+                            : strings.messageLoadFailed}
                     </Text>
                     {!tooManyAttempts && (
                         <Button
-                            title="Try Again"
+                            title={strings.tryAgain}
                             variant="primary"
                             onPress={this.handleReset}
                             style={{ backgroundColor: this.props.colors.actionBlue }}
@@ -105,6 +114,7 @@ interface ErrorBoundaryProps {
 export const ErrorBoundary: React.FC<ErrorBoundaryProps> = ({ children, screenName, userId }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
 
     return (
         <ErrorBoundaryClass
@@ -112,6 +122,12 @@ export const ErrorBoundary: React.FC<ErrorBoundaryProps> = ({ children, screenNa
             userId={userId}
             colors={colors}
             styles={styles}
+            strings={{
+                title: t('errors.boundary.title'),
+                messageCrashing: t('errors.boundary.messageCrashing'),
+                messageLoadFailed: t('errors.boundary.messageLoadFailed'),
+                tryAgain: t('errors.boundary.tryAgain'),
+            }}
         >
             {children}
         </ErrorBoundaryClass>

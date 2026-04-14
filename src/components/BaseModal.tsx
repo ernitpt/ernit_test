@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Modal,
   View,
@@ -54,6 +55,7 @@ export const BaseModal = React.memo<BaseModalProps>(({
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
 
   const slideAnim = useModalAnimation(visible, {
     initialValue: variant === 'bottom' ? SCREEN_HEIGHT : 300,
@@ -86,7 +88,7 @@ export const BaseModal = React.memo<BaseModalProps>(({
       <Pressable
         style={styles.overlay}
         onPress={onClose}
-        accessibilityLabel="Dismiss modal"
+        accessibilityLabel={t('accessibility.dismissModal')}
       >
         <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
         {overlay}
@@ -111,7 +113,7 @@ export const BaseModal = React.memo<BaseModalProps>(({
                   onPress={onClose}
                   style={styles.closeButton}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityLabel="Close"
+                  accessibilityLabel={t('accessibility.closeButton')}
                   accessibilityRole="button"
                 >
                   <X size={22} color={colors.textSecondary} />

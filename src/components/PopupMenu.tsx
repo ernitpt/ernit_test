@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -38,10 +39,12 @@ const MENU_WIDTH = 160;
 export const PopupMenu = React.memo<PopupMenuProps>(({
   items,
   triggerSize = 18,
-  accessibilityLabel = 'More options',
+  accessibilityLabel,
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
+  const resolvedA11yLabel = accessibilityLabel ?? t('modals.popupMenu.moreOptions');
   const [visible, setVisible] = useState(false);
   const [triggerPosition, setTriggerPosition] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const triggerRef = React.useRef<View>(null);
@@ -80,7 +83,7 @@ export const PopupMenu = React.memo<PopupMenuProps>(({
         onPress={openMenu}
         hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
         style={styles.trigger}
-        accessibilityLabel={accessibilityLabel}
+        accessibilityLabel={resolvedA11yLabel}
         accessibilityRole="button"
       >
         <MoreVertical size={triggerSize} color={colors.textMuted} />

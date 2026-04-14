@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Image,
@@ -27,10 +28,12 @@ interface LoginPromptProps {
 const LoginPrompt: React.FC<LoginPromptProps> = ({
   visible,
   onClose,
-  message = 'Please log in to continue.',
+  message,
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
+  const displayMessage = message ?? t('loginPrompt.defaultMessage');
 
   const navigation = useNavigation<LoginPromptNavigationProp>();
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -61,7 +64,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
     <BaseModal
       visible={visible}
       onClose={handleClose}
-      title="Login"
+      title={t('loginPrompt.title')}
       variant="center"
     >
       {/* Icon */}
@@ -73,12 +76,12 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
         />
       </View>
 
-      <Text style={styles.message}>{message}</Text>
+      <Text style={styles.message}>{displayMessage}</Text>
 
       {/* Buttons */}
       <View style={styles.buttonContainer}>
         <Button
-          title="Sign Up Free"
+          title={t('loginPrompt.signUpFree')}
           variant="primary"
           size="lg"
           fullWidth
@@ -87,7 +90,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
           icon={<UserPlus color={colors.white} size={20} strokeWidth={2.5} />}
         />
         <Button
-          title="Log In"
+          title={t('loginPrompt.logIn')}
           variant="secondary"
           size="lg"
           fullWidth
@@ -98,7 +101,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
 
       {/* Cancel link */}
       <Button
-        title="Maybe Later"
+        title={t('loginPrompt.maybeLater')}
         variant="ghost"
         size="sm"
         onPress={handleClose}

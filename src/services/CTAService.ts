@@ -133,6 +133,11 @@ class CTAService {
         return { show: ctx.isFreeGoal && !ctx.giftAttachedAt, reason: 'persistent' };
     }
 
+    /** Track when user accepts/taps a CTA */
+    recordAccept(goalId: string, reason: string) {
+        analyticsService.trackEvent('cta_accepted', 'engagement', { goalId, reason });
+    }
+
     /**
      * Record that the user dismissed the CTA.
      */

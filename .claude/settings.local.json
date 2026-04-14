@@ -34,7 +34,15 @@
       "Bash(eas submit:*)",
       "Bash(powershell.exe -Command \"Remove-Item ''D:\\\\ErnitAppWeb_Test\\\\.git\\\\index.lock'' -Force\")",
       "Bash(powershell.exe -Command \"Remove-Item -Path ''D:/ErnitAppWeb_Test/.git/index.lock'' -Force -ErrorAction SilentlyContinue; Test-Path ''D:/ErnitAppWeb_Test/.git/index.lock''\")",
-      "Bash(powershell.exe -Command \"Get-ChildItem ''D:/ErnitAppWeb_Test/.git/*.lock'' -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_FullName; Remove-Item $_FullName -Force }\")"
+      "Bash(powershell.exe -Command \"Get-ChildItem ''D:/ErnitAppWeb_Test/.git/*.lock'' -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_FullName; Remove-Item $_FullName -Force }\")",
+      "mcp__Claude_Preview__preview_start",
+      "WebFetch(domain:deck.ernit.app)",
+      "WebSearch",
+      "WebFetch(domain:help.hotjar.com)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('RN version:', d.get\\('version'\\)\\)\")",
+      "Bash(sed \"s/.*t\\('//\")",
+      "Bash(sed \"s/'.*$//\")",
+      "Bash(bash /tmp/detailed_missing.sh)"
     ]
   },
   "disabledMcpjsonServers": [

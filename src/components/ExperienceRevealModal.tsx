@@ -9,6 +9,7 @@ import {
     Dimensions,
     TouchableWithoutFeedback,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -67,6 +68,7 @@ const ExperienceRevealModal: React.FC<ExperienceRevealModalProps> = ({
     const [modalVisible, setModalVisible] = useState(false);
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
 
     // ── Mounted guard (prevents setState/navigation after unmount) ────────────
     const isMounted = useRef(true);
@@ -212,7 +214,7 @@ const ExperienceRevealModal: React.FC<ExperienceRevealModalProps> = ({
             onRequestClose={animateClose}
         >
             {/* ── Blurred backdrop ──────────────────────────────────────────── */}
-            <TouchableWithoutFeedback onPress={animateClose} accessibilityLabel="Dismiss reveal">
+            <TouchableWithoutFeedback onPress={animateClose} accessibilityLabel={t('modals.experienceReveal.dismissReveal')}>
                 <View style={StyleSheet.absoluteFill}>
                     <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropOpacity }]}>
                         <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
@@ -241,8 +243,8 @@ const ExperienceRevealModal: React.FC<ExperienceRevealModalProps> = ({
                 pointerEvents="none"
             >
                 <Text style={styles.headlineEmoji}>🎉</Text>
-                <Text style={styles.headlineText}>Your reward has{'\n'}been revealed!</Text>
-                <Text style={styles.headlineSubText}>{progressPct ?? 75}% of your goal reached</Text>
+                <Text style={styles.headlineText}>{t('modals.experienceReveal.revealedHeadline')}</Text>
+                <Text style={styles.headlineSubText}>{t('modals.experienceReveal.progressReached', { pct: progressPct ?? 75 })}</Text>
             </Animated.View>
 
             {/* ── Experience card — springs in from bottom ───────────────────── */}
@@ -277,7 +279,7 @@ const ExperienceRevealModal: React.FC<ExperienceRevealModalProps> = ({
                             {/* Price badge — bottom-left, same pattern as ExperienceDetailModal */}
                             <View style={styles.priceBadge}>
                                 <Text style={styles.priceText}>{formattedPrice}</Text>
-                                <Text style={styles.priceLabel}>per person</Text>
+                                <Text style={styles.priceLabel}>{t('modals.experienceReveal.perPerson')}</Text>
                             </View>
 
                             {/* Category chip — top-right */}
@@ -307,7 +309,7 @@ const ExperienceRevealModal: React.FC<ExperienceRevealModalProps> = ({
                         {/* ── CTAs ──────────────────────────────────────────────── */}
                         <Animated.View style={[styles.ctaContainer, { opacity: ctaOpacity }]}>
                             <Button
-                                title={`Claim This Experience  ${formattedPrice}`}
+                                title={t('modals.experienceReveal.claimButton', { price: formattedPrice })}
                                 variant="primary"
                                 onPress={handleClaim}
                                 style={styles.primaryButton}
@@ -316,10 +318,10 @@ const ExperienceRevealModal: React.FC<ExperienceRevealModalProps> = ({
                                 onPress={handleBrowse}
                                 style={styles.browseLink}
                                 accessibilityRole="button"
-                                accessibilityLabel="Browse other experience options"
+                                accessibilityLabel={t('modals.experienceReveal.browseOthersA11y')}
                                 hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}
                             >
-                                <Text style={styles.browseLinkText}>Browse other options</Text>
+                                <Text style={styles.browseLinkText}>{t('modals.experienceReveal.browseOthers')}</Text>
                             </TouchableOpacity>
                         </Animated.View>
                     </View>

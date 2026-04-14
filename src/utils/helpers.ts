@@ -1,21 +1,24 @@
 // Utility functions for the Ernit app
 import { getRandomBytes } from 'expo-crypto';
+import { getLocaleString } from './i18nHelpers';
 
 export const formatCurrency = (
   amount: number,
   currency: string = 'EUR',
-  locale: string = 'de-DE' // German locale for EUR formatting
+  locale?: string
 ): string => {
-  return new Intl.NumberFormat(locale, {
+  // Whole numbers: no decimals (e.g. "5€"). Decimals: 2 digits (e.g. "5.50€").
+  const hasDecimals = amount % 1 !== 0;
+  return new Intl.NumberFormat(locale ?? getLocaleString(), {
     style: 'currency',
     currency,
-    minimumFractionDigits: 2,
+    minimumFractionDigits: hasDecimals ? 2 : 0,
     maximumFractionDigits: 2,
   }).format(amount);
 };
 
-export const formatDate = (date: Date): string => {
-  return new Intl.DateTimeFormat('en-US', {
+export const formatDate = (date: Date, locale?: string): string => {
+  return new Intl.DateTimeFormat(locale ?? getLocaleString(), {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

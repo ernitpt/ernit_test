@@ -7,6 +7,7 @@ import {
   TextInput,
   Platform,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { BaseModal } from './BaseModal';
 import Button from './Button';
@@ -36,6 +37,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
 
   const initialWeeks = goal?.initialTargetCount || goal?.targetCount || 0;
   const initialSessions = goal?.initialSessionsPerWeek || goal?.sessionsPerWeek || 0;
@@ -137,17 +139,17 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
 
   const handleAccept = async () => {
     if (!goal || !goal.id) {
-      setError('Goal information is missing. Please try again.');
+      setError(t('modals.goalChangeSuggestion.error.missingGoal'));
       return;
     }
 
     // Validate limits
     if (selectedWeeks > 5) {
-      setError('The maximum duration is 5 weeks.');
+      setError(t('modals.goalChangeSuggestion.error.maxWeeks'));
       return;
     }
     if (selectedSessions > 7) {
-      setError('The maximum is 7 sessions per week.');
+      setError(t('modals.goalChangeSuggestion.error.maxSessions'));
       return;
     }
 
@@ -185,14 +187,14 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
       onClose();
     } catch (error: unknown) {
       logger.error('Error responding to suggestion:', error);
-      setError(error instanceof Error ? error.message : 'Failed to update goal. Please try again.');
+      setError(error instanceof Error ? error.message : t('modals.goalChangeSuggestion.error.updateFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <BaseModal visible={visible} onClose={onClose} title="Goal Change Suggestion">
+    <BaseModal visible={visible} onClose={onClose} title={t('modals.goalChangeSuggestion.title')}>
       {error && (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
@@ -201,38 +203,38 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
 
       {goal?.giverMessage && (
         <View style={styles.messageBox}>
-          <Text style={styles.messageLabel}>Message from {giverName || 'Giver'}:</Text>
+          <Text style={styles.messageLabel}>{t('modals.goalChangeSuggestion.messageFrom', { name: giverName || 'Giver' })}</Text>
           <Text style={styles.messageText}>{goal.giverMessage}</Text>
         </View>
       )}
 
       <View style={styles.goalInfo}>
-        <Text style={styles.infoLabel}>Your original goal:</Text>
+        <Text style={styles.infoLabel}>{t('modals.goalChangeSuggestion.originalGoal')}</Text>
         <Text style={styles.infoText}>
           {initialWeeks} weeks, {initialSessions} sessions per week
         </Text>
       </View>
 
       <View style={styles.goalInfo}>
-        <Text style={styles.infoLabel}>{giverName || 'Giver'}'s suggestion:</Text>
+        <Text style={styles.infoLabel}>{t('modals.goalChangeSuggestion.giverSuggestion', { name: giverName || 'Giver' })}</Text>
         <Text style={styles.infoText}>
           {suggestedWeeks} weeks, {suggestedSessions} sessions per week
         </Text>
       </View>
 
       <View style={styles.selectorContainer}>
-        <Text style={styles.selectorLabel}>Choose your goal:</Text>
+        <Text style={styles.selectorLabel}>{t('modals.goalChangeSuggestion.chooseGoal')}</Text>
         <Text style={styles.selectorValue}>
           {selectedWeeks} weeks, {selectedSessions} sessions per week
         </Text>
 
         <View style={styles.rangeInfo}>
           <Text style={styles.rangeText}>
-            Range: {minWeeks}-{maxWeeks} weeks, {minSessions}-{maxSessions} sessions/week
+            {t('modals.goalChangeSuggestion.range', { minWeeks, maxWeeks, minSessions, maxSessions })}
           </Text>
         </View>
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Weeks:</Text>
+          <Text style={styles.inputLabel}>{t('modals.goalChangeSuggestion.weeksLabel')}</Text>
           <View style={styles.numberInputContainer}>
             <TouchableOpacity
               style={[
@@ -243,7 +245,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
               disabled={selectedWeeks <= minWeeks || loading}
               activeOpacity={selectedWeeks <= minWeeks ? 1 : 0.7}
               accessibilityRole="button"
-              accessibilityLabel="Decrease weeks"
+              accessibilityLabel={t('modals.goalChangeSuggestion.decreaseWeeks')}
             >
               <Text style={[
                 styles.adjustButtonText,
@@ -269,7 +271,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
               disabled={selectedWeeks >= maxWeeks || loading}
               activeOpacity={selectedWeeks >= maxWeeks ? 1 : 0.7}
               accessibilityRole="button"
-              accessibilityLabel="Increase weeks"
+              accessibilityLabel={t('modals.goalChangeSuggestion.increaseWeeks')}
             >
               <Text style={[
                 styles.adjustButtonText,
@@ -280,7 +282,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Sessions per week:</Text>
+          <Text style={styles.inputLabel}>{t('modals.goalChangeSuggestion.sessionsLabel')}</Text>
           <View style={styles.numberInputContainer}>
             <TouchableOpacity
               style={[
@@ -291,7 +293,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
               disabled={selectedSessions <= minSessions || loading}
               activeOpacity={selectedSessions <= minSessions ? 1 : 0.7}
               accessibilityRole="button"
-              accessibilityLabel="Decrease sessions per week"
+              accessibilityLabel={t('modals.goalChangeSuggestion.decreaseSessions')}
             >
               <Text style={[
                 styles.adjustButtonText,
@@ -317,7 +319,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
               disabled={selectedSessions >= maxSessions || loading}
               activeOpacity={selectedSessions >= maxSessions ? 1 : 0.7}
               accessibilityRole="button"
-              accessibilityLabel="Increase sessions per week"
+              accessibilityLabel={t('modals.goalChangeSuggestion.increaseSessions')}
             >
               <Text style={[
                 styles.adjustButtonText,
@@ -330,7 +332,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
 
       <TextInput
         style={styles.messageInput}
-        placeholder={`Your message to ${giverName || 'giver'} (optional)...`}
+        placeholder={t('modals.goalChangeSuggestion.messagePlaceholder', { name: giverName || 'giver' })}
         value={message}
         onChangeText={(text) => {
           setMessage(text);
@@ -343,7 +345,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
 
       <View style={styles.modalButtons}>
         <Button
-          title="Cancel"
+          title={t('modals.goalChangeSuggestion.cancel')}
           variant="ghost"
           size="md"
           onPress={onClose}
@@ -351,7 +353,7 @@ const GoalChangeSuggestionModal: React.FC<GoalChangeSuggestionModalProps> = ({
           style={{ flex: 1 }}
         />
         <Button
-          title="Accept Changes"
+          title={t('modals.goalChangeSuggestion.acceptChanges')}
           variant="primary"
           size="md"
           onPress={handleAccept}

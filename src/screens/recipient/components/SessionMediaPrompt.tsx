@@ -8,6 +8,7 @@ import {
 import { Image } from 'expo-image';
 import { BaseModal } from '../../../components/BaseModal';
 import { Camera, ImageIcon } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { Colors, useColors } from '../../../config';
 import { vh } from '../../../utils/responsive';
 import { BorderRadius } from '../../../config/borderRadius';
@@ -33,6 +34,7 @@ const SessionMediaPrompt: React.FC<SessionMediaPromptProps> = ({
   onSkip,
   onContinue,
 }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const hasMedia = !!capturedMediaUri;
@@ -41,14 +43,14 @@ const SessionMediaPrompt: React.FC<SessionMediaPromptProps> = ({
     <BaseModal
       visible={visible}
       onClose={onSkip}
-      title={hasMedia ? 'Looking good!' : 'Capture your session'}
+      title={hasMedia ? t('recipient.sessionMedia.lookingGood') : t('recipient.sessionMedia.captureSession')}
       variant="bottom"
       noPadding={false}
     >
       <Text style={styles.subtitle}>
         {hasMedia
-          ? 'Share this with your friends on the feed?'
-          : 'Take a photo or video to remember this session'}
+          ? t('recipient.sessionMedia.shareWithFriends')
+          : t('recipient.sessionMedia.takePhotoOrVideo')}
       </Text>
 
       {/* Preview or capture buttons */}
@@ -62,22 +64,22 @@ const SessionMediaPrompt: React.FC<SessionMediaPromptProps> = ({
           )}
           <TouchableOpacity style={styles.changeButton} onPress={onCamera} activeOpacity={0.7}>
             <Camera size={16} color={colors.white} />
-            <Text style={styles.changeButtonText}>Change</Text>
+            <Text style={styles.changeButtonText}>{t('recipient.sessionMedia.change')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.captureButtons}>
-          <TouchableOpacity style={styles.captureButton} onPress={onCamera} activeOpacity={0.7} accessibilityLabel="Take photo" accessibilityRole="button">
+          <TouchableOpacity style={styles.captureButton} onPress={onCamera} activeOpacity={0.7} accessibilityLabel={t('recipient.sessionMedia.takePhoto')} accessibilityRole="button">
             <View style={styles.captureIconCircle}>
               <Camera size={24} color={colors.white} />
             </View>
-            <Text style={styles.captureButtonText}>Camera</Text>
+            <Text style={styles.captureButtonText}>{t('recipient.sessionMedia.camera')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.captureButton} onPress={onGallery} activeOpacity={0.7} accessibilityLabel="Choose from gallery" accessibilityRole="button">
+          <TouchableOpacity style={styles.captureButton} onPress={onGallery} activeOpacity={0.7} accessibilityLabel={t('recipient.sessionMedia.chooseFromGallery')} accessibilityRole="button">
             <View style={[styles.captureIconCircle, { backgroundColor: colors.secondary }]}>
               <ImageIcon size={24} color={colors.white} />
             </View>
-            <Text style={styles.captureButtonText}>Gallery</Text>
+            <Text style={styles.captureButtonText}>{t('recipient.sessionMedia.gallery')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -87,17 +89,17 @@ const SessionMediaPrompt: React.FC<SessionMediaPromptProps> = ({
         style={[styles.continueButton, !hasMedia && styles.continueButtonDisabled]}
         onPress={hasMedia ? onContinue : onSkip}
         activeOpacity={0.8}
-        accessibilityLabel={hasMedia ? "Continue" : "Skip"}
+        accessibilityLabel={hasMedia ? t('recipient.sessionMedia.continue') : t('recipient.sessionMedia.skip')}
         accessibilityRole="button"
       >
         <Text style={styles.continueButtonText}>
-          {hasMedia ? 'Continue' : 'Skip'}
+          {hasMedia ? t('recipient.sessionMedia.continue') : t('recipient.sessionMedia.skip')}
         </Text>
       </TouchableOpacity>
 
       {hasMedia && (
         <TouchableOpacity style={styles.skipLink} onPress={onSkip} activeOpacity={0.7}>
-          <Text style={styles.skipLinkText}>Skip without photo</Text>
+          <Text style={styles.skipLinkText}>{t('recipient.sessionMedia.skipWithoutPhoto')}</Text>
         </TouchableOpacity>
       )}
     </BaseModal>

@@ -10,6 +10,7 @@ import {
     Modal,
     Animated,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
 import { MapPin, Clock, Check, Tag } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -43,6 +44,7 @@ const ExperienceDetailModal: React.FC<ExperienceDetailModalProps> = ({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [partner, setPartner] = useState<PartnerUser | null>(null);
@@ -132,7 +134,7 @@ const ExperienceDetailModal: React.FC<ExperienceDetailModalProps> = ({
                 style={styles.overlay}
                 activeOpacity={1}
                 onPress={animateClose}
-                accessibilityLabel="Dismiss modal"
+                accessibilityLabel={t('modals.experienceDetail.dismissModal')}
                 accessibilityRole="button"
             >
                 <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropOpacity }]}>
@@ -191,7 +193,7 @@ const ExperienceDetailModal: React.FC<ExperienceDetailModalProps> = ({
                                 <Text style={styles.priceText}>
                                     {'\u20AC'}{experience.price}
                                 </Text>
-                                <Text style={styles.priceLabel}>per person</Text>
+                                <Text style={styles.priceLabel}>{t('modals.experienceDetail.perPerson')}</Text>
                             </View>
 
                             {/* Image dots */}
@@ -252,7 +254,7 @@ const ExperienceDetailModal: React.FC<ExperienceDetailModalProps> = ({
                             {/* Location + Map */}
                             {(experience.location || partner?.mapsUrl) && (
                                 <View>
-                                    <Text style={styles.sectionTitle}>Location</Text>
+                                    <Text style={styles.sectionTitle}>{t('modals.experienceDetail.location')}</Text>
                                     {(partner?.address || experience.location) && (
                                         <View style={styles.addressRow}>
                                             <MapPin color={colors.textSecondary} size={16} />
@@ -292,7 +294,7 @@ const ExperienceDetailModal: React.FC<ExperienceDetailModalProps> = ({
                             )}
 
                             {/* Description */}
-                            <Text style={styles.sectionTitle}>What to expect</Text>
+                            <Text style={styles.sectionTitle}>{t('modals.experienceDetail.whatToExpect')}</Text>
                             <View style={styles.descriptionCard}>
                                 <Text style={styles.descriptionText}>
                                     {experience.description.trim()}
@@ -303,7 +305,7 @@ const ExperienceDetailModal: React.FC<ExperienceDetailModalProps> = ({
                         {/* Fixed bottom CTA */}
                         <View style={[styles.ctaContainer, { paddingBottom: Math.max(Spacing.lg, insets.bottom + Spacing.md) }]}>
                             <Button
-                                title={isSelected ? 'Selected' : 'Select this reward'}
+                                title={isSelected ? t('modals.experienceDetail.selected') : t('modals.experienceDetail.selectReward')}
                                 variant={isSelected ? 'secondary' : 'primary'}
                                 onPress={handleSelect}
                                 icon={isSelected ? <Check size={18} color={colors.primary} /> : undefined}

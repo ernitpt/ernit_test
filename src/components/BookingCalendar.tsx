@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { getWeekdayAbbreviations, getMonthNames, formatLocalDate } from '../utils/i18nHelpers';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { BaseModal } from './BaseModal';
@@ -26,6 +28,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = React.memo(({
 }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const [currentMonth, setCurrentMonth] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
     const [selectedDate, setSelectedDate] = useState(initialDate);
 
@@ -59,12 +62,8 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = React.memo(({
     };
 
     const days = getDaysInMonth(currentMonth);
-    const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
-    const monthNames = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-    ];
+    const weekDays = getWeekdayAbbreviations();
+    const monthNames = getMonthNames();
 
     // P3-17: wrapped in useCallback — BookingCalendar is React.memo'd; plain functions
     // recreate on every render and defeat memoisation for child TouchableOpacity handlers.
@@ -114,12 +113,12 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = React.memo(({
         <BaseModal
             visible={visible}
             onClose={onCancel}
-            title="When do you want to do your experience?"
+            title={t('modals.bookingCalendar.title')}
             variant="center"
         >
             {/* Month navigation header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton} accessibilityLabel="Previous month" accessibilityRole="button">
+                <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton} accessibilityLabel={t('modals.bookingCalendar.prevMonthA11y')} accessibilityRole="button">
                     <ChevronLeft color={colors.secondary} size={24} />
                 </TouchableOpacity>
 
@@ -127,7 +126,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = React.memo(({
                     {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
                 </Text>
 
-                <TouchableOpacity onPress={goToNextMonth} style={styles.navButton} accessibilityLabel="Next month" accessibilityRole="button">
+                <TouchableOpacity onPress={goToNextMonth} style={styles.navButton} accessibilityLabel={t('modals.bookingCalendar.nextMonthA11y')} accessibilityRole="button">
                     <ChevronRight color={colors.secondary} size={24} />
                 </TouchableOpacity>
             </View>
@@ -160,7 +159,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = React.memo(({
                             disabled={disabled}
                             activeOpacity={0.7}
                             accessibilityRole="button"
-                            accessibilityLabel={date ? date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : undefined}
+                            accessibilityLabel={date ? formatLocalDate(date, { weekday: 'long', month: 'long', day: 'numeric' }) : undefined}
                             accessibilityState={{ disabled, selected }}
                         >
                             {date && (
@@ -184,13 +183,13 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = React.memo(({
             <View style={styles.footer}>
                 <Button
                     variant="ghost"
-                    title="Cancel"
+                    title={t('modals.bookingCalendar.cancel')}
                     onPress={onCancel}
                     style={styles.cancelButton}
                 />
                 <Button
                     variant="primary"
-                    title={`Book for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                    title={t('modals.bookingCalendar.bookFor', { date: formatLocalDate(selectedDate, { month: 'short', day: 'numeric' }) })}
                     onPress={handleConfirm}
                     style={styles.confirmButton}
                 />

@@ -1,7 +1,8 @@
 // screens/CartScreen.tsx
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { useTranslation } from 'react-i18next';
+import { formatCurrency } from '../../utils/helpers';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
-import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
 import {
   View,
   Text,
@@ -9,6 +10,7 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
+import { FOOTER_HEIGHT } from '../../components/CustomTabBar';
 import { Image } from 'expo-image';
 import { ConfirmationDialog } from '../../components/ConfirmationDialog';
 import { Plus, Minus, X, ArrowRight } from "lucide-react-native";
@@ -21,7 +23,6 @@ import LoginPrompt from "../../components/LoginPrompt";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { GiverStackParamList, Experience } from "../../types";
 import { useNavigation } from "@react-navigation/native";
-import MainScreen from "../MainScreen";
 import { CartItemSkeleton } from '../../components/SkeletonLoader';
 import { EmptyState } from '../../components/EmptyState';
 import ErrorRetry from '../../components/ErrorRetry';
@@ -37,12 +38,11 @@ import { MotiView } from 'moti';
 import { Card } from '../../components/Card';
 import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type NavProp = NativeStackNavigationProp<GiverStackParamList, "Cart">;
 
 export default function CartScreen() {
-  const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { state, dispatch } = useApp();
@@ -147,7 +147,7 @@ export default function CartScreen() {
       return removeItem(experienceId);
     }
     if (newQty > 10) {
-      showInfo("You can add up to 10 items of each experience.");
+      showInfo(t('giver.cart.info.maxQuantity'));
       return;
     }
 
@@ -178,7 +178,7 @@ export default function CartScreen() {
         userId: state.user?.id,
         additionalData: { experienceId, newQty }
       });
-      showError("Failed to update quantity. Please try again.");
+      showError(t('giver.cart.toast.updateFailed'));
     } finally {
       // Remove updating flag
       setUpdatingItems(prev => {
@@ -216,7 +216,7 @@ export default function CartScreen() {
         await userService.removeFromCart(state.user.id, experienceId);
       }
 
-      showSuccess("Item removed from cart");
+      showSuccess(t('giver.cart.toast.itemRemoved'));
     } catch (error: unknown) {
       logger.error("Error removing item:", error);
       await logErrorToFirestore(error, {
@@ -225,7 +225,7 @@ export default function CartScreen() {
         userId: state.user?.id,
         additionalData: { experienceId }
       });
-      showError("Failed to remove item. Please try again.");
+      showError(t('giver.cart.toast.removeFailed'));
       // Reload to ensure consistency
       loadItems();
     } finally {
@@ -243,13 +243,13 @@ export default function CartScreen() {
 
   const proceedToCheckout = () => {
     if (!currentCart || currentCart.length === 0) {
-      showInfo("Your cart is empty. Add items to cart first.");
+      showInfo(t('giver.cart.info.emptyCheckout'));
       return;
     }
 
     // Require authentication to proceed to checkout
     // Pass route name and params for post-auth navigation
-    if (!requireAuth("Please log in to proceed to checkout.", "MysteryChoice", { cartItems: currentCart })) {
+    if (!requireAuth(t('loginPrompt.accessCheckout'), "MysteryChoice", { cartItems: currentCart })) {
       return;
     }
 
@@ -269,10 +269,9 @@ export default function CartScreen() {
   if (loading) {
     return (
       <ErrorBoundary screenName="CartScreen" userId={state.user?.id}>
-      <MainScreen activeRoute="Home">
         <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Your Cart</Text>
+            <Text style={styles.headerTitle}>{t('giver.cart.screenTitle')}</Text>
           </View>
           <View style={styles.scrollContent}>
             <CartItemSkeleton />
@@ -280,7 +279,6 @@ export default function CartScreen() {
             <CartItemSkeleton />
           </View>
         </View>
-      </MainScreen>
       </ErrorBoundary>
     );
   }
@@ -289,7 +287,6 @@ export default function CartScreen() {
 
   return (
     <ErrorBoundary screenName="CartScreen" userId={state.user?.id}>
-    <MainScreen activeRoute="Home">
       <LoginPrompt
         visible={showLoginPrompt}
         onClose={closeLoginPrompt}
@@ -297,25 +294,25 @@ export default function CartScreen() {
       />
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Your Cart</Text>
+          <Text style={styles.headerTitle}>{t('giver.cart.screenTitle')}</Text>
           {!isEmpty && (
             <Text style={styles.headerSubtitle}>
-              {cartItemCount} {cartItemCount === 1 ? "item" : "items"}
+              {t('giver.cart.items', { count: cartItemCount })}
             </Text>
           )}
         </View>
 
         {loadError && cartExperiences.length === 0 && (
-          <ErrorRetry message="Could not load cart items" onRetry={loadItems} />
+          <ErrorRetry message={t('giver.cart.loadError')} onRetry={loadItems} />
         )}
 
         {isEmpty ? (
           <View style={styles.emptyContainer}>
             <EmptyState
               icon="🛒"
-              title="Your cart is empty"
-              message="Browse experiences to find the perfect gift"
-              actionLabel="Keep Shopping"
+              title={t('giver.cart.empty.title')}
+              message={t('giver.cart.empty.message')}
+              actionLabel={t('giver.cart.empty.action')}
               onAction={() => navigation.navigate('CategorySelection')}
             />
           </View>
@@ -352,14 +349,14 @@ export default function CartScreen() {
                       onPress={() => handleExperiencePress(exp)}
                       activeOpacity={0.9}
                       accessibilityRole="button"
-                      accessibilityLabel={`View ${exp.title} details`}
+                      accessibilityLabel={t('giver.cart.accessibility.viewDetails', { title: exp.title })}
                     >
                       <Image
                         source={{ uri: imageUrl }}
                         style={styles.cartItemImage}
                         contentFit="cover"
                         cachePolicy="memory-disk"
-                        accessibilityLabel={`${exp.title} image`}
+                        accessibilityLabel={t('giver.cart.accessibility.image', { title: exp.title })}
                       />
                     </TouchableOpacity>
 
@@ -380,7 +377,7 @@ export default function CartScreen() {
                           disabled={isUpdating}
                           activeOpacity={0.7}
                           accessibilityRole="button"
-                          accessibilityLabel="Remove item from cart"
+                          accessibilityLabel={t('giver.cart.accessibility.removeItem')}
                           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
                           <X size={18} color={colors.error} />
@@ -398,7 +395,7 @@ export default function CartScreen() {
                             disabled={item.quantity === 1 || isUpdating}
                             activeOpacity={0.7}
                             accessibilityRole="button"
-                            accessibilityLabel="Decrease quantity"
+                            accessibilityLabel={t('giver.cart.accessibility.decreaseQuantity')}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
                             <Minus size={16} color={item.quantity === 1 ? colors.disabled : colors.secondary} />
@@ -415,7 +412,7 @@ export default function CartScreen() {
                             disabled={item.quantity === 10 || isUpdating}
                             activeOpacity={0.7}
                             accessibilityRole="button"
-                            accessibilityLabel="Increase quantity"
+                            accessibilityLabel={t('giver.cart.accessibility.increaseQuantity')}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
                             <Plus size={16} color={item.quantity === 10 ? colors.disabled : colors.secondary} />
@@ -423,7 +420,7 @@ export default function CartScreen() {
                         </View>
 
                         <Text style={styles.cartItemPrice}>
-                          €{(exp.price * item.quantity).toFixed(2)}
+                          {formatCurrency(exp.price * item.quantity)}
                         </Text>
                       </View>
                     </View>
@@ -435,12 +432,12 @@ export default function CartScreen() {
 
             <View style={styles.bottomContainer}>
               <View style={styles.totalContainer}>
-                <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalAmount}>€{total.toFixed(2)}</Text>
+                <Text style={styles.totalLabel}>{t('giver.cart.total')}</Text>
+                <Text style={styles.totalAmount}>{formatCurrency(total)}</Text>
               </View>
 
               <Button
-                title="Proceed to Checkout"
+                title={t('giver.cart.proceedToCheckout')}
                 onPress={proceedToCheckout}
                 variant="primary"
                 size="lg"
@@ -452,7 +449,7 @@ export default function CartScreen() {
               />
 
               <Button
-                title="Keep Shopping"
+                title={t('giver.cart.keepShopping')}
                 onPress={handleKeepShopping}
                 variant="secondary"
                 size="md"
@@ -462,12 +459,11 @@ export default function CartScreen() {
           </>
         )}
       </View>
-    </MainScreen>
     <ConfirmationDialog
       visible={removeConfirmId !== null}
-      title="Remove Item"
-      message="Are you sure you want to remove this item from your cart?"
-      confirmLabel="Remove"
+      title={t('giver.cart.removeDialog.title')}
+      message={t('giver.cart.removeDialog.message')}
+      confirmLabel={t('giver.cart.removeDialog.confirm')}
       onConfirm={confirmRemoveItem}
       onCancel={() => setRemoveConfirmId(null)}
       variant="danger"
@@ -604,8 +600,7 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderTopColor: colors.border,
     padding: Spacing.xl,
     paddingBottom: Spacing.lg,
-    // No marginBottom — MainScreen.content already has paddingBottom: FOOTER_HEIGHT + safeInset
-    // to keep content clear of the absolutely-positioned footer.
+    marginBottom: FOOTER_HEIGHT,
   },
   totalContainer: {
     flexDirection: "row",

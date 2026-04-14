@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 import { Colors, useColors } from '../../../config';
 import { Typography } from '../../../config/typography';
 import { Spacing } from '../../../config/spacing';
@@ -81,6 +82,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = React.memo(({
   loggedSet,
   todayIso,
 }) => {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -97,7 +99,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = React.memo(({
           <View
             key={iso}
             style={styles.dayCell}
-            accessibilityLabel={`${dateLabel}${isToday ? ', today' : ''}${filled ? ', session logged' : ''}`}
+            accessibilityLabel={`${dateLabel}${isToday ? `, ${t('recipient.weeklyCalendar.today')}` : ''}${filled ? `, ${t('recipient.weeklyCalendar.sessionLogged')}` : ''}`}
             accessibilityRole="text"
           >
             {filled ? (

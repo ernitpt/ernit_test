@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatLocalDate, getMonthNames, getWeekdayAbbreviations } from '../utils/i18nHelpers';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import ErrorRetry from '../components/ErrorRetry';
 import { SkeletonBox } from '../components/SkeletonLoader';
@@ -58,35 +60,20 @@ import SpriteAnimation from '../components/SpriteAnimation';
 
 const GYM_SPRITE = require('../assets/sprites/bicep_sprite.png');
 
-const getGoalTypes = (colors: typeof Colors) => [
-    { icon: null, sprite: GYM_SPRITE, name: 'Gym', color: colors.secondary, tagline: 'Hit the weights' },
-    { icon: '\u{1F9D8}', sprite: null, name: 'Yoga', color: colors.categoryPink, tagline: 'Find your flow' },
-    { icon: '\u{1F483}', sprite: null, name: 'Dance', color: colors.accent, tagline: 'Move to the beat' },
-    { icon: '\u270F\uFE0F', sprite: null, name: 'Add your own', color: colors.textSecondary, tagline: 'Custom Challenge' },
+const getGoalTypes = (colors: typeof Colors, t: (key: string) => string) => [
+    { icon: '\u{1F3CB}\uFE0F', sprite: null, name: 'Gym', color: colors.secondary, tagline: t('wizard.challenge.goalTypes.gym.tagline') },
+    { icon: '\u{1F9D8}', sprite: null, name: 'Yoga', color: colors.categoryPink, tagline: t('wizard.challenge.goalTypes.yoga.tagline') },
+    { icon: '\u{1F483}', sprite: null, name: 'Dance', color: colors.accent, tagline: t('wizard.challenge.goalTypes.dance.tagline') },
+    { icon: '\u270F\uFE0F', sprite: null, name: 'Add your own', color: colors.textSecondary, tagline: t('wizard.challenge.goalTypes.custom.tagline') },
 ];
 
-const STEP_TITLES = [
-    'What is your goal?',
-    'Set your challenge intensity',
-    'How long per session?',
-    'When do you start?',
-    'Choose your reward',
-    'Secure your reward',
-];
-
-const STEP_SUBTITLES = [
-    'Pick the habit you want to build. We\'ll help you stay on track.',
-    'It takes 21 days to build a habit. Start small, you can always do another challenge later!',
-    'Set the duration for each time you show up',
-    'We\'ll send you reminders so you never miss a session.',
-    'Pick a specific experience or let us surprise you with a recommendation.',
-    'Choose how you want to back your challenge.',
-];
+// STEP_TITLES and STEP_SUBTITLES moved inside component and replaced with t() calls
 
 // Alias so JSX call sites don't need to change
 const ProgressBar = WizardProgressBar;
 
 export default function ChallengeSetupScreen() {
+    const { t } = useTranslation();
     const navigation = useRootNavigation();
     const route = useRoute();
     const routeParams = route.params as { prefill?: ChallengeSetupPrefill } | undefined;
@@ -96,7 +83,25 @@ export default function ChallengeSetupScreen() {
     const insets = useSafeAreaInsets();
     const { width: screenWidth } = useWindowDimensions();
     const styles = useMemo(() => createStyles(colors, screenWidth), [colors, screenWidth]);
-    const GOAL_TYPES = useMemo(() => getGoalTypes(colors), [colors]);
+    const GOAL_TYPES = useMemo(() => getGoalTypes(colors, t), [colors, t]);
+
+    const STEP_TITLES = useMemo(() => [
+        t('wizard.challenge.stepTitles.step1'),
+        t('wizard.challenge.stepTitles.step2'),
+        t('wizard.challenge.stepTitles.step3'),
+        t('wizard.challenge.stepTitles.step4'),
+        t('wizard.challenge.stepTitles.step5'),
+        t('wizard.challenge.stepTitles.step6'),
+    ], [t]);
+
+    const STEP_SUBTITLES = useMemo(() => [
+        t('wizard.challenge.stepSubtitles.step1'),
+        t('wizard.challenge.stepSubtitles.step2'),
+        t('wizard.challenge.stepSubtitles.step3'),
+        t('wizard.challenge.stepSubtitles.step4'),
+        t('wizard.challenge.stepSubtitles.step5'),
+        t('wizard.challenge.stepSubtitles.step6'),
+    ], [t]);
 
     // Wizard step
     const [currentStep, setCurrentStep] = useState(1);
@@ -190,14 +195,14 @@ export default function ChallengeSetupScreen() {
         if (currentStep === 1 || goalCreatedRef.current) return; // Allow back from step 1 or after successful creation
         e.preventDefault();
         Alert.alert(
-            'Discard changes?',
-            'You have unsaved progress. Are you sure you want to leave?',
+            t('wizard.challenge.discard.alertTitle'),
+            t('wizard.challenge.discard.alertMessage'),
             [
-                { text: 'Stay', style: 'cancel' },
-                { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+                { text: t('wizard.challenge.discard.buttonStay'), style: 'cancel' },
+                { text: t('wizard.challenge.discard.buttonLeave'), style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
             ]
         );
-    }, [currentStep]);
+    }, [currentStep, t]);
 
     // Prefill from auth redirect
     useEffect(() => {
@@ -288,7 +293,7 @@ export default function ChallengeSetupScreen() {
                         return false;
                     }
                     if (hoursNum > 3 || (hoursNum === 3 && minutesNum > 0)) {
-                        showError('Each session cannot exceed 3 hours.');
+                        showError(t('wizard.challenge.validation.sessionMaxTime'));
                         return false;
                     }
                 } else {
@@ -372,7 +377,7 @@ export default function ChallengeSetupScreen() {
                 navigation.navigate('Auth', { mode: 'signup' });
             } catch (error: unknown) {
                 logger.error('Error storing challenge config:', error);
-                showError('Something went wrong. Please try again.');
+                showError(t('wizard.challenge.toasts.storageError'));
             }
         }
     };
@@ -453,6 +458,11 @@ export default function ChallengeSetupScreen() {
             const goal = await goalService.createFreeGoal(goalData as Goal);
             if (!isMountedRef.current) return;
             if (!goal?.id) throw new Error('Goal creation returned no ID');
+            analyticsService.trackEvent('challenge_created', 'conversion', {
+              goalId: goal.id,
+              durationWeeks: goalData.durationWeeks,
+              sessionsPerWeek: goalData.sessionsPerWeek,
+            }, 'ChallengeSetupScreen');
             dispatch({ type: 'SET_GOAL', payload: goal });
 
             setShowConfirm(false);
@@ -461,7 +471,7 @@ export default function ChallengeSetupScreen() {
             // Route based on payment choice
             if (paymentChoice === 'payNow' && selectedExperience) {
                 // "Lock it in" — pay now via ExperienceCheckout
-                showSuccess('Challenge created! Complete payment to secure your reward.');
+                showSuccess(t('wizard.challenge.toasts.createdPayNow'));
                 navTimerRef.current = setTimeout(() => {
                     if (!isMountedRef.current) return;
                     navigation.replace('ExperienceCheckout', {
@@ -507,7 +517,7 @@ export default function ChallengeSetupScreen() {
                     await goalService.updateGoal(goal.id, { experienceGiftId: deferredResult.gift.id });
                 }
 
-                showSuccess('Challenge created! Save your card to secure your reward.');
+                showSuccess(t('wizard.challenge.toasts.createdPayLater'));
                 navTimerRef.current = setTimeout(() => {
                     if (!isMountedRef.current) return;
                     navigation.replace('DeferredSetup', {
@@ -517,17 +527,17 @@ export default function ChallengeSetupScreen() {
                 }, 300);
             } else {
                 // Free goal (category preference or skip) — go straight to Goals
-                showSuccess('Challenge created!');
+                showSuccess(t('wizard.challenge.toasts.created'));
                 navTimerRef.current = setTimeout(() => {
                     if (!isMountedRef.current) return;
                     try {
                         navigation.reset({
                             index: 0,
-                            routes: [{ name: 'Goals' }],
+                            routes: [{ name: 'MainTabs', params: { screen: 'GoalsTab', params: { screen: 'Goals' } } }],
                         });
                     } catch (navError: unknown) {
                         logger.warn('navigation.reset failed, using navigate fallback:', navError);
-                        navigation.navigate('Goals');
+                        navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Goals' } });
                     }
                 }, 300);
             }
@@ -544,8 +554,8 @@ export default function ChallengeSetupScreen() {
                 (error as Error & { code?: string }).code === 'GOAL_LIMIT_REACHED'
             );
             showError(isLimitError
-                ? 'You already have 3 active free goals. Complete or delete one first to start a new challenge.'
-                : 'Failed to create goal. Please try again.');
+                ? t('wizard.challenge.toasts.goalLimitReached')
+                : t('wizard.challenge.toasts.createFailed'));
         } finally {
             if (isMountedRef.current) setIsSubmitting(false);
             // Only reset ref if goal wasn't created — prevents re-submission
@@ -600,7 +610,7 @@ export default function ChallengeSetupScreen() {
                                 }
                             }}
                             accessibilityRole="button"
-                            accessibilityLabel={`Select ${goal.name} goal`}
+                            accessibilityLabel={t('wizard.challenge.accessibility.selectGoal', { name: goal.name })}
                         >
                             {goal.sprite ? (
                                 <View style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
@@ -632,15 +642,15 @@ export default function ChallengeSetupScreen() {
 
             {validationErrors.goal && (
                 <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.md, fontWeight: '500' }}>
-                    Please select a goal type
+                    {t('wizard.challenge.validation.selectGoalType')}
                 </Text>
             )}
 
             {selectedGoal === 'Add your own' && (
                 <View style={styles.customGoalContainer}>
                     <TextInput
-                        label="Enter your custom goal:"
-                        placeholder="e.g., Cook, Paint, Write..."
+                        label={t('wizard.challenge.customGoal.label')}
+                        placeholder={t('wizard.challenge.customGoal.placeholder')}
                         value={customGoal}
                         onChangeText={(text) => {
                             setCustomGoal(text);
@@ -650,10 +660,10 @@ export default function ChallengeSetupScreen() {
                                 setValidationErrors(prev => ({ ...prev, goal: true }));
                             }
                         }}
-                        error={validationErrors.goal && customGoal.trim() === '' ? 'Please enter a custom goal' : undefined}
+                        error={validationErrors.goal && customGoal.trim() === '' ? t('wizard.challenge.validation.enterCustomGoal') : undefined}
                         maxLength={50}
                         autoFocus
-                        accessibilityLabel="Custom goal name"
+                        accessibilityLabel={t('wizard.challenge.accessibility.customGoalName')}
                         containerStyle={{ marginBottom: 0 }}
                     />
                 </View>
@@ -665,27 +675,27 @@ export default function ChallengeSetupScreen() {
         <View style={styles.stepContent}>
             <View style={styles.section}>
                 <ModernSlider
-                    label="Duration"
+                    label={t('wizard.challenge.sliders.duration')}
                     value={weeks}
                     min={1}
                     max={5}
                     onChange={setWeeks}
-                    leftLabel="Chill"
-                    rightLabel="Intense"
-                    unit="week"
-                    unitPlural="weeks"
+                    leftLabel={t('wizard.challenge.sliders.chill')}
+                    rightLabel={t('wizard.challenge.sliders.intense')}
+                    unit={t('wizard.challenge.sliders.week')}
+                    unitPlural={t('wizard.challenge.sliders.weeks')}
                 />
             </View>
 
             <View style={styles.section}>
                 <ModernSlider
-                    label="Weekly Sessions"
+                    label={t('wizard.challenge.sliders.weeklySessions')}
                     value={sessionsPerWeek}
                     min={1}
                     max={7}
                     onChange={setSessionsPerWeek}
-                    leftLabel="Easy"
-                    rightLabel="Beast"
+                    leftLabel={t('wizard.challenge.sliders.easy')}
+                    rightLabel={t('wizard.challenge.sliders.beast')}
                 />
             </View>
 
@@ -836,7 +846,7 @@ export default function ChallengeSetupScreen() {
                                 textTransform: 'uppercase',
                                 letterSpacing: 2,
                             }}>
-                                MINUTES
+                                {t('wizard.challenge.dial.minutes')}
                             </Text>
                         </View>
 
@@ -883,7 +893,7 @@ export default function ChallengeSetupScreen() {
                                 <Text style={[
                                     styles.presetChipText,
                                     sessionMinutes === m && styles.presetChipTextActive,
-                                ]}>{m} min</Text>
+                                ]}>{m} {t('wizard.challenge.dial.min')}</Text>
                             </TouchableOpacity>
                         </MotiView>
                     ))}
@@ -899,7 +909,7 @@ export default function ChallengeSetupScreen() {
                         ...Typography.bodyBold,
                         color: colors.primary,
                     }}>
-                        {showCustomTime ? 'Use the dial' : 'Or enter a custom time \u203A'}
+                        {showCustomTime ? t('wizard.challenge.dial.useDial') : t('wizard.challenge.dial.customTime')}
                     </Text>
                 </TouchableOpacity>
 
@@ -915,8 +925,8 @@ export default function ChallengeSetupScreen() {
                                 <RNTextInput
                                     style={styles.timeInput}
                                     value={hours}
-                                    onChangeText={(t) => {
-                                        setHours(sanitizeNumericInput(t));
+                                    onChangeText={(text) => {
+                                        setHours(sanitizeNumericInput(text));
                                         if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
                                     }}
                                     keyboardType="numeric"
@@ -925,17 +935,17 @@ export default function ChallengeSetupScreen() {
                                     placeholderTextColor={colors.textMuted}
                                     returnKeyType="next"
                                     onSubmitEditing={() => minutesRef.current?.focus()}
-                                    accessibilityLabel="Hours per session"
+                                    accessibilityLabel={t('wizard.challenge.accessibility.hoursPerSession')}
                                 />
-                                <Text style={styles.timeLabel}>hr</Text>
+                                <Text style={styles.timeLabel}>{t('wizard.challenge.dial.hr')}</Text>
                             </View>
                             <View style={styles.timeInputGroup}>
                                 <RNTextInput
                                     ref={minutesRef}
                                     style={styles.timeInput}
                                     value={minutes}
-                                    onChangeText={(t) => {
-                                        const clean = sanitizeNumericInput(t);
+                                    onChangeText={(text) => {
+                                        const clean = sanitizeNumericInput(text);
                                         const m = parseInt(clean || '0', 10);
                                         setMinutes(m > 59 ? '59' : clean);
                                         if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
@@ -945,9 +955,9 @@ export default function ChallengeSetupScreen() {
                                     placeholder="00"
                                     placeholderTextColor={colors.textMuted}
                                     returnKeyType="done"
-                                    accessibilityLabel="Minutes per session"
+                                    accessibilityLabel={t('wizard.challenge.accessibility.minutesPerSession')}
                                 />
-                                <Text style={styles.timeLabel}>min</Text>
+                                <Text style={styles.timeLabel}>{t('wizard.challenge.dial.min')}</Text>
                             </View>
                         </View>
                     </MotiView>
@@ -955,7 +965,7 @@ export default function ChallengeSetupScreen() {
 
                 {validationErrors.time && (
                     <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.sm, fontWeight: '500', textAlign: 'center' }}>
-                        Please set a time per session (at least 5 minutes)
+                        {t('wizard.challenge.validation.setSessionTime')}
                     </Text>
                 )}
             </View>
@@ -965,11 +975,8 @@ export default function ChallengeSetupScreen() {
     // Inline calendar state
     const [calendarMonth, setCalendarMonth] = useState(new Date(plannedStartDate.getFullYear(), plannedStartDate.getMonth(), 1));
 
-    const calendarMonthNames = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    const calendarWeekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+    const calendarMonthNames = useMemo(() => getMonthNames(), []);
+    const calendarWeekDays = useMemo(() => getWeekdayAbbreviations(), []);
 
     const getCalendarDays = (monthDate: Date) => {
         const year = monthDate.getFullYear();
@@ -1013,7 +1020,7 @@ export default function ChallengeSetupScreen() {
                                 style={[styles.calNavBtn, isCurrentMonth && { opacity: 0.3 }]}
                                 disabled={isCurrentMonth}
                                 accessibilityRole="button"
-                                accessibilityLabel="Previous month"
+                                accessibilityLabel={t('wizard.challenge.calendar.prevMonth')}
                             >
                                 <ChevronLeft color={colors.textSecondary} size={20} />
                             </TouchableOpacity>
@@ -1024,7 +1031,7 @@ export default function ChallengeSetupScreen() {
                                 onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}
                                 style={styles.calNavBtn}
                                 accessibilityRole="button"
-                                accessibilityLabel="Next month"
+                                accessibilityLabel={t('wizard.challenge.calendar.nextMonth')}
                             >
                                 <ChevronRight color={colors.textSecondary} size={20} />
                             </TouchableOpacity>
@@ -1059,7 +1066,7 @@ export default function ChallengeSetupScreen() {
                                         disabled={disabled}
                                         activeOpacity={0.7}
                                         accessibilityRole="button"
-                                        accessibilityLabel={date ? `Select ${date.toLocaleDateString()}` : undefined}
+                                        accessibilityLabel={date ? t('wizard.challenge.calendar.selectDay', { date: formatLocalDate(date, { month: 'short', day: 'numeric' }) }) : undefined}
                                     >
                                         {date && (
                                             <Text style={[
@@ -1079,9 +1086,9 @@ export default function ChallengeSetupScreen() {
 
                     {/* End date info */}
                     <View style={styles.endDateContainer}>
-                        <Text style={styles.endDateLabel}>You will finish your goal on</Text>
+                        <Text style={styles.endDateLabel}>{t('wizard.challenge.calendar.finishLabel')}</Text>
                         <Text style={styles.endDateValue}>
-                            {endDate.toLocaleDateString('en-US', {
+                            {formatLocalDate(endDate, {
                                 weekday: 'long',
                                 month: 'long',
                                 day: 'numeric',
@@ -1089,7 +1096,7 @@ export default function ChallengeSetupScreen() {
                             })}
                         </Text>
                         <Text style={styles.endDateSublabel}>
-                            {weeks} week{weeks > 1 ? 's' : ''} from {plannedStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            {t('wizard.challenge.footer.weekLabel', { count: weeks })} {t('wizard.challenge.calendar.from')} {formatLocalDate(plannedStartDate, { month: 'short', day: 'numeric' })}
                         </Text>
                     </View>
                 </View>
@@ -1118,7 +1125,7 @@ export default function ChallengeSetupScreen() {
                     setValidationErrors(prev => ({ ...prev, experience: false }));
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={`Select ${exp.title} experience, ${exp.price} euros`}
+                accessibilityLabel={t('wizard.challenge.accessibility.selectExperience', { title: exp.title, price: exp.price })}
             >
                 <View style={styles.expIconBox}>
                     <Image
@@ -1134,7 +1141,7 @@ export default function ChallengeSetupScreen() {
                     onPress={() => setDetailExperience(exp)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     accessibilityRole="button"
-                    accessibilityLabel={`View details for ${exp.title}`}
+                    accessibilityLabel={t('wizard.challenge.accessibility.viewDetails', { title: exp.title })}
                 >
                     <Info size={14} color={colors.white} />
                 </TouchableOpacity>
@@ -1173,7 +1180,7 @@ export default function ChallengeSetupScreen() {
                         activeOpacity={0.7}
                     >
                         <ChevronLeft color={colors.primary} size={18} strokeWidth={2.5} />
-                        <Text style={styles.browseBackText}>Back to categories</Text>
+                        <Text style={styles.browseBackText}>{t('wizard.challenge.experience.backToCategories')}</Text>
                     </TouchableOpacity>
 
                     {/* Category filter chips */}
@@ -1202,7 +1209,7 @@ export default function ChallengeSetupScreen() {
                                                 isActive && styles.filterChipActive,
                                             ]}
                                             accessibilityRole="button"
-                                            accessibilityLabel={`Filter by ${cat.label}`}
+                                            accessibilityLabel={t('wizard.challenge.accessibility.filterBy', { label: cat.label })}
                                         >
                                             <Text style={[
                                                 styles.filterText,
@@ -1228,7 +1235,7 @@ export default function ChallengeSetupScreen() {
                             <SkeletonBox width="100%" height={60} borderRadius={12} />
                         </View>
                     ) : experienceError ? (
-                        <ErrorRetry onRetry={fetchExperiences} message="Could not load experiences. Check your connection." />
+                        <ErrorRetry onRetry={fetchExperiences} message={t('wizard.challenge.experience.loadError')} />
                     ) : (
                         <View style={styles.stackedCategories}>
                             {visibleCategories.map((cat) => {
@@ -1313,9 +1320,9 @@ export default function ChallengeSetupScreen() {
 
         // Default view: category preference cards (derived from shared EXPERIENCE_CATEGORIES constant)
         const CATEGORY_TAGLINES: Record<string, string> = {
-            adventure: 'Explore something new',
-            wellness: 'Treat yourself',
-            creative: 'Make something amazing',
+            adventure: t('wizard.challenge.experience.categories.adventure'),
+            wellness: t('wizard.challenge.experience.categories.wellness'),
+            creative: t('wizard.challenge.experience.categories.creative'),
         };
         const CATEGORY_CARDS: { key: ExperienceCategory; emoji: string; label: string; tagline: string; color: string }[] =
             EXPERIENCE_CATEGORIES.map(cat => ({
@@ -1330,7 +1337,7 @@ export default function ChallengeSetupScreen() {
             <View style={styles.stepContent}>
                 {validationErrors.experience && (
                     <View style={styles.errorBanner}>
-                        <Text style={styles.errorText}>Please pick a reward option</Text>
+                        <Text style={styles.errorText}>{t('wizard.challenge.validation.pickReward')}</Text>
                     </View>
                 )}
 
@@ -1348,16 +1355,16 @@ export default function ChallengeSetupScreen() {
                         onPress={() => setShowExperiencePicker(true)}
                         activeOpacity={0.8}
                         accessibilityRole="button"
-                        accessibilityLabel="Choose your experience"
+                        accessibilityLabel={t('wizard.challenge.accessibility.chooseExperience')}
                     >
                         <RNImage source={require('../assets/icon.png')} style={{ width: 36, height: 36, marginRight: Spacing.lg }} resizeMode="contain" accessible={false} />
                         <View style={{ flex: 1 }}>
                             <Text style={[
                                 styles.rewardCategoryLabel,
                                 selectedExperience && { color: colors.primary },
-                            ]}>{selectedExperience ? selectedExperience.title : 'Browse experiences'}</Text>
+                            ]}>{selectedExperience ? selectedExperience.title : t('wizard.challenge.experience.browseExperiences')}</Text>
                             <Text style={styles.rewardCategoryTagline}>
-                                {selectedExperience ? `\u20AC${selectedExperience.price}` : 'Pick a reward to earn'}
+                                {selectedExperience ? `\u20AC${selectedExperience.price}` : t('wizard.challenge.experience.pickRewardToEarn')}
                             </Text>
                         </View>
                         {selectedExperience ? (
@@ -1373,7 +1380,7 @@ export default function ChallengeSetupScreen() {
                 {/* Divider with "or" */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: Spacing.md }}>
                     <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-                    <Text style={{ paddingHorizontal: Spacing.md, color: colors.textMuted, ...Typography.small }}>or let us surprise you</Text>
+                    <Text style={{ paddingHorizontal: Spacing.md, color: colors.textMuted, ...Typography.small }}>{t('wizard.challenge.experience.orSurprise')}</Text>
                     <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
                 </View>
 
@@ -1400,7 +1407,7 @@ export default function ChallengeSetupScreen() {
                                 }}
                                 activeOpacity={0.8}
                                 accessibilityRole="button"
-                                accessibilityLabel={`Select ${cat.label} reward category`}
+                                accessibilityLabel={t('wizard.challenge.accessibility.selectCategory', { label: cat.label })}
                             >
                                 <Text style={styles.rewardCategoryEmoji}>{cat.emoji}</Text>
                                 <View style={{ flex: 1 }}>
@@ -1432,16 +1439,16 @@ export default function ChallengeSetupScreen() {
                 onPress={() => setPaymentChoice('payNow')}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel="Lock it in, pay now"
+                accessibilityLabel={t('wizard.challenge.payment.lockInLabel')}
             >
                 <View style={styles.rewardChoiceHeader}>
                     <View style={{ flex: 1 }}>
-                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'payNow' && styles.rewardChoiceTitleActive]}>Lock it in</Text>
+                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'payNow' && styles.rewardChoiceTitleActive]}>{t('wizard.challenge.payment.lockIn')}</Text>
                         <Text style={styles.rewardChoiceDesc}>
-                            Pay now and secure your reward. Studies show you're ~30% more likely to complete your challenge when you've invested upfront.
+                            {t('wizard.challenge.payment.lockInDesc')}
                         </Text>
                         <View style={styles.revealBadge}>
-                            <Text style={[styles.revealBadgeText, { color: colors.warning }]}>Recommended</Text>
+                            <Text style={[styles.revealBadgeText, { color: colors.warning }]}>{t('wizard.challenge.payment.recommended')}</Text>
                         </View>
                     </View>
                     {paymentChoice === 'payNow' && (
@@ -1456,13 +1463,13 @@ export default function ChallengeSetupScreen() {
                 onPress={() => setPaymentChoice('payLater')}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel="Pay on success"
+                accessibilityLabel={t('wizard.challenge.payment.payOnSuccessLabel')}
             >
                 <View style={styles.rewardChoiceHeader}>
                     <View style={{ flex: 1 }}>
-                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'payLater' && styles.rewardChoiceTitleActive]}>Pay on success</Text>
+                        <Text style={[styles.rewardChoiceTitle, paymentChoice === 'payLater' && styles.rewardChoiceTitleActive]}>{t('wizard.challenge.payment.payOnSuccess')}</Text>
                         <Text style={styles.rewardChoiceDesc}>
-                            Save your payment method now. Only charged when you complete the challenge. Zero risk.
+                            {t('wizard.challenge.payment.payOnSuccessDesc')}
                         </Text>
                     </View>
                     {paymentChoice === 'payLater' && (
@@ -1473,9 +1480,9 @@ export default function ChallengeSetupScreen() {
 
             {/* Motivational stat */}
             <View style={styles.statCard}>
-                <Text style={styles.statNumber}>Invest in your success.</Text>
+                <Text style={styles.statNumber}>{t('wizard.challenge.payment.statTitle')}</Text>
                 <Text style={styles.statText}>
-                    Having a reward waiting at the finish line taps into human psychology. You are hardwired to finish the challenge when there is something to gain.
+                    {t('wizard.challenge.payment.statDesc')}
                 </Text>
             </View>
         </View>
@@ -1507,11 +1514,11 @@ export default function ChallengeSetupScreen() {
                         onPress={handleBack}
                         activeOpacity={0.8}
                         accessibilityRole="button"
-                        accessibilityLabel="Go back"
+                        accessibilityLabel={t('wizard.challenge.accessibility.goBack')}
                     >
                         <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2.5} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Create Your Challenge</Text>
+                    <Text style={styles.headerTitle}>{t('wizard.challenge.header.title')}</Text>
                     <View style={styles.stepIndicator}>
                         <Text style={styles.stepIndicatorText}>{currentStep}/{totalSteps}</Text>
                     </View>
@@ -1551,7 +1558,7 @@ export default function ChallengeSetupScreen() {
                                 animate={{ opacity: 1, translateX: 0 }}
                                 exit={{ opacity: 0, translateX: -30 }}
                                 transition={{ type: 'timing', duration: 250 }}
-                                style={{ backgroundColor: 'transparent' }}
+                                style={{ backgroundColor: colors.surface }}
                             >
                                 {renderCurrentStep()}
                             </MotiView>
@@ -1590,9 +1597,9 @@ export default function ChallengeSetupScreen() {
                                         onPress={() => setDetailExperience(selectedExperience)}
                                         style={styles.heroDetailsButton}
                                         accessibilityRole="button"
-                                        accessibilityLabel="View experience details"
+                                        accessibilityLabel={t('wizard.challenge.accessibility.viewExperienceDetails')}
                                     >
-                                        <Text style={styles.heroDetailsText}>View details</Text>
+                                        <Text style={styles.heroDetailsText}>{t('wizard.challenge.footer.viewDetails')}</Text>
                                     </TouchableOpacity>
                                 </View>
 
@@ -1618,7 +1625,7 @@ export default function ChallengeSetupScreen() {
                                         </View>
                                         <View style={styles.contextDivider} />
                                         <View style={styles.contextBadge}>
-                                            <Text style={styles.contextLabel}>{weeks} {weeks === 1 ? 'week' : 'weeks'}</Text>
+                                            <Text style={styles.contextLabel}>{t('wizard.challenge.footer.weekLabel', { count: weeks })}</Text>
                                         </View>
                                         <View style={styles.contextDivider} />
                                         <View style={styles.contextBadge}>
@@ -1637,11 +1644,11 @@ export default function ChallengeSetupScreen() {
                             onPress={handleCreate}
                             activeOpacity={0.9}
                             accessibilityRole="button"
-                            accessibilityLabel={state.user?.id ? 'Create challenge' : 'Sign up and create challenge'}
+                            accessibilityLabel={state.user?.id ? t('wizard.challenge.footer.createChallenge') : t('wizard.challenge.footer.signUpCreate')}
                         >
                             <LinearGradient colors={colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
                                 <Text style={styles.createButtonText}>
-                                    {state.user?.id ? 'Create Challenge' : 'Sign Up & Create Challenge'}
+                                    {state.user?.id ? t('wizard.challenge.footer.createChallenge') : t('wizard.challenge.footer.signUpCreate')}
                                 </Text>
                                 <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                             </LinearGradient>
@@ -1652,10 +1659,10 @@ export default function ChallengeSetupScreen() {
                             onPress={handleNext}
                             activeOpacity={0.9}
                             accessibilityRole="button"
-                            accessibilityLabel="Continue to next step"
+                            accessibilityLabel={t('wizard.challenge.footer.continueNext')}
                         >
                             <LinearGradient colors={colors.gradientDark} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.createButtonGradient}>
-                                <Text style={styles.createButtonText}>Next</Text>
+                                <Text style={styles.createButtonText}>{t('wizard.challenge.footer.next')}</Text>
                                 <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                             </LinearGradient>
                         </TouchableOpacity>
@@ -1666,29 +1673,29 @@ export default function ChallengeSetupScreen() {
                 <BaseModal
                     visible={showConfirm}
                     onClose={() => setShowConfirm(false)}
-                    title="Confirm Your Challenge"
+                    title={t('wizard.challenge.confirm.title')}
                     variant="center"
                 >
                     <View style={{ width: '100%', alignItems: 'center' }}>
                         <Text style={styles.modalSubtitle}>
-                            Ready to commit? Let's do this!
+                            {t('wizard.challenge.confirm.subtitle')}
                         </Text>
 
                         <View style={styles.modalDetails}>
                             <Text style={styles.modalRow}>
-                                <Text style={styles.modalLabel}>Goal: </Text>
+                                <Text style={styles.modalLabel}>{t('wizard.challenge.confirm.goalLabel')} </Text>
                                 {finalGoalName}
                             </Text>
                             <Text style={styles.modalRow}>
-                                <Text style={styles.modalLabel}>Duration: </Text>
-                                {weeks} {weeks === 1 ? 'week' : 'weeks'}
+                                <Text style={styles.modalLabel}>{t('wizard.challenge.confirm.durationLabel')} </Text>
+                                {t('wizard.challenge.footer.weekLabel', { count: weeks })}
                             </Text>
                             <Text style={styles.modalRow}>
-                                <Text style={styles.modalLabel}>Sessions/week: </Text>
+                                <Text style={styles.modalLabel}>{t('wizard.challenge.confirm.sessionsLabel')} </Text>
                                 {sessionsPerWeek}
                             </Text>
                             <Text style={styles.modalRow}>
-                                <Text style={styles.modalLabel}>Per session: </Text>
+                                <Text style={styles.modalLabel}>{t('wizard.challenge.confirm.perSessionLabel')} </Text>
                                 {showCustomTime
                                     ? `${hours || '0'}h ${minutes || '0'}m`
                                     : `${sessionMinutes} min`
@@ -1696,13 +1703,13 @@ export default function ChallengeSetupScreen() {
                             </Text>
                             {selectedExperience && (
                                 <Text style={styles.modalRow}>
-                                    <Text style={styles.modalLabel}>Dream reward: </Text>
+                                    <Text style={styles.modalLabel}>{t('wizard.challenge.confirm.rewardLabel')} </Text>
                                     {selectedExperience.title}
                                 </Text>
                             )}
                             {!selectedExperience && preferredRewardCategory && (
                                 <Text style={styles.modalRow}>
-                                    <Text style={styles.modalLabel}>Reward preference: </Text>
+                                    <Text style={styles.modalLabel}>{t('wizard.challenge.confirm.rewardPrefLabel')} </Text>
                                     {preferredRewardCategory.charAt(0).toUpperCase() + preferredRewardCategory.slice(1)}
                                 </Text>
                             )}
@@ -1710,19 +1717,19 @@ export default function ChallengeSetupScreen() {
 
                         {selectedExperience && (
                             <Text style={styles.modalRow}>
-                                <Text style={styles.modalLabel}>Payment: </Text>
-                                {paymentChoice === 'payNow' ? 'Pay now (locked in)' : 'Pay on success'}
+                                <Text style={styles.modalLabel}>{t('wizard.challenge.confirm.paymentLabel')} </Text>
+                                {paymentChoice === 'payNow' ? t('wizard.challenge.confirm.payNowText') : t('wizard.challenge.confirm.payLaterText')}
                             </Text>
                         )}
 
                         <Text style={styles.pledgeNote}>
                             {selectedExperience && paymentChoice === 'payNow'
-                                ? 'You\'ll complete payment next to secure your reward.'
+                                ? t('wizard.challenge.confirm.pledgePayNow')
                                 : selectedExperience && paymentChoice === 'payLater'
-                                    ? 'You\'ll save your payment method next. Only charged when you finish.'
+                                    ? t('wizard.challenge.confirm.pledgePayLater')
                                     : preferredRewardCategory
-                                        ? 'We\'ll find the perfect reward for you as you make progress!'
-                                        : 'You can always add a reward later.'
+                                        ? t('wizard.challenge.confirm.pledgeCategory')
+                                        : t('wizard.challenge.confirm.pledgeFree')
                             }
                         </Text>
 
@@ -1731,7 +1738,7 @@ export default function ChallengeSetupScreen() {
                                 variant="ghost"
                                 onPress={() => setShowConfirm(false)}
                                 disabled={isSubmitting}
-                                title="Cancel"
+                                title={t('wizard.challenge.confirm.cancel')}
                                 style={styles.modalButton}
                             />
 
@@ -1740,7 +1747,7 @@ export default function ChallengeSetupScreen() {
                                     variant="primary"
                                     onPress={confirmCreateGoal}
                                     loading={isSubmitting}
-                                    title={selectedExperience && paymentChoice === 'payNow' ? 'Create & Pay' : 'Let\'s Go!'}
+                                    title={selectedExperience && paymentChoice === 'payNow' ? t('wizard.challenge.confirm.createAndPay') : t('wizard.challenge.confirm.letsGo')}
                                     fullWidth
                                     style={styles.modalButton}
                                 />
@@ -2062,21 +2069,32 @@ const createStyles = (colors: typeof Colors, screenWidth: number = 375) => Style
         paddingHorizontal: Spacing.xl,
         paddingBottom: Platform.OS === 'ios' ? vh(30) : vh(18),
         paddingTop: vh(14),
-        backgroundColor: colors.white,
-        borderTopWidth: 1,
-        borderTopColor: colors.backgroundLight,
+        backgroundColor: colors.surface,
+        borderTopWidth: 0,
         ...Shadows.md,
-        shadowColor: colors.black,
-        shadowOffset: { width: 0, height: -4 },
+        ...Platform.select({
+            web: {},
+            default: {
+                shadowColor: colors.black,
+                shadowOffset: { width: 0, height: -4 },
+            },
+        }),
     },
     createButton: {
         borderRadius: BorderRadius.lg,
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 16,
-        elevation: 8,
-    },
+        ...Platform.select({
+            ios: {
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.3,
+                shadowRadius: 16,
+            },
+            android: {
+                boxShadow: `0 8 16 0 ${colors.primary}4D`,
+            },
+            default: {},
+        }),
+    } as any,
     createButtonGradient: {
         flexDirection: 'row',
         alignItems: 'center',

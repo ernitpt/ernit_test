@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Trophy, Clock, Calendar, CheckCircle2 } from 'lucide-react-native';
 import { MotiView } from 'moti';
+import { useTranslation } from 'react-i18next';
 import type { Goal } from '../../types';
 import { Colors, useColors } from '../../config';
 import { BorderRadius } from '../../config/borderRadius';
@@ -18,6 +19,7 @@ interface CompletedGoalCardProps {
 }
 
 const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }) => {
+    const { t } = useTranslation();
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const navigation = useRootNavigation();
@@ -56,7 +58,7 @@ const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }
                             <Text style={styles.title} numberOfLines={1}>{goal.title}</Text>
                             <View style={styles.completedBadge}>
                                 <CheckCircle2 size={12} color={colors.primary} />
-                                <Text style={styles.completedBadgeText}>Completed</Text>
+                                <Text style={styles.completedBadgeText}>{t('recipient.completedGoal.completed')}</Text>
                             </View>
                         </View>
                         <View style={styles.trophyCircle}>
@@ -69,14 +71,14 @@ const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }
                         <View style={styles.stat}>
                             <Calendar size={13} color={colors.textSecondary} />
                             <Text style={styles.statText}>
-                                {goal.targetCount} {goal.targetCount === 1 ? 'week' : 'weeks'}
+                                {t('recipient.completedGoal.weeks', { count: goal.targetCount })}
                             </Text>
                         </View>
                         <View style={styles.statDot} />
                         <View style={styles.stat}>
                             <Clock size={13} color={colors.textSecondary} />
                             <Text style={styles.statText}>
-                                {totalSessions} {totalSessions === 1 ? 'session' : 'sessions'}
+                                {t('recipient.completedGoal.sessions', { count: totalSessions })}
                             </Text>
                         </View>
                     </View>
@@ -102,7 +104,7 @@ const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }
                     {/* Self-achievement badge (free goal, no experience) */}
                     {isSelfAchievement && (
                         <View style={styles.selfBadge}>
-                            <Text style={styles.selfBadgeText}>🏆 Self-Achievement</Text>
+                            <Text style={styles.selfBadgeText}>{t('recipient.completedGoal.selfAchievement')}</Text>
                         </View>
                     )}
                 </View>

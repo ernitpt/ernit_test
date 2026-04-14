@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Notification, Goal } from '../types';
 import { goalService } from '../services/GoalService';
 import { notificationService } from '../services/NotificationService';
@@ -27,6 +28,7 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [goal, setGoal] = useState<Goal | null>(null);
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { state } = useApp();
@@ -52,14 +54,14 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
       }
 
       if (!currentGoal || !currentGoal.id) {
-        setError('Could not load goal. Please try again.');
+        setError(t('notifications.notificationComponents.goalChangeSuggestion.errors.loadFailed'));
         setLoading(false);
         return;
       }
 
       // Verify user is the goal recipient before accepting
       if (!currentGoal.userId) {
-        setError('Goal is missing user information. Please try again.');
+        setError(t('notifications.notificationComponents.goalChangeSuggestion.errors.missingUser'));
         setLoading(false);
         return;
       }
@@ -67,7 +69,7 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
       // Ownership check: only the goal recipient or the giver may accept a suggestion
       if (currentGoal.userId !== currentUserId && currentGoal.giverId !== currentUserId) {
         logger.warn('Unauthorized attempt to accept goal suggestion');
-        setError('You are not authorized to accept this suggestion.');
+        setError(t('notifications.notificationComponents.goalChangeSuggestion.errors.unauthorized'));
         setLoading(false);
         return;
       }
@@ -108,7 +110,7 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
       onActionTaken();
     } catch (error: unknown) {
       logger.error('Error accepting suggestion:', error);
-      setError(error instanceof Error ? error.message : 'Failed to accept suggestion. Please try again.');
+      setError(error instanceof Error ? error.message : t('notifications.notificationComponents.goalChangeSuggestion.errors.acceptFailed'));
     } finally {
       setLoading(false);
     }
@@ -126,14 +128,14 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
           setGoal(fetchedGoal);
           setShowModal(true);
         } else {
-          setError('Could not load goal. Please try again.');
+          setError(t('notifications.notificationComponents.goalChangeSuggestion.errors.loadFailed'));
         }
       } else {
         setShowModal(true);
       }
     } catch (error: unknown) {
       logger.error('Error loading goal:', error);
-      setError('Could not load goal. Please try again.');
+      setError(t('notifications.notificationComponents.goalChangeSuggestion.errors.loadFailed'));
     }
   };
 
@@ -184,12 +186,12 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
           {/* <Text style={styles.message}>{notification.message}</Text> */}
           {notification.data?.giverMessage && (
             <View style={styles.messageBox}>
-              <Text style={styles.messageLabel}>Message from {notification.data?.senderName || 'giver'}:</Text>
+              <Text style={styles.messageLabel}>{t('notifications.notificationComponents.goalChangeSuggestion.messageFrom', { name: notification.data?.senderName || 'giver' })}</Text>
               <Text style={styles.messageText}>{notification.data.giverMessage}</Text>
             </View>
           )}
           <Text style={styles.details}>
-            Suggested: {suggestedWeeks} weeks, {suggestedSessions} sessions per week
+            {t('notifications.notificationComponents.goalChangeSuggestion.suggestedLabel', { weeks: suggestedWeeks, sessions: suggestedSessions })}
           </Text>
           {error && (
             <View style={styles.errorBox}>
@@ -201,14 +203,14 @@ const GoalChangeSuggestionNotification: React.FC<GoalChangeSuggestionNotificatio
         <View style={styles.buttons}>
           <Button
             variant="primary"
-            title="Accept"
+            title={t('notifications.notificationComponents.goalChangeSuggestion.accept')}
             onPress={handleAcceptSuggestion}
             loading={loading}
             style={styles.buttonFlex}
           />
           <Button
             variant="secondary"
-            title="Change"
+            title={t('notifications.notificationComponents.goalChangeSuggestion.change')}
             onPress={handleOpenModal}
             disabled={loading}
             style={styles.buttonFlex}

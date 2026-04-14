@@ -18,8 +18,16 @@ export default {
       backgroundColor: "#00000000",
       translucent: true,
     },
+    ios: {
+      infoPlist: {
+        CFBundleAllowMixedLocalizations: true,
+        CFBundleDevelopmentRegion: "en",
+        CFBundleLocalizations: ["en", "pt"],
+      },
+    },
     android: {
       package: "com.ernit.ernit",
+      backgroundColor: "#FAFAF5",
       softwareKeyboardLayoutMode: "pan",
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
@@ -37,6 +45,7 @@ export default {
       "expo-image-picker",
       "expo-sensors",
       "expo-av",
+      "expo-localization",
       ["@stripe/stripe-react-native", { merchantIdentifier: "merchant.app.ernit" }],
     ],
     updates: {

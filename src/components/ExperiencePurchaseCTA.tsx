@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
 import { Image } from 'expo-image';
+import { useTranslation } from 'react-i18next';
 import { Gift, X, Sparkles, ShoppingBag } from 'lucide-react-native';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
@@ -31,6 +32,7 @@ export const InlineExperienceCTA: React.FC<InlineCTAProps> = React.memo(({
 }) => {
     const colors = useColors();
     const inlineStyles = useMemo(() => createInlineStyles(colors), [colors]);
+    const { t } = useTranslation();
 
     const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -57,7 +59,7 @@ export const InlineExperienceCTA: React.FC<InlineCTAProps> = React.memo(({
             ]}
         >
             {/* Dismiss */}
-            <TouchableOpacity style={inlineStyles.dismiss} onPress={onDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="Dismiss experience suggestion">
+            <TouchableOpacity style={inlineStyles.dismiss} onPress={onDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('giver.purchaseCTA.dismissA11y')}>
                 <X size={16} color={colors.textMuted} />
             </TouchableOpacity>
 
@@ -90,7 +92,7 @@ export const InlineExperienceCTA: React.FC<InlineCTAProps> = React.memo(({
             {/* CTA button */}
             <Button
                 variant="primary"
-                title="Buy This Experience"
+                title={t('giver.purchaseCTA.buyThisExperience')}
                 icon={<ShoppingBag size={16} color={colors.white} />}
                 onPress={onGift}
                 style={inlineStyles.giftButton}
@@ -99,7 +101,7 @@ export const InlineExperienceCTA: React.FC<InlineCTAProps> = React.memo(({
 
             <Button
                 variant="ghost"
-                title="Maybe Later"
+                title={t('giver.purchaseCTA.maybeLater')}
                 onPress={onDismiss}
                 style={inlineStyles.later}
                 fullWidth

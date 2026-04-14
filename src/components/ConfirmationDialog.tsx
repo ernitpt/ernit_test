@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet } from 'react-native';
 import { BaseModal } from './BaseModal';
 import Button from './Button';
@@ -22,8 +23,8 @@ export const ConfirmationDialog = React.memo<ConfirmationDialogProps>(({
   visible,
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
   variant = 'default',
@@ -31,6 +32,9 @@ export const ConfirmationDialog = React.memo<ConfirmationDialogProps>(({
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
+  const resolvedConfirmLabel = confirmLabel ?? t('common.confirm');
+  const resolvedCancelLabel = cancelLabel ?? t('common.cancel');
 
   return (
     <BaseModal visible={visible} onClose={onCancel} title={title}>
@@ -38,14 +42,14 @@ export const ConfirmationDialog = React.memo<ConfirmationDialogProps>(({
       <View style={styles.actions}>
         <Button
           variant="ghost"
-          title={cancelLabel}
+          title={resolvedCancelLabel}
           onPress={onCancel}
           style={styles.button}
           disabled={loading}
         />
         <Button
           variant={variant === 'danger' ? 'danger' : 'primary'}
-          title={confirmLabel}
+          title={resolvedConfirmLabel}
           onPress={onConfirm}
           style={styles.button}
           loading={loading}

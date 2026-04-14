@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatLocalDate, formatRelativeTime } from '../../utils/i18nHelpers';
+import { formatCurrency } from '../../utils/helpers';
 import {
   View, Text, ScrollView, StyleSheet, Animated, Easing, TouchableOpacity,
   Platform, Linking, Dimensions, DimensionValue,
@@ -7,7 +10,6 @@ import { MotiView } from 'moti';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import * as Clipboard from 'expo-clipboard';
-import * as Sharing from 'expo-sharing';
 import { useRoute } from '@react-navigation/native';
 import { collection, query, where, limit, getDocs, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -31,7 +33,6 @@ import { useRootNavigation } from '../../types/navigation';
 import { isSelfGifted } from '../../types';
 import { useApp } from '../../context/AppContext';
 import { useToast } from '../../context/ToastContext';
-import MainScreen from '../MainScreen';
 import SharedHeader from '../../components/SharedHeader';
 import AudioPlayer from '../../components/AudioPlayer';
 import ImageViewer from '../../components/ImageViewer';
@@ -57,9 +58,8 @@ import { Shadows } from '../../config/shadows';
 import { logger } from '../../utils/logger';
 import { toJSDate } from '../../utils/GoalHelpers';
 import ErrorRetry from '../../components/ErrorRetry';
-import { captureRef } from 'react-native-view-shot';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Trophy, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Share as ShareIcon, Clock, PlayCircle, Flame } from 'lucide-react-native';
+import { Trophy, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Clock, PlayCircle, Flame } from 'lucide-react-native';
+import Button from '../../components/Button';
 import { getFlameHex } from '../../utils/streakColor';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import * as Haptics from 'expo-haptics';
@@ -455,6 +455,7 @@ const createSessStyles = (colors: typeof Colors) => StyleSheet.create({
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────
 const AchievementDetailScreen = () => {
+  const { t } = useTranslation();
   const navigation = useRootNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
@@ -504,10 +505,6 @@ const AchievementDetailScreen = () => {
   // Hints
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
 
-  // Share
-  const shareCardRef = useRef<View>(null);
-  const [shareFormat, setShareFormat] = useState<'story' | 'square'>('story');
-  const [isSharing, setIsSharing] = useState(false);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phoneTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const emailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -520,9 +517,9 @@ const AchievementDetailScreen = () => {
   const [paymentPending, setPaymentPending] = useState(false);
 
   // Completion mode — celebration message (randomised once on mount)
-  const [celebrationMessage] = useState(() => {
-    const messages = ['Incredible!', 'You crushed it!', 'Legend!', 'Unstoppable!', 'Champion!', 'Phenomenal!'];
-    return messages[Math.floor(Math.random() * messages.length)];
+  const [celebrationMsgKey] = useState(() => {
+    const keys = ['incredible', 'crushedIt', 'legend', 'unstoppable', 'champion', 'phenomenal'];
+    return keys[Math.floor(Math.random() * keys.length)];
   });
 
   // Confetti ref
@@ -532,15 +529,6 @@ const AchievementDetailScreen = () => {
   const [preferredDate, setPreferredDate] = useState<Date | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [bookingMethod, setBookingMethod] = useState<'whatsapp' | 'email' | null>(null);
-
-  // Goal type emoji mapping (used in share card)
-  const GOAL_TYPE_EMOJI: Record<string, string> = {
-    fitness: '💪', yoga: '🧘', meditation: '🧠', running: '🏃',
-    cycling: '🚴', swimming: '🏊', reading: '📚', writing: '✍️',
-    cooking: '👨‍🍳', music: '🎵', art: '🎨', dance: '💃',
-    hiking: '🥾', study: '📖', code: '💻', default: '🏆',
-  };
-  const goalTypeEmoji = GOAL_TYPE_EMOJI[goal?.goalType || ''] || GOAL_TYPE_EMOJI.default;
 
   // Computed values
   const hasReward = Boolean(goal?.experienceGiftId) || Boolean(goal?.giftAttachedAt);
@@ -577,7 +565,7 @@ const AchievementDetailScreen = () => {
     return isNaN(d.getTime()) ? null : d;
   })();
   const completedDate = parsedDate && !isNaN(parsedDate.getTime())
-    ? parsedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    ? formatLocalDate(parsedDate, { month: 'short', day: 'numeric', year: 'numeric' })
     : null;
 
   // Cleanup copy timeouts on unmount
@@ -594,7 +582,7 @@ const AchievementDetailScreen = () => {
   // useEffect 1 - Experience, partner, coupon, userName
   useEffect(() => {
     if (!goal) {
-      navigation.navigate('Profile');
+      navigation.navigate('MainTabs', { screen: 'ProfileTab', params: { screen: 'Profile' } });
       return;
     }
     let mounted = true;
@@ -777,9 +765,9 @@ const AchievementDetailScreen = () => {
       if (supported) {
         Linking.openURL(url);
       } else {
-        showInfo('Could not open email client.');
+        showInfo(t('booking.email.error'));
       }
-    }).catch(() => showInfo('Could not open email client.'));
+    }).catch(() => showInfo(t('booking.email.error')));
   }, []);
 
   const handleWhatsAppSchedule = useCallback((dateOverride?: Date) => {
@@ -787,15 +775,15 @@ const AchievementDetailScreen = () => {
 
     const resolvedDate = dateOverride ?? preferredDate;
     const dateString = resolvedDate
-      ? resolvedDate.toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-      })
-      : 'at your earliest convenience';
+      ? formatLocalDate(resolvedDate, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+      : t('booking.whatsapp.earliestConvenience');
 
-    const message = `Hi ${partner.name || 'there'}!\n\nI'm ${userName} and I've completed my Ernit goal and earned ${experience.title}!\n\nI'd like to schedule my experience for ${dateString}.\n\nLooking forward to it!`;
+    const message = t('booking.whatsapp.scheduleMessage', {
+      partnerName: partner.name || t('booking.whatsapp.defaultPartnerName'),
+      experienceName: experience.title,
+      dateString,
+      userName,
+    });
 
     const phoneNumber = partner.phone.replace(/[^0-9]/g, '');
     const whatsappUrl = Platform.select({
@@ -808,35 +796,35 @@ const AchievementDetailScreen = () => {
       if (supported) {
         Linking.openURL(whatsappUrl!);
       } else {
-        showInfo('WhatsApp is not installed. Please use email to contact the partner.');
+        showInfo(t('booking.whatsapp.error'));
       }
-    }).catch(() => showInfo('WhatsApp is not installed. Please use email to contact the partner.'));
-  }, [partner, experience, preferredDate, userName]);
+    }).catch(() => showInfo(t('booking.whatsapp.error')));
+  }, [partner, experience, preferredDate, userName, t]);
 
   const handleEmailSchedule = useCallback((dateOverride?: Date) => {
     if (!partner || !experience) return;
     const contactEmail = partner.contactEmail || partner.email;
     if (!contactEmail) {
-      showInfo('Partner email is not available.');
+      showInfo(t('recipient.achievement.error.partnerEmailUnavailable'));
       return;
     }
 
     const resolvedDate = dateOverride ?? preferredDate;
     const dateString = resolvedDate
-      ? resolvedDate.toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-      })
-      : 'at your earliest convenience';
+      ? formatLocalDate(resolvedDate, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+      : t('booking.email.earliestConvenience');
 
-    const message = `Hi ${partner.name || 'there'}!\n\nI'm ${userName} and I've completed my Ernit goal and earned ${experience.title}!\n\nI'd like to schedule my experience for ${dateString}.\n\nLooking forward to it!`;
+    const message = t('booking.email.scheduleBody', {
+      partnerName: partner.name || t('booking.email.defaultPartnerName'),
+      experienceName: experience.title,
+      dateString,
+      userName,
+    });
 
-    const subject = `Experience Booking - ${experience.title}`;
+    const subject = t('booking.email.subject', { experienceName: experience.title });
     const emailUrl = `mailto:${contactEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
     handleEmailFallback(emailUrl);
-  }, [partner, experience, preferredDate, userName, handleEmailFallback]);
+  }, [partner, experience, preferredDate, userName, handleEmailFallback, t]);
 
   const handleBookNowWhatsApp = useCallback(() => {
     setBookingMethod('whatsapp');
@@ -865,65 +853,6 @@ const AchievementDetailScreen = () => {
     // Do NOT send a booking message when the user cancels the calendar
   }, []);
 
-  const handleShare = useCallback(async () => {
-    if (!shareCardRef.current) return;
-    setIsSharing(true);
-    try {
-      if (Platform.OS === 'web') {
-        // Web: capture as data URI since tmpfile is native-only
-        const dataUri = await captureRef(shareCardRef, {
-          format: 'png',
-          quality: 1,
-          result: 'data-uri',
-        });
-
-        // Convert data URI to File for Web Share API
-        const res = await fetch(dataUri);
-        const blob = await res.blob();
-        const file = new File([blob], 'ernit-achievement.png', { type: 'image/png' });
-
-        // Use Web Share API with files (works on mobile browsers for Instagram)
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: 'My Achievement',
-            text: 'Check out my achievement on Ernit!',
-          });
-        } else {
-          // Fallback: download the image so the user can share manually
-          const link = document.createElement('a');
-          link.href = dataUri;
-          link.download = 'ernit-achievement.png';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          showInfo('Image saved! Share it to Instagram from your gallery.');
-        }
-      } else {
-        // Native: use tmpfile + expo-sharing
-        const uri = await captureRef(shareCardRef, {
-          format: 'png',
-          quality: 1,
-          result: 'tmpfile',
-        });
-        const isAvailable = await Sharing.isAvailableAsync();
-        if (isAvailable) {
-          await Sharing.shareAsync(uri, {
-            mimeType: 'image/png',
-            dialogTitle: 'Share your achievement',
-          });
-        } else {
-          showInfo('Sharing is not available on this device');
-        }
-      }
-    } catch (error: unknown) {
-      logger.error('Error sharing achievement:', error);
-      showError('Could not share. Please try again.');
-    } finally {
-      setIsSharing(false);
-    }
-  }, []);
-
   // ───── HintItem callback ─────
   const handleHintImagePress = useCallback((uri: string) => {
     setSelectedImageUri(uri);
@@ -933,13 +862,11 @@ const AchievementDetailScreen = () => {
   if (!goal) {
     return (
       <ErrorBoundary screenName="AchievementDetailScreen" userId={state.user?.id}>
-        <MainScreen activeRoute="Profile">
           <StatusBar style="light" />
-          <SharedHeader title="Achievement" showBack />
+          <SharedHeader title={t('recipient.achievement.screenTitle')} showBack />
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>Redirecting...</Text>
+            <Text style={{ color: colors.textSecondary, ...Typography.subheading }}>{t('common.loading')}</Text>
           </View>
-        </MainScreen>
       </ErrorBoundary>
     );
   }
@@ -948,9 +875,8 @@ const AchievementDetailScreen = () => {
   if (error && !isLoading) {
     return (
       <ErrorBoundary screenName="AchievementDetailScreen" userId={state.user?.id}>
-        <MainScreen activeRoute="Profile">
           <StatusBar style="light" />
-          <SharedHeader title="Achievement" showBack />
+          <SharedHeader title={t('recipient.achievement.screenTitle')} showBack />
           <ErrorRetry
             message="Could not load achievement details"
             onRetry={() => {
@@ -958,79 +884,15 @@ const AchievementDetailScreen = () => {
               setRetryKey(k => k + 1);
             }}
           />
-        </MainScreen>
       </ErrorBoundary>
     );
   }
 
   return (
     <ErrorBoundary screenName="AchievementDetailScreen" userId={state.user?.id}>
-      <MainScreen activeRoute="Profile">
+      <View style={{ flex: 1, backgroundColor: colors.surface }}>
         <StatusBar style="light" />
-        <SharedHeader title="Achievement" showBack />
-
-        {/* Off-screen Share Card — hero-style tilted design */}
-        <View style={{ position: 'absolute', left: -9999, overflow: 'hidden', height: 0 }}>
-          <View ref={shareCardRef} style={{ width: 1080, height: shareFormat === 'story' ? 1920 : 1080, backgroundColor: colors.primaryDark }} collapsable={false}>
-            <LinearGradient colors={[colors.primaryDark, colors.primary]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ flex: 1, padding: 100, justifyContent: 'center', alignItems: 'center' }}>
-
-              {/* Tilted card pair */}
-              <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 80, gap: -40 }}>
-                {/* Left card — goal emoji */}
-                <View style={{ width: 320, height: 420, backgroundColor: colors.primaryDark, borderRadius: 40, justifyContent: 'center', alignItems: 'center', transform: [{ rotate: '-6deg' }], shadowColor: colors.black, shadowOpacity: 0.4, shadowRadius: 30, elevation: 16 }}>
-                  <Text style={{ fontSize: 120 }}>{goalTypeEmoji}</Text>
-                </View>
-                {/* Right card — experience image or gift emoji */}
-                <View style={{ width: 320, height: 420, backgroundColor: colors.primaryDark, borderRadius: 40, justifyContent: 'center', alignItems: 'center', transform: [{ rotate: '6deg' }], shadowColor: colors.black, shadowOpacity: 0.4, shadowRadius: 30, elevation: 16, overflow: 'hidden' }}>
-                  {experienceImage ? (
-                    <Image source={{ uri: experienceImage }} style={{ width: '100%', height: '100%' }} contentFit="cover" cachePolicy="memory-disk" accessible={false} />
-                  ) : (
-                    <Text style={{ fontSize: 120 }}>🎁</Text>
-                  )}
-                </View>
-              </View>
-
-              {/* Title */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20, marginBottom: 24 }}>
-                <CheckCircle color={colors.white} size={60} />
-                <Text style={{ fontSize: 52, fontWeight: '800', color: colors.white, textTransform: 'uppercase', letterSpacing: 4 }}>GOAL COMPLETED</Text>
-              </View>
-
-              {/* Goal title */}
-              <Text style={{ fontSize: 56, fontWeight: '700', color: colors.primaryTint, textAlign: 'center', marginBottom: 60 }}>
-                {goal.title || goal.description || ''}
-              </Text>
-
-              {/* Stats row */}
-              <View style={{ flexDirection: 'row', gap: 60, backgroundColor: colors.whiteAlpha15, borderRadius: 30, paddingVertical: 40, paddingHorizontal: 80, marginBottom: 80 }}>
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 80, fontWeight: '800', color: colors.white }}>{totalSessions}</Text>
-                  <Text style={{ fontSize: 28, fontWeight: '600', color: Colors.whiteAlpha70, textTransform: 'uppercase', letterSpacing: 3 }}>SESSIONS</Text>
-                </View>
-                <View style={{ width: 2, backgroundColor: Colors.whiteAlpha20, borderRadius: 1 }} />
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 80, fontWeight: '800', color: colors.white }}>{goal.targetCount || 0}</Text>
-                  <Text style={{ fontSize: 28, fontWeight: '600', color: Colors.whiteAlpha70, textTransform: 'uppercase', letterSpacing: 3 }}>WEEKS</Text>
-                </View>
-                {sessionStreak >= 3 && (
-                  <>
-                    <View style={{ width: 2, backgroundColor: Colors.whiteAlpha20, borderRadius: 1 }} />
-                    <View style={{ alignItems: 'center' }}>
-                      <Text style={{ fontSize: 80, fontWeight: '800', color: colors.celebrationGold }}>{sessionStreak}</Text>
-                      <Text style={{ fontSize: 28, fontWeight: '600', color: Colors.whiteAlpha70, textTransform: 'uppercase', letterSpacing: 3 }}>STREAK</Text>
-                    </View>
-                  </>
-                )}
-              </View>
-
-              {/* Footer */}
-              <View style={{ position: 'absolute', bottom: 80, alignItems: 'center' }}>
-                <Image source={require('../../assets/favicon.png')} style={{ width: 70, height: 70, marginBottom: 16 }} contentFit="contain" cachePolicy="memory-disk" accessible={false} />
-                <Text style={{ fontSize: 32, color: Colors.whiteAlpha40 }}>Earned with Ernit</Text>
-              </View>
-            </LinearGradient>
-          </View>
-        </View>
+        <SharedHeader title={t('recipient.achievement.screenTitle')} showBack />
 
         {isCompletion && (
           <ConfettiCannon
@@ -1051,7 +913,7 @@ const AchievementDetailScreen = () => {
             <Card variant="elevated" style={{ alignItems: 'center', marginBottom: Spacing.sectionGap }}>
               <CheckCircle color={colors.primary} size={48} />
               <Text style={[Typography.heading1, { color: colors.textPrimary, marginTop: Spacing.md, textAlign: 'center' }]}>
-                Goal Completed
+                {t('recipient.achievement.goalCompleted')}
               </Text>
               <Text style={[Typography.subheading, { color: colors.textSecondary, marginTop: Spacing.xs, textAlign: 'center' }]}>
                 {goal.title}
@@ -1059,7 +921,7 @@ const AchievementDetailScreen = () => {
 
               {isCompletion && (
                 <Text style={[Typography.subheading, { color: colors.primary, marginTop: Spacing.xs, textAlign: 'center' }]}>
-                  {celebrationMessage}
+                  {t(`recipient.achievement.celebration.${celebrationMsgKey}`)}
                 </Text>
               )}
 
@@ -1067,11 +929,11 @@ const AchievementDetailScreen = () => {
               <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg, flexWrap: 'wrap', justifyContent: 'center' }}>
                 <View style={cStyles.statChip}>
                   <Text style={[Typography.heading2, { color: colors.textPrimary }]}>{totalSessions}</Text>
-                  <Text style={[Typography.caption, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }]}>Sessions</Text>
+                  <Text style={[Typography.caption, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }]}>{t('recipient.achievement.statSessions')}</Text>
                 </View>
                 <View style={cStyles.statChip}>
                   <Text style={[Typography.heading2, { color: colors.textPrimary }]}>{goal.targetCount || 0}</Text>
-                  <Text style={[Typography.caption, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }]}>Weeks</Text>
+                  <Text style={[Typography.caption, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }]}>{t('recipient.achievement.statWeeks')}</Text>
                 </View>
                 {(() => {
                   const streakVal = isCompletion ? sessionStreak : (goal.completionStreak ?? 0);
@@ -1083,7 +945,7 @@ const AchievementDetailScreen = () => {
                         <Flame color={flameColor} size={18} fill={flameColor} />
                         <Text style={[Typography.heading2, { color: flameColor }]}>{streakVal}</Text>
                       </View>
-                      <Text style={[Typography.caption, { color: colors.warningDark, textTransform: 'uppercase', letterSpacing: 1 }]}>Streak</Text>
+                      <Text style={[Typography.caption, { color: colors.warningDark, textTransform: 'uppercase', letterSpacing: 1 }]}>{t('recipient.achievement.statStreak')}</Text>
                     </View>
                   );
                 })()}
@@ -1091,7 +953,7 @@ const AchievementDetailScreen = () => {
 
               {completedDate && (
                 <Text style={[Typography.caption, { color: colors.textMuted, marginTop: Spacing.md }]}>
-                  Completed {completedDate}
+                  {t('recipient.achievement.completedOn', { date: completedDate })}
                 </Text>
               )}
 
@@ -1100,7 +962,7 @@ const AchievementDetailScreen = () => {
                 <>
                   <View style={cStyles.rewardDivider} />
                   <Text style={[Typography.subheading, { color: colors.textPrimary, marginBottom: Spacing.sm, alignSelf: 'flex-start' }]}>
-                    Your Reward
+                    {t('recipient.achievement.yourReward')}
                   </Text>
 
                   <Card variant="outlined" noPadding style={{ alignSelf: 'stretch', overflow: 'hidden' }}>
@@ -1137,15 +999,15 @@ const AchievementDetailScreen = () => {
                         <View style={cStyles.couponCard}>
                           <View style={cStyles.couponRow}>
                             <Ticket size={18} color={colors.primary} />
-                            <Text style={cStyles.couponLabel}>Your Redemption Code</Text>
+                            <Text style={cStyles.couponLabel}>{t('recipient.achievement.couponLabel')}</Text>
                           </View>
                           <View style={cStyles.couponCodeBox}>
                             <Text style={cStyles.couponCodeText}>{couponCode}</Text>
                           </View>
-                          <TouchableOpacity style={cStyles.copyButton} onPress={handleCopy} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy coupon code">
+                          <TouchableOpacity style={cStyles.copyButton} onPress={handleCopy} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('recipient.achievement.copyCouponA11y')}>
                             {isCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.primary} />}
                             <Text style={[cStyles.copyText, isCopied && { color: colors.secondary }]}>
-                              {isCopied ? 'Copied!' : 'Copy Code'}
+                              {isCopied ? t('common.copied') : t('recipient.achievement.copyCode')}
                             </Text>
                           </TouchableOpacity>
                         </View>
@@ -1156,14 +1018,14 @@ const AchievementDetailScreen = () => {
                       {/* Partner contact */}
                       {partner && (partner.phone || partner.contactEmail || partner.email) && (
                         <View style={cStyles.contactCard}>
-                          <Text style={cStyles.contactTitle}>Partner Contact</Text>
+                          <Text style={cStyles.contactTitle}>{t('recipient.achievement.partnerContact')}</Text>
                           {partner.phone && (
                             <View style={cStyles.contactRow}>
                               <View style={{ flex: 1 }}>
-                                <Text style={cStyles.contactLabel}>Phone (WhatsApp)</Text>
+                                <Text style={cStyles.contactLabel}>{t('recipient.achievement.phoneLabel')}</Text>
                                 <Text style={cStyles.contactValue}>{partner.phone}</Text>
                               </View>
-                              <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy phone number">
+                              <TouchableOpacity onPress={handleCopyPhone} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('recipient.achievement.copyPhoneA11y')}>
                                 {isPhoneCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.textSecondary} />}
                               </TouchableOpacity>
                             </View>
@@ -1171,25 +1033,25 @@ const AchievementDetailScreen = () => {
                           {(partner.contactEmail || partner.email) && (
                             <View style={cStyles.contactRow}>
                               <View style={{ flex: 1 }}>
-                                <Text style={cStyles.contactLabel}>Email</Text>
+                                <Text style={cStyles.contactLabel}>{t('recipient.achievement.emailLabel')}</Text>
                                 <Text style={[cStyles.contactValue, { ...Typography.caption }]}>{partner.contactEmail || partner.email}</Text>
                               </View>
-                              <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Copy email address">
+                              <TouchableOpacity onPress={handleCopyEmail} style={cStyles.smallCopyBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('recipient.achievement.copyEmailA11y')}>
                                 {isEmailCopied ? <CheckCircle size={16} color={colors.secondary} /> : <Copy size={16} color={colors.textSecondary} />}
                               </TouchableOpacity>
                             </View>
                           )}
                           <View style={cStyles.scheduleRow}>
                             {partner.phone && (
-                              <TouchableOpacity style={cStyles.whatsappBtn} onPress={handleBookNowWhatsApp} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Schedule via WhatsApp">
+                              <TouchableOpacity style={cStyles.whatsappBtn} onPress={handleBookNowWhatsApp} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t('recipient.achievement.whatsappA11y')}>
                                 <MessageCircle size={16} color={colors.white} />
-                                <Text style={cStyles.scheduleBtnText}>WhatsApp</Text>
+                                <Text style={cStyles.scheduleBtnText}>{t('recipient.achievement.whatsappButton')}</Text>
                               </TouchableOpacity>
                             )}
                             {(partner.contactEmail || partner.email) && (
-                              <TouchableOpacity style={cStyles.emailBtn} onPress={handleBookNowEmail} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Schedule via Email">
+                              <TouchableOpacity style={cStyles.emailBtn} onPress={handleBookNowEmail} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t('recipient.achievement.emailA11y')}>
                                 <Mail size={16} color={colors.white} />
-                                <Text style={cStyles.scheduleBtnText}>Email</Text>
+                                <Text style={cStyles.scheduleBtnText}>{t('recipient.achievement.emailButton')}</Text>
                               </TouchableOpacity>
                             )}
                           </View>
@@ -1199,6 +1061,20 @@ const AchievementDetailScreen = () => {
                   )}
                 </>
               )}
+              {/* ─── Share ─── */}
+              <View style={{ marginTop: Spacing.lg, width: '80%', alignSelf: 'center' }}>
+                <Button
+                  variant="primary"
+                  title={t('recipient.achievement.shareButton')}
+                  onPress={() => navigation.navigate('ShareGoal', {
+                    goal,
+                    experienceGift: experienceGiftParam,
+                    sessions,
+                    sessionStreak,
+                  })}
+                  fullWidth
+                />
+              </View>
             </Card>
 
             {!isCompletion && (
@@ -1206,7 +1082,7 @@ const AchievementDetailScreen = () => {
                 {/* ─── 4. Sessions History ─── */}
                 <View style={cStyles.section}>
                   <Text style={cStyles.sectionTitle}>
-                    Sessions <Text style={cStyles.countBadge}>{sessions.length}</Text>
+                    {t('recipient.achievement.sessionsHeader')} <Text style={cStyles.countBadge}>{sessions.length}</Text>
                   </Text>
                   {sessionsLoading && sessions.length === 0 ? (
                     <View style={{ gap: Spacing.sm }}>
@@ -1217,7 +1093,7 @@ const AchievementDetailScreen = () => {
                   ) : sessions.length === 0 ? (
                     <View style={styles.emptyContainer}>
                       <Text style={styles.emptyIcon}>🏃</Text>
-                      <Text style={styles.emptyText}>No sessions recorded</Text>
+                      <Text style={styles.emptyText}>{t('recipient.achievement.noSessions')}</Text>
                     </View>
                   ) : (
                     <View>
@@ -1232,7 +1108,7 @@ const AchievementDetailScreen = () => {
                 {hasHints && (
                   <View style={cStyles.section}>
                     <Text style={cStyles.sectionTitle}>
-                      Hints <Text style={cStyles.countBadge}>{hintsArray.length}</Text>
+                      {t('recipient.achievement.hintsHeader')} <Text style={cStyles.countBadge}>{hintsArray.length}</Text>
                     </Text>
                     <View>
                       {(hintsArray as HintEntry[])
@@ -1264,33 +1140,6 @@ const AchievementDetailScreen = () => {
               </>
             )}
 
-            {/* ─── 6. Share Section ─── */}
-            <View style={cStyles.section}>
-              <Text style={cStyles.sectionTitle}>Share Your Achievement</Text>
-              <View style={styles.shareFormatToggle}>
-                <TouchableOpacity
-                  style={[styles.shareFormatOption, shareFormat === 'story' && styles.shareFormatActive]}
-                  onPress={() => setShareFormat('story')}
-                >
-                  <Text style={[styles.shareFormatText, shareFormat === 'story' && styles.shareFormatTextActive]}>
-                    Story (9:16)
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.shareFormatOption, shareFormat === 'square' && styles.shareFormatActive]}
-                  onPress={() => setShareFormat('square')}
-                >
-                  <Text style={[styles.shareFormatText, shareFormat === 'square' && styles.shareFormatTextActive]}>
-                    Square (1:1)
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity style={styles.shareButton} onPress={handleShare} disabled={isSharing} activeOpacity={0.7}>
-                <ShareIcon color={colors.white} size={20} />
-                <Text style={styles.shareButtonText}>{isSharing ? 'Preparing...' : 'Share'}</Text>
-              </TouchableOpacity>
-            </View>
-
             {/* ─── 7. Streak CTA (completion mode only) ─── */}
             {isCompletion && (
               <View style={styles.ctaSection}>
@@ -1298,35 +1147,35 @@ const AchievementDetailScreen = () => {
                   <View style={styles.streakBadge}>
                     <Flame color={getFlameHex(sessionStreak)} size={28} fill={getFlameHex(sessionStreak)} />
                     <Text style={[styles.streakCount, { color: getFlameHex(sessionStreak) }]}>{sessionStreak}</Text>
-                    <Text style={styles.streakLabel}>session streak</Text>
+                    <Text style={styles.streakLabel}>{t('recipient.achievement.streakLabel')}</Text>
                   </View>
                 )}
 
                 {otherActiveGoals === 0 ? (
                   <>
                     <Text style={styles.ctaTitle}>
-                      {sessionStreak >= 3 ? `Keep your ${sessionStreak}-session streak alive!` : 'Ready for your next challenge?'}
+                      {sessionStreak >= 3 ? t('recipient.achievement.ctaKeepStreak', { count: sessionStreak }) : t('recipient.achievement.ctaNextChallenge')}
                     </Text>
                     {sessionStreak >= 3 && (
-                      <Text style={styles.ctaMessage}>Start a new goal to keep it going — your streak resets after 7 days of inactivity</Text>
+                      <Text style={styles.ctaMessage}>{t('recipient.achievement.ctaStreakMessage')}</Text>
                     )}
-                    <TouchableOpacity style={styles.ctaPrimary} onPress={() => navigation.navigate('CategorySelection')} accessibilityRole="button" accessibilityLabel="Browse experiences">
-                      <Text style={styles.ctaPrimaryText}>Browse Experiences</Text>
+                    <TouchableOpacity style={styles.ctaPrimary} onPress={() => navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection' } })} accessibilityRole="button" accessibilityLabel={t('recipient.achievement.browseA11y')}>
+                      <Text style={styles.ctaPrimaryText}>{t('recipient.achievement.browseButton')}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.ctaSecondary} onPress={() => navigation.navigate('Goals')} accessibilityRole="button" accessibilityLabel="Back to goals">
-                      <Text style={styles.ctaSecondaryText}>Back to Goals</Text>
+                    <TouchableOpacity style={styles.ctaSecondary} onPress={() => navigation.navigate('Goals')} accessibilityRole="button" accessibilityLabel={t('recipient.achievement.backToGoalsA11y')}>
+                      <Text style={styles.ctaSecondaryText}>{t('recipient.achievement.backToGoals')}</Text>
                     </TouchableOpacity>
                   </>
                 ) : (
                   <>
                     <Text style={styles.ctaTitle}>
-                      {sessionStreak >= 3 ? `Your ${sessionStreak}-session streak continues!` : 'You still have active goals — keep going!'}
+                      {sessionStreak >= 3 ? t('recipient.achievement.ctaStreakContinues', { count: sessionStreak }) : t('recipient.achievement.ctaActiveGoals')}
                     </Text>
                     {sessionStreak >= 3 && (
-                      <Text style={styles.ctaMessage}>Keep going with your other goals to build it even higher</Text>
+                      <Text style={styles.ctaMessage}>{t('recipient.achievement.ctaStreakContinuesMessage')}</Text>
                     )}
-                    <TouchableOpacity style={styles.ctaPrimary} onPress={() => navigation.navigate('Goals')} accessibilityRole="button" accessibilityLabel="Back to goals">
-                      <Text style={styles.ctaPrimaryText}>Back to Goals</Text>
+                    <TouchableOpacity style={styles.ctaPrimary} onPress={() => navigation.navigate('Goals')} accessibilityRole="button" accessibilityLabel={t('recipient.achievement.backToGoalsA11y')}>
+                      <Text style={styles.ctaPrimaryText}>{t('recipient.achievement.backToGoals')}</Text>
                     </TouchableOpacity>
                   </>
                 )}
@@ -1349,7 +1198,7 @@ const AchievementDetailScreen = () => {
           onCancel={handleCancelBooking}
           minimumDate={new Date()}
         />
-      </MainScreen>
+      </View>
     </ErrorBoundary>
   );
 };
@@ -1432,39 +1281,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   emptyContainer: { alignItems: 'center', paddingVertical: Spacing.xxxl },
   emptyIcon: { fontSize: Typography.displayLarge.fontSize, marginBottom: Spacing.xs },
   emptyText: { color: colors.textSecondary, ...Typography.subheading },
-  shareFormatToggle: {
-    flexDirection: 'row',
-    backgroundColor: colors.backgroundLight,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.xxs,
-    marginBottom: Spacing.md,
-  },
-  shareFormatOption: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-    borderRadius: BorderRadius.sm,
-  },
-  shareFormatActive: {
-    backgroundColor: colors.white,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  shareFormatText: { ...Typography.smallBold, color: colors.textMuted },
-  shareFormatTextActive: { color: colors.primaryDark },
-  shareButton: {
-    backgroundColor: colors.secondary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-  },
-  shareButtonText: { color: colors.white, ...Typography.bodyBold },
   ctaSection: {
     backgroundColor: colors.surface,
     marginHorizontal: Spacing.xl,

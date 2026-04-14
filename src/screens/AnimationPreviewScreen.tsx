@@ -7,6 +7,7 @@ import {
   StyleSheet,
   SafeAreaView,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import StreakBanner from './recipient/components/StreakBanner';
 import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
@@ -17,6 +18,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 const AnimationPreviewScreen = () => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
 
   const [sessions, setSessions] = useState(0);
   const [autoPlay, setAutoPlay] = useState(false);
@@ -46,12 +48,12 @@ const AnimationPreviewScreen = () => {
     <ErrorBoundary screenName="AnimationPreviewScreen">
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>Animation Preview</Text>
-        <Text style={styles.subtitle}>Advance sessions to preview streak animations</Text>
+        <Text style={styles.title}>{t('modals.animationPreview.title')}</Text>
+        <Text style={styles.subtitle}>{t('modals.animationPreview.subtitle')}</Text>
 
         {/* Session Controls */}
         <View style={styles.card}>
-          <Text style={styles.sectionHeader}>Sessions: {sessions}</Text>
+          <Text style={styles.sectionHeader}>{t('modals.animationPreview.sessions', { count: sessions })}</Text>
 
           <View style={styles.controlRow}>
             <TouchableOpacity style={styles.navBtn} onPress={reset}>
@@ -86,7 +88,7 @@ const AnimationPreviewScreen = () => {
               onPress={() => setAutoPlay(!autoPlay)}
             >
               <Text style={[styles.playBtnText, autoPlay && styles.playBtnTextActive]}>
-                {autoPlay ? 'Pause' : 'Play'}
+                {autoPlay ? t('modals.animationPreview.pause') : t('modals.animationPreview.play')}
               </Text>
             </TouchableOpacity>
             {[0.5, 1, 2].map((s) => (
@@ -106,12 +108,12 @@ const AnimationPreviewScreen = () => {
         {/* Streak Banner */}
         <View style={styles.card}>
           <Text style={styles.sectionHeader}>
-            Streak Banner (tier: {sessions >= 14 ? '3' : sessions >= 7 ? '2' : '1'})
+            {t('modals.animationPreview.tierLabel', { tier: sessions >= 14 ? '3' : sessions >= 7 ? '2' : '1' })}
           </Text>
           {sessions > 0 ? (
             <StreakBanner key={sessions} streak={sessions} />
           ) : (
-            <Text style={styles.emptyText}>No streak yet (0 sessions)</Text>
+            <Text style={styles.emptyText}>{t('modals.animationPreview.noStreak')}</Text>
           )}
         </View>
 

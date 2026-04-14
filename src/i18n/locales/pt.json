@@ -1,0 +1,2971 @@
+{
+  "common": {
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "tryAgain": "Tentar de novo",
+    "save": "Guardar",
+    "close": "Fechar",
+    "back": "Voltar",
+    "next": "Seguinte",
+    "loading": "A carregar...",
+    "error": "Erro",
+    "ok": "OK",
+    "done": "Concluído",
+    "skip": "Saltar",
+    "delete": "Apagar",
+    "remove": "Remover",
+    "or": "ou",
+    "send": "Enviar",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "login": "Iniciar sessão",
+    "logout": "Terminar sessão",
+    "signIn": "Entrar",
+    "signUp": "Registar",
+    "stay": "Ficar",
+    "leave": "Sair",
+    "discardChanges": "Descartar alterações",
+    "discardMessage": "Tens a certeza que queres descartar as tuas alterações?"
+  },
+  "time": {
+    "justNow": "Agora mesmo",
+    "minutesAgo_one": "há {{count}}m",
+    "minutesAgo_other": "há {{count}}m",
+    "hoursAgo_one": "há {{count}}h",
+    "hoursAgo_other": "há {{count}}h",
+    "daysAgo_one": "há {{count}}d",
+    "daysAgo_other": "há {{count}}d",
+    "weeksAgo_one": "há {{count}}sem",
+    "weeksAgo_other": "há {{count}}sem",
+    "monthsAgo_one": "há {{count}}mês",
+    "monthsAgo_other": "há {{count}}meses",
+    "today": "Hoje",
+    "yesterday": "Ontem",
+    "startsToday": "Começa hoje",
+    "startsTomorrow": "Começa amanhã",
+    "startedYesterday": "Começou ontem",
+    "startsInDays": "Começa em {{count}} dias",
+    "startedDaysAgo": "Começou há {{count}} dias"
+  },
+  "plurals": {
+    "weeks_one": "{{count}} semana",
+    "weeks_other": "{{count}} semanas",
+    "sessions_one": "{{count}} sessão",
+    "sessions_other": "{{count}} sessões",
+    "friends_one": "{{count}} Amigo",
+    "friends_other": "{{count}} Amigos",
+    "items_one": "{{count}} item",
+    "items_other": "{{count}} itens",
+    "users_one": "{{count}} utilizador encontrado",
+    "users_other": "{{count}} utilizadores encontrados",
+    "goals_one": "{{count}} objetivo",
+    "goals_other": "{{count}} objetivos",
+    "motivations_one": "{{count}} motivação de amigos",
+    "motivations_other": "{{count}} motivações de amigos",
+    "comments_one": "{{count}} comentário",
+    "comments_other": "{{count}} comentários",
+    "days_one": "{{count}} dia",
+    "days_other": "{{count}} dias",
+    "minutes_one": "{{count}} minuto",
+    "minutes_other": "{{count}} minutos",
+    "hours_one": "{{count}} hora",
+    "hours_other": "{{count}} horas"
+  },
+  "nav": {
+    "home": "Início",
+    "feed": "Feed",
+    "goals": "Objetivos",
+    "profile": "Perfil",
+    "menu": "Menu",
+    "tabAccessibility": "Separador {{label}}",
+    "badgeOverflow": "9+"
+  },
+  "accessibility": {
+    "closeMenu": "Fechar menu",
+    "goToProfile": "Ir para o perfil",
+    "signIn": "Entrar",
+    "toggleDarkMode": "Ativar/desativar modo escuro",
+    "toggleSessionReminders": "Ativar/desativar lembretes de sessão",
+    "changeReminderTime": "Alterar hora do lembrete, atualmente {{time}}",
+    "confirmReminderTime": "Confirmar hora do lembrete",
+    "goBack": "Voltar",
+    "shoppingCart": "Carrinho de compras",
+    "notifications": "Notificações",
+    "toggleDebugMode": "Ativar/desativar modo de depuração",
+    "dismissModal": "Fechar janela",
+    "closeButton": "Fechar",
+    "dismissToast": "Dispensar",
+    "audioPlayer": {
+      "loading": "A carregar",
+      "play": "Reproduzir",
+      "pause": "Pausar"
+    },
+    "imageViewer": {
+      "imageFailedToLoad": "Falha ao carregar a imagem",
+      "close": "Fechar visualizador de imagens",
+      "previousImage": "Imagem anterior",
+      "nextImage": "Imagem seguinte"
+    },
+    "reactionBar": {
+      "reactWith": "Reagir com {{type}}",
+      "doubleTapToReact": "Toque duplo para reagir",
+      "selectReaction": "Selecionar reação {{type}}",
+      "reactToPost": "Reagir a esta publicação",
+      "opensReactionPicker": "Abre seletor de reações",
+      "reactionCount": "{{count}} reações {{type}}"
+    }
+  },
+  "sideMenu": {
+    "brandName": "Ernit",
+    "brandTagline": "Experiências que valem a pena oferecer",
+    "signIn": "Entrar",
+    "sections": {
+      "actions": "AÇÕES",
+      "helpInfo": "AJUDA E INFORMAÇÕES",
+      "settings": "DEFINIÇÕES"
+    },
+    "items": {
+      "installApp": "Instalar App",
+      "redeemCoupon": "Resgatar Cupão",
+      "purchasedGifts": "Presentes Adquiridos",
+      "howItWorks": "Como Funciona",
+      "giveFeedback": "Dar Opinião",
+      "getSupport": "Obter Suporte",
+      "darkMode": "Modo Escuro",
+      "reminders": "Lembretes",
+      "login": "Iniciar sessão",
+      "logout": "Terminar sessão",
+      "loggingOut": "A terminar sessão…"
+    },
+    "reminders": {
+      "sessionReminders": "Lembretes de sessão",
+      "remindMeAt": "Lembrar-me às"
+    },
+    "timePicker": {
+      "title": "Definir Hora do Lembrete",
+      "hourLabel": "Hora",
+      "minuteLabel": "Minuto",
+      "setTime": "Definir Hora"
+    },
+    "language": "Idioma",
+    "footer": "Ernit App v1.0.0",
+    "errors": {
+      "logoutFailed": "Falha ao terminar sessão. Por favor, tenta de novo.",
+      "reminderTimeFailed": "Falha ao guardar a hora do lembrete. Por favor, tenta de novo."
+    }
+  },
+  "loginPrompt": {
+    "title": "Iniciar sessão",
+    "defaultMessage": "Por favor, inicia sessão para continuar.",
+    "accessPage": "Por favor, inicia sessão para aceder a esta página.",
+    "accessFeature": "Por favor, inicia sessão para aceder a esta funcionalidade.",
+    "accessAccount": "Por favor, inicia sessão para aceder à tua conta.",
+    "accessWishlist": "Por favor, inicia sessão para adicionar itens aos teus favoritos.",
+    "accessCheckout": "Por favor, inicia sessão para prosseguir para o pagamento.",
+    "signUpFree": "Registar Gratuitamente",
+    "logIn": "Iniciar Sessão",
+    "maybeLater": "Talvez Mais Tarde"
+  },
+  "errors": {
+    "boundary": {
+      "title": "Algo correu mal",
+      "messageCrashing": "Esta secção continua a falhar.\nPor favor, reinicia a aplicação.",
+      "messageLoadFailed": "Estamos com dificuldades a carregar esta página.\nPor favor, tenta atualizar.",
+      "tryAgain": "Tentar de novo"
+    },
+    "retry": {
+      "defaultMessage": "Algo correu mal",
+      "tryAgain": "Tentar de novo"
+    }
+  },
+  "auth": {
+    "welcomeBack": "Bem-vindo de volta",
+    "joinErnit": "Junta-te ao Ernit",
+    "signInSubtitle": "Entra na tua conta abaixo",
+    "signUpSubtitle": "Cria a tua conta para começar a oferecer experiências",
+    "continueWithGoogle": "Continuar com Google",
+    "orDivider": "ou",
+    "fields": {
+      "username": "Nome de utilizador",
+      "emailAddress": "Endereço de e-mail",
+      "password": "Palavra-passe",
+      "confirmPassword": "Confirmar palavra-passe"
+    },
+    "passwordRequirements": {
+      "title": "Requisitos da palavra-passe:",
+      "minLength": "Pelo menos 8 caracteres",
+      "uppercase": "Uma letra maiúscula",
+      "lowercase": "Uma letra minúscula",
+      "number": "Um número",
+      "specialChar": "Um carácter especial"
+    },
+    "forgotPassword": "Esqueceste a palavra-passe?",
+    "buttons": {
+      "signIn": "Entrar",
+      "createAccount": "Criar Conta",
+      "signingIn": "A entrar...",
+      "creatingAccount": "A criar conta...",
+      "success": "Concluído!"
+    },
+    "showPassword": "Mostrar palavra-passe",
+    "hidePassword": "Ocultar palavra-passe",
+    "showConfirmPassword": "Mostrar confirmação de palavra-passe",
+    "hideConfirmPassword": "Ocultar confirmação de palavra-passe",
+    "toggleSignIn": "Já tens conta? Entra",
+    "toggleSignUp": "Não tens conta? Regista-te"
+  },
+  "authErrors": {
+    "fillAllFields": "Por favor, preenche todos os campos",
+    "invalidEmail": "Por favor, introduz um endereço de e-mail válido",
+    "enterName": "Por favor, introduz o teu nome",
+    "passwordRequirements": "A palavra-passe não cumpre os requisitos de segurança",
+    "passwordsDoNotMatch": "As palavras-passe não coincidem",
+    "unexpectedError": "Ocorreu um erro inesperado. Por favor, tenta de novo.",
+    "emailNotFound": "Não foi encontrada nenhuma conta com este endereço de e-mail.",
+    "incorrectCredentials": "E-mail ou palavra-passe incorretos. Por favor, verifica as tuas credenciais e tenta de novo.",
+    "emailOrPasswordIncorrect": "E-mail ou palavra-passe incorretos.",
+    "invalidEmailAddress": "Endereço de e-mail inválido.",
+    "tooManyAttempts": "Demasiadas tentativas falhadas. Por favor, tenta de novo mais tarde ou redefine a tua palavra-passe.",
+    "emailAlreadyInUse": "Já existe uma conta com este e-mail.",
+    "weakPassword": "A palavra-passe é demasiado fraca. Por favor, escolhe uma palavra-passe mais forte.",
+    "googleSignInCanceled": "O processo de início de sessão foi cancelado ou falhou.",
+    "googleSignInFailed": "Não foi possível entrar com Google. Por favor, tenta de novo.",
+    "accountExistsDifferentCredential": "Já existe uma conta com este e-mail. Tanto o Google como o início de sessão com e-mail/palavra-passe serão ativados para a tua conta.",
+    "passwordResetEmailSent": "Foi enviado um link de redefinição de palavra-passe para o teu e-mail. Por favor, verifica a pasta de spam.",
+    "passwordResetFailed": "Falha ao enviar e-mail de redefinição.",
+    "passwordResetInvalidEmail": "Endereço de e-mail inválido.",
+    "passwordResetUserNotFound": "Não foi encontrada nenhuma conta com esse e-mail.",
+    "enterEmailFirst": "Por favor, introduz primeiro o teu endereço de e-mail.",
+    "verificationEmailSent": "Foi enviado um e-mail de verificação para {{email}}. Por favor, verifica o teu e-mail para proteger a tua conta.",
+    "previousProgressLost": "Não foi possível restaurar o teu progresso anterior. Por favor, começa de novo."
+  },
+  "settings": {
+    "language": "Idioma",
+    "english": "English",
+    "portuguese": "Português"
+  },
+  "goals": {
+    "screenTitle": "Os Meus Objetivos",
+    "screenSubtitle": "Acompanha o teu progresso e mantém-te motivado",
+    "toast": {
+      "goalDeleted": "Objetivo apagado com sucesso",
+      "goalUpdated": "Objetivo atualizado com sucesso",
+      "goalCreated": "Objetivo criado com sucesso",
+      "sessionLogged": "Sessão registada!",
+      "goalCompleted": "Objetivo concluído! Parabéns!",
+      "goalPaused": "Objetivo pausado",
+      "goalResumed": "Objetivo retomado",
+      "copyLinkSuccess": "Link copiado para a área de transferência",
+      "copyLinkFailed": "Falha ao copiar o link",
+      "failedProgress": "Falha ao atualizar progresso do objetivo.",
+      "goalLimitReached": "Podes ter até 3 objetivos ativos. Completa ou remove um para criar outro.",
+      "upToDate": "Objetivos atualizados"
+    },
+    "error": {
+      "loadFailed": "Falha ao carregar os objetivos. Por favor, tenta de novo.",
+      "deleteFailed": "Falha ao apagar o objetivo. Por favor, tenta de novo.",
+      "updateFailed": "Falha ao atualizar o objetivo. Por favor, tenta de novo.",
+      "sessionLogFailed": "Falha ao registar a sessão. Por favor, tenta de novo.",
+      "couldNotLoad": "Não foi possível carregar objetivos"
+    },
+    "empty": {
+      "title": "Ainda sem objetivos",
+      "subtitle": "Começa a tua jornada criando o teu primeiro objetivo",
+      "action": "Criar Objetivo",
+      "message": "Define um objetivo, escolhe uma recompensa e desafia-te a conquistá-la.",
+      "actionLabel": "Cria o Teu Primeiro Objetivo"
+    },
+    "emptyActive": {
+      "title": "Sem objetivos ativos",
+      "subtitle": "Todos os teus objetivos estão concluídos ou pausados",
+      "action": "Criar Novo Objetivo",
+      "actionLabel": "Iniciar Novo Desafio"
+    },
+    "completed": {
+      "title": "Objetivos Concluídos",
+      "empty": "Ainda sem objetivos concluídos",
+      "emptySubtitle": "Completa os teus objetivos ativos para os veres aqui",
+      "header": "Concluídos ({{count}})",
+      "hideAccessibility": "Esconder {{count}} objetivos concluídos",
+      "showAccessibility": "Mostrar {{count}} objetivos concluídos"
+    },
+    "fab": {
+      "label": "Criar novo objetivo",
+      "closeMenuAccessibility": "Fechar menu",
+      "createAccessibility": "Criar novo objetivo",
+      "createGoal": "Criar Novo Objetivo",
+      "openMenuAccessibility": "Abrir menu para criar objetivo ou resgatar cupão",
+      "redeemAccessibility": "Resgatar cupão Ernit",
+      "redeemErnit": "Resgatar o Teu Ernit"
+    },
+    "goalCard": {
+      "sessions": "Sessões",
+      "streak": "Sequência",
+      "progress": "Progresso",
+      "daysLeft": "{{count}} dias restantes",
+      "completed": "Concluído",
+      "paused": "Pausado",
+      "logSession": "Registar Sessão",
+      "viewDetail": "Ver Detalhes",
+      "menu": {
+        "edit": "Editar Objetivo",
+        "pause": "Pausar Objetivo",
+        "resume": "Retomar Objetivo",
+        "share": "Partilhar Objetivo",
+        "delete": "Apagar Objetivo"
+      },
+      "deleteConfirm": {
+        "title": "Apagar Objetivo",
+        "message": "Tens a certeza que queres apagar este objetivo? Esta ação não pode ser desfeita.",
+        "confirm": "Apagar",
+        "cancel": "Cancelar"
+      }
+    }
+  },
+  "feed": {
+    "screenTitle": "Feed de Atividade",
+    "screenSubtitle": "Vê o que os teus amigos estão a fazer",
+    "filters": {
+      "all": "Tudo",
+      "friends": "Amigos",
+      "my": "A Minha Atividade",
+      "goals": "Objetivos",
+      "sessions": "Sessões",
+      "completed": "Concluídos"
+    },
+    "list": {
+      "loadMore": "Carregar mais",
+      "loadingMore": "A carregar mais..."
+    },
+    "pullToRefresh": "Puxa para atualizar",
+    "toast": {
+      "motivationSent": "Motivação enviada!",
+      "motivationFailed": "Falha ao enviar a motivação. Por favor, tenta de novo.",
+      "commentPosted": "Comentário publicado!",
+      "commentFailed": "Falha ao publicar o comentário. Por favor, tenta de novo.",
+      "commentDeleted": "Comentário apagado",
+      "commentDeleteFailed": "Falha ao apagar o comentário. Por favor, tenta de novo.",
+      "copyLinkSuccess": "Link copiado para a área de transferência",
+      "copyLinkFailed": "Falha ao copiar o link"
+    },
+    "error": {
+      "loadFailed": "Falha ao carregar o feed. Por favor, tenta de novo.",
+      "motivationFailed": "Falha ao enviar a motivação.",
+      "commentFailed": "Falha ao publicar o comentário.",
+      "couldNotLoad": "Não foi possível carregar o feed"
+    },
+    "empty": {
+      "title": "Ainda nada aqui",
+      "subtitle": "Adiciona amigos para ver a atividade deles, ou começa a trabalhar num objetivo!",
+      "action": "Encontrar Amigos",
+      "addFriends": "Adicionar Amigos",
+      "noActivityMessage": "Adiciona amigos para ver o progresso dos objetivos e celebrar juntos!",
+      "noActivityTitle": "Sem Atividade",
+      "noPostsMessage": "Ainda não há publicações para este filtro.",
+      "noPostsTitle": "Sem Publicações"
+    },
+    "post": {
+      "loggedSession": "registou uma sessão",
+      "completedGoal": "concluiu um objetivo",
+      "startedGoal": "começou um novo objetivo",
+      "achievedStreak": "alcançou uma sequência de {{count}} dias",
+      "sharedUpdate": "partilhou uma atualização",
+      "typeInfo": {
+        "setNewGoal": "definiu um novo objetivo",
+        "gotGoalApproved": "teve o objetivo aprovado!",
+        "completedSession": "completou",
+        "session": "sessão",
+        "completedChallenge": "completou o seu desafio!",
+        "completedGoalEarned": "completou o seu objetivo e ganhou:",
+        "completedGoal": "completou o seu objetivo!",
+        "madeProgress": "fez progresso"
+      },
+      "postTypes": {
+        "loggedSession": "registou uma sessão",
+        "completedGoal": "concluiu um objetivo",
+        "setNewGoal": "definiu um novo objetivo",
+        "madeProgress": "fez progresso",
+        "newGoalChip": "Novo Objetivo",
+        "approvedChip": "Aprovado",
+        "sessionChip": "Sessão",
+        "completedChip": "Concluído!"
+      },
+      "accessibility": {
+        "loggedSession": "registou uma sessão",
+        "completedGoal": "concluiu um objetivo",
+        "setNewGoal": "definiu um novo objetivo",
+        "madeProgress": "fez progresso",
+        "viewSessionMedia": "Ver media da sessão em ecrã completo",
+        "commentCount_one": "Ver {{count}} comentário",
+        "commentCount_other": "Ver {{count}} comentários",
+        "viewGoal": "Objetivo de {{name}}: {{description}}"
+      }
+    },
+    "postHeader": {
+      "you": "Tu",
+      "menuAccessibility": "Opções da publicação",
+      "deletePost": "Apagar Publicação",
+      "reportPost": "Denunciar Publicação",
+      "deleteConfirm": {
+        "title": "Apagar Publicação",
+        "message": "Tens a certeza que queres apagar esta publicação?",
+        "confirm": "Apagar",
+        "cancel": "Cancelar"
+      },
+      "viewProfile": "Ver perfil de {{userName}}"
+    },
+    "postContent": {
+      "sessionLogged": "Sessão Registada",
+      "goalCompleted": "Objetivo Concluído!",
+      "streakAchieved": "Sequência Alcançada!",
+      "days": "dias",
+      "viewGoal": "Ver Objetivo",
+      "sessionsThisWeek": "Sessões esta semana",
+      "weeksCompleted": "Semanas concluídas",
+      "mysteryExperience": "Experiência Mistério",
+      "giftAnExperience": "Oferecer uma Experiência",
+      "goal": "Objetivo: {{description}}"
+    },
+    "empowerActions": {
+      "motivate": "Motivar",
+      "motivated": "Motivado",
+      "motivationSent": "Motivação enviada",
+      "comment": "Comentar",
+      "share": "Partilhar",
+      "motivationCount_one": "{{count}} motivação",
+      "motivationCount_other": "{{count}} motivações",
+      "commentCount_one": "{{count}} comentário",
+      "commentCount_other": "{{count}} comentários",
+      "empower": "Capacitar",
+      "gift": "Oferecer",
+      "lovesCategory": "Adora experiências de {{category}}",
+      "empowerA11y": "Capacitar {{name}} com esta experiência",
+      "motivateA11y": "Enviar mensagem de motivação a {{name}}"
+    },
+    "filtersAccessibility": "Filtrar publicações por tipo",
+    "listAccessibility": "Feed de atividade",
+    "pullToRefreshAccessibility": "Puxa para atualizar o feed"
+  },
+  "goalDetail": {
+    "header": {
+      "title": "Detalhes do Objetivo",
+      "editButton": "Editar"
+    },
+    "backButton": "Voltar aos Objetivos",
+    "sections": {
+      "overview": "Visão Geral",
+      "progress": "Progresso",
+      "sessions": "Sessões",
+      "friends": "Apoio de Amigos",
+      "activity": "Atividade Recente"
+    },
+    "calendar": {
+      "title": "Calendário de Sessões",
+      "legend": {
+        "session": "Sessão",
+        "today": "Hoje",
+        "missed": "Falhada"
+      },
+      "noSessions": "Ainda sem sessões registadas",
+      "friday": "Sexta-feira",
+      "monday": "Segunda-feira",
+      "saturday": "Sábado",
+      "sunday": "Domingo",
+      "thursday": "Quinta-feira",
+      "todayLabel": "{{day}}, hoje",
+      "tuesday": "Terça-feira",
+      "wednesday": "Quarta-feira",
+      "weekStartsHint": "A semana começa quando registares a tua primeira sessão"
+    },
+    "progress": {
+      "sessionsCompleted": "Sessões Concluídas",
+      "currentStreak": "Sequência Atual",
+      "longestStreak": "Maior Sequência",
+      "totalDays": "Total de Dias",
+      "completionRate": "Taxa de Conclusão",
+      "daysRemaining": "Dias Restantes"
+    },
+    "completedBanner": "Objetivo Concluído! Desfruta da tua recompensa!",
+    "back": "Voltar",
+    "overall": "Geral",
+    "progressAccessibility": "{{pct}}% concluído",
+    "screenTitle": "Detalhes do Objetivo",
+    "thisWeek": "Esta Semana"
+  },
+  "profile": {
+    "tabs": {
+      "goals": "Objetivos",
+      "achievements": "Conquistas",
+      "wishlist": "Favoritos"
+    },
+    "stats": {
+      "goals": "Objetivos",
+      "friends": "Amigos",
+      "streak": "Sequência",
+      "sessions": "Sessões",
+      "active": "Ativos",
+      "completed": "Concluídos",
+      "wishlist": "Favoritos",
+      "weeks": "semanas"
+    },
+    "achievements": {
+      "completed": "Concluído",
+      "claimExperience": "Reclamar Experiência",
+      "selfAchievement": "Conquista Pessoal"
+    },
+    "viewFriends": "Ver Amigos",
+    "editProfile": {
+      "title": "Editar Perfil",
+      "name": "Nome",
+      "username": "Nome de utilizador",
+      "bio": "Biografia",
+      "bioPlaceholder": "Fala-nos sobre ti...",
+      "saveButton": "Guardar Alterações",
+      "savingButton": "A guardar...",
+      "changePhoto": "Alterar Foto",
+      "removePhoto": "Remover Foto",
+      "photoOptions": "Foto de Perfil",
+      "camera": "Tirar Fotografia",
+      "gallery": "Escolher da Galeria"
+    },
+    "validation": {
+      "nameRequired": "O nome é obrigatório",
+      "nameTooShort": "O nome deve ter pelo menos 2 caracteres",
+      "nameTooLong": "O nome não pode exceder 50 caracteres",
+      "usernameRequired": "O nome de utilizador é obrigatório",
+      "usernameTooShort": "O nome de utilizador deve ter pelo menos 3 caracteres",
+      "usernameTooLong": "O nome de utilizador não pode exceder 30 caracteres",
+      "usernameInvalid": "O nome de utilizador só pode conter letras, números e underscores",
+      "usernameTaken": "Este nome de utilizador já está a ser utilizado",
+      "bioTooLong": "A biografia não pode exceder 150 caracteres",
+      "descriptionTooLong": "Máximo 300 caracteres"
+    },
+    "toast": {
+      "profileUpdated": "Perfil atualizado com sucesso",
+      "profileUpdateFailed": "Falha ao atualizar o perfil. Por favor, tenta de novo.",
+      "photoUpdated": "Foto de perfil atualizada",
+      "photoUpdateFailed": "Falha ao atualizar a foto. Por favor, tenta de novo.",
+      "photoRemoved": "Foto de perfil removida",
+      "photoRemoveFailed": "Falha ao remover a foto. Por favor, tenta de novo.",
+      "wishlistAdded": "Adicionado aos favoritos",
+      "wishlistRemoved": "Removido dos favoritos",
+      "wishlistFailed": "Falha ao atualizar os favoritos. Por favor, tenta de novo.",
+      "copyLinkSuccess": "Link do perfil copiado",
+      "copyLinkFailed": "Falha ao copiar o link",
+      "cameraPermission": "Precisamos de permissão da galeria para carregar fotos!",
+      "couldNotLoad": "Não foi possível carregar perfil. Tenta novamente.",
+      "couldNotOpenImage": "Não foi possível abrir imagem de perfil.",
+      "couldNotUploadImage": "Não foi possível carregar imagem. Tenta novamente.",
+      "failedToRemoveWishlist": "Falha ao remover dos favoritos. Tenta novamente.",
+      "failedToUpdate": "Falha ao atualizar perfil. Tenta novamente.",
+      "imageTooLarge": "A imagem deve ter menos de 5MB",
+      "loginToManageWishlist": "Inicia sessão para gerir favoritos.",
+      "notLoggedIn": "Sessão não iniciada"
+    },
+    "emptyGoals": {
+      "title": "Ainda sem objetivos",
+      "subtitle": "Este utilizador ainda não criou nenhum objetivo"
+    },
+    "emptyAchievements": {
+      "title": "Ainda sem conquistas",
+      "subtitle": "Completa objetivos para ganhar conquistas"
+    },
+    "emptyWishlist": {
+      "title": "Favoritos vazios",
+      "subtitle": "Explora experiências e adiciona-as aos teus favoritos"
+    },
+    "error": {
+      "loadFailed": "Falha ao carregar o perfil. Por favor, tenta de novo.",
+      "notFound": "Utilizador não encontrado",
+      "couldNotLoad": "Não foi possível carregar dados do perfil"
+    },
+    "wishlist": {
+      "removeConfirm": "Remover",
+      "removeAccessibility": "Remover {{title}} dos favoritos",
+      "removeMessage": "Tens a certeza que queres remover esta experiência dos teus favoritos?",
+      "removeTitle": "Remover dos Favoritos",
+      "viewDetailsAccessibility": "Ver detalhes da experiência {{title}}"
+    },
+    "goalCard": {
+      "sessionsLabel": "sessões",
+      "streakLabel": "dias de sequência",
+      "progressLabel": "progresso"
+    },
+    "achievementCard": {
+      "completedOn": "Concluído em {{date}}",
+      "viewDetails": "Ver Detalhes"
+    },
+    "experienceCard": {
+      "viewDetails": "Ver Detalhes",
+      "giftThis": "Oferecer Isto"
+    },
+    "editModal": {
+      "aboutLabel": "Sobre Ti ({{count}}/300)",
+      "aboutPlaceholder": "Fala-nos sobre ti...",
+      "cancel": "Cancelar",
+      "nameLabel": "Nome",
+      "namePlaceholder": "Insere o teu nome",
+      "save": "Guardar",
+      "saving": "A guardar…",
+      "tapToChangePhoto": "Toca para mudar foto",
+      "title": "Editar Perfil"
+    },
+    "empty": {
+      "achievementsMessage": "Completa objetivos para ganhar conquistas!",
+      "achievementsTitle": "Sem Conquistas",
+      "goalsAction": "Iniciar Objetivo",
+      "goalsMessage": "Inicia um objetivo para acompanhar o teu progresso!",
+      "goalsTitle": "A Tua Jornada Começa Aqui",
+      "wishlistMessage": "Adiciona experiências aos teus favoritos!",
+      "wishlistTitle": "Sem Favoritos"
+    },
+    "friendsButtonAccessibility": "Ver lista de amigos",
+    "goals": {
+      "addReward": "Adicionar Recompensa",
+      "sessionsThisWeek": "Sessões esta semana",
+      "weeksCompleted": "Semanas concluídas"
+    },
+    "tabAccessibility": "Ver separador {{label}}"
+  },
+  "notifications": {
+    "screenTitle": "Notificações",
+    "header": {
+      "title": "Notificações",
+      "markAllRead": "Marcar todas como lidas",
+      "clearAll": "Limpar Tudo",
+      "markRead": "Marcar como Lidas"
+    },
+    "toast": {
+      "markedAllRead": "Todas as notificações marcadas como lidas",
+      "markAllReadFailed": "Falha ao marcar as notificações como lidas",
+      "cleared": "Notificação removida",
+      "clearFailed": "Falha ao remover a notificação",
+      "allCleared": "Todas as notificações foram limpas.",
+      "failedClear": "Falha ao limpar notificação. Tenta novamente.",
+      "failedClearAll": "Falha ao limpar notificações. Tenta novamente.",
+      "failedMarkRead": "Falha ao marcar como lidas.",
+      "missingId": "Não é possível limpar: ID em falta",
+      "notAuthenticated": "Utilizador não autenticado",
+      "upToDate": "Notificações atualizadas"
+    },
+    "error": {
+      "loadFailed": "Falha ao carregar as notificações. Por favor, tenta de novo.",
+      "couldNotLoad": "Não foi possível carregar notificações"
+    },
+    "empty": {
+      "title": "Sem notificações",
+      "subtitle": "Estás a par de tudo! Volta mais tarde.",
+      "message": "Verás atualizações aqui quando amigos interagirem com os teus objetivos"
+    },
+    "clearAll": {
+      "button": "Limpar Tudo",
+      "confirm": {
+        "title": "Limpar Todas as Notificações",
+        "message": "Tens a certeza que queres limpar todas as notificações?",
+        "confirm": "Limpar Tudo",
+        "cancel": "Cancelar"
+      }
+    },
+    "clearOne": {
+      "button": "Limpar"
+    },
+    "card": {
+      "justNow": "Agora mesmo",
+      "unread": "Não lida"
+    },
+    "notificationComponents": {
+      "dismissNotification": "Dispensar notificação",
+      "freeGoal": {
+        "challengeCompleted": "Desafio Concluído!",
+        "milestonePercent": "{{milestone}}% Concluído",
+        "alreadyEmpowered": "Já Capacitado",
+        "empower": "Capacitar",
+        "motivate": "Motivar",
+        "motivationSent": "Motivação enviada",
+        "lovesCategory": "Adora experiências de {{category}}"
+      },
+      "friendRequest": {
+        "accept": "Aceitar",
+        "decline": "Recusar",
+        "acceptA11y": "Aceitar pedido de amizade",
+        "declineA11y": "Recusar pedido de amizade",
+        "nowFriends": "Agora és amigo de {{name}}!",
+        "declined": "O pedido de amizade de {{name}} foi recusado.",
+        "acceptFailed": "Falha ao aceitar o pedido de amizade. Por favor, tenta de novo.",
+        "declineFailed": "Falha ao recusar o pedido de amizade. Por favor, tenta de novo."
+      },
+      "goalApproval": {
+        "approve": "Aprovar",
+        "suggestChange": "Sugerir Alteração",
+        "approveModal": {
+          "title": "Aprovar Objetivo",
+          "subtitle": "Adiciona uma mensagem opcional (opcional)",
+          "placeholder": "A tua mensagem...",
+          "cancel": "Cancelar",
+          "cancelA11y": "Cancelar aprovação do objetivo",
+          "confirm": "Aprovar",
+          "confirmA11y": "Confirmar aprovação do objetivo"
+        },
+        "suggestModal": {
+          "title": "Sugerir Alteração ao Objetivo",
+          "currentLabel": "Atual: {{weeks}} semanas, {{sessions}} sessões/semana",
+          "weeksLabel": "Semanas",
+          "sessionsLabel": "Sessões/Semana",
+          "messagePlaceholder": "A tua mensagem (opcional)...",
+          "cancel": "Cancelar",
+          "cancelA11y": "Cancelar sugestão de alteração",
+          "suggest": "Sugerir",
+          "suggestA11y": "Enviar sugestão de alteração"
+        },
+        "errors": {
+          "recipientMissing": "Informação do destinatário está em falta.",
+          "invalidNumbers": "Por favor, introduz números válidos para semanas e sessões.",
+          "cannotReduce": "O objetivo sugerido não pode ser inferior ao objetivo original.",
+          "noChanges": "Sem alterações. Por favor, ajusta os valores antes de enviar.",
+          "maxWeeks": "A duração máxima é de 5 semanas.",
+          "maxSessions": "O máximo são 7 sessões por semana.",
+          "approveFailed": "Falha ao aprovar o objetivo. Por favor, tenta de novo.",
+          "suggestFailed": "Falha ao sugerir alteração ao objetivo. Por favor, tenta de novo.",
+          "notifyFailed": "Falha ao notificar o destinatário."
+        }
+      },
+      "goalChangeSuggestion": {
+        "accept": "Aceitar",
+        "change": "Alterar",
+        "suggestedLabel": "Sugerido: {{weeks}} semanas, {{sessions}} sessões por semana",
+        "messageFrom": "Mensagem de {{name}}:",
+        "errors": {
+          "loadFailed": "Não foi possível carregar o objetivo. Por favor, tenta de novo.",
+          "missingUser": "Informação do utilizador está em falta no objetivo. Por favor, tenta de novo.",
+          "unauthorized": "Não tens autorização para aceitar esta sugestão.",
+          "acceptFailed": "Falha ao aceitar a sugestão. Por favor, tenta de novo."
+        }
+      },
+      "goalEditApproval": {
+        "approve": "Aprovar",
+        "decline": "Recusar",
+        "requested": "Pedido: {{weeks}} semana{{weekPlural}}, {{sessions}} sessão{{sessionPlural}}/semana",
+        "messageLabel": "Mensagem:",
+        "errors": {
+          "approveFailed": "Falha ao aprovar. Por favor, tenta de novo.",
+          "declineFailed": "Falha ao recusar. Por favor, tenta de novo."
+        }
+      },
+      "goalProgress": {
+        "leaveHint": "Deixar Dica Para a Próxima Sessão",
+        "hintAlreadySet": "✓ Dica Já Definida",
+        "loading": "A carregar...",
+        "viewHintHistory": "Ver Histórico de Dicas",
+        "clearA11y": "Limpar esta notificação",
+        "hintHistoryModal": {
+          "title": "Histórico de Dicas",
+          "emptyText": "Ainda não foram enviadas dicas.",
+          "sessionLabel": "Sessão {{number}}"
+        }
+      }
+    },
+    "components": {
+      "motivationReceived": {
+        "title": "Nova Motivação!",
+        "body": "{{senderName}} motivou o teu objetivo: {{goalName}}"
+      },
+      "commentReceived": {
+        "title": "Novo Comentário",
+        "body": "{{senderName}} comentou no teu objetivo: {{goalName}}"
+      },
+      "friendRequestReceived": {
+        "title": "Pedido de Amizade",
+        "body": "{{senderName}} enviou-te um pedido de amizade"
+      },
+      "friendRequestAccepted": {
+        "title": "Pedido de Amizade Aceite",
+        "body": "{{senderName}} aceitou o teu pedido de amizade"
+      },
+      "goalCompleted": {
+        "title": "Objetivo Concluído!",
+        "body": "Parabéns! Concluíste o teu objetivo: {{goalName}}"
+      },
+      "streakAchieved": {
+        "title": "Sequência Alcançada!",
+        "body": "Alcançaste uma sequência de {{count}} dias em {{goalName}}"
+      },
+      "giftReceived": {
+        "title": "Presente Recebido!",
+        "body": "{{senderName}} enviou-te uma experiência como presente"
+      },
+      "rewardUnlocked": {
+        "title": "Recompensa Desbloqueada!",
+        "body": "Desbloqueaste uma recompensa por completares {{goalName}}"
+      },
+      "sessionReminder": {
+        "title": "Hora de Treinar!",
+        "body": "Não te esqueças de registar a tua sessão de {{goalName}}"
+      },
+      "weeklyReport": {
+        "title": "Resumo Semanal",
+        "body": "Registaste {{sessions}} sessões esta semana. Continua assim!"
+      }
+    },
+    "attachGift": {
+      "aFriend": "um amigo",
+      "cancel": "Cancelar",
+      "confirm": "Associar Presente",
+      "message": "Isto vai associar o presente ao teu objetivo ativo. Não podes desfazer.",
+      "mysterySuccess": "{{name}} ofereceu-te uma experiência mistério! Completa o desafio para revelá-la.",
+      "success": "{{name}} ofereceu-te uma experiência!",
+      "title": "Associar Presente ao Objetivo?"
+    },
+    "dialog": {
+      "clearAllConfirm": "Limpar Tudo",
+      "clearAllMessage": "Tens a certeza que queres limpar todas as notificações? Isto não pode ser desfeito.",
+      "clearAllTitle": "Limpar Todas as Notificações",
+      "clearOneConfirm": "Limpar",
+      "clearOneMessage": "Remover esta notificação?",
+      "clearOneTitle": "Limpar Notificação"
+    },
+    "giftReceived": {
+      "setupGoal": "Configura o teu objetivo →"
+    },
+    "hintLeft": {
+      "tapToView": "Toca para ver objetivo"
+    },
+    "sharedSession": {
+      "defaultMessage": "O teu parceiro registou uma sessão!",
+      "defaultTitle": "Atividade do Parceiro"
+    },
+    "weeklyRecap": {
+      "defaultTitle": "Resumo Semanal",
+      "sessions": "{{completed}}/{{required}} sessões"
+    }
+  },
+  "friends": {
+    "screenTitle": "Amigos",
+    "count_one": "{{count}} Amigo",
+    "count_other": "{{count}} Amigos",
+    "friendsSince": "Amigos desde {{date}}",
+    "empty": {
+      "title": "Sem Amigos",
+      "message": "Começa a construir a tua rede adicionando amigos!",
+      "actionLabel": "Adiciona o Teu Primeiro Amigo"
+    },
+    "add": {
+      "screenTitle": "Adicionar Amigos",
+      "searchPlaceholder": "Procurar por nome ou nome de utilizador",
+      "searchButton": "Procurar",
+      "searching": "A procurar...",
+      "sendRequest": "Adicionar Amigo",
+      "requestSent": "Pedido Enviado",
+      "requestReceived": "Aceitar Pedido",
+      "alreadyFriends": "Amigos",
+      "removeRequest": "Cancelar Pedido",
+      "toast": {
+        "requestSent": "Pedido de amizade enviado",
+        "requestSentFailed": "Falha ao enviar o pedido de amizade",
+        "requestAccepted": "Pedido de amizade aceite",
+        "requestAcceptedFailed": "Falha ao aceitar o pedido de amizade",
+        "requestCanceled": "Pedido de amizade cancelado",
+        "requestCanceledFailed": "Falha ao cancelar o pedido de amizade",
+        "failedRequest": "Falha ao enviar pedido de amizade. Tenta novamente.",
+        "failedSearch": "Falha na procura. Tenta novamente."
+      },
+      "buttons": {
+        "friends": "Amigos",
+        "pending": "Pendente",
+        "addFriend": "Adicionar"
+      },
+      "empty": {
+        "title": "Nenhum utilizador encontrado",
+        "subtitle": "Tenta um termo de pesquisa diferente",
+        "message": "Tenta procurar com outro nome ou email"
+      },
+      "error": {
+        "searchFailed": "Falha na pesquisa. Por favor, tenta de novo.",
+        "couldNotSearch": "Não foi possível procurar utilizadores"
+      },
+      "minCharsHint": "Insere pelo menos 2 caracteres para procurar",
+      "results_one": "{{count}} utilizador encontrado",
+      "results_other": "{{count}} utilizadores encontrados",
+      "searchAccessibility": "Procurar amigos por nome ou email",
+      "searchLabel": "Procurar amigos"
+    },
+    "profile": {
+      "goals": "Objetivos",
+      "friends": "Amigos",
+      "streak": "Sequência",
+      "sessions": "Sessões",
+      "addFriend": "Adicionar Amigo",
+      "removeFriend": "Remover Amigo",
+      "requestSent": "Pedido Enviado",
+      "acceptRequest": "Aceitar Pedido",
+      "message": "Mensagem",
+      "giftExperience": "Oferecer Experiência",
+      "add": "Adicionar",
+      "remove": "Remover",
+      "removing": "A remover...",
+      "sending": "A enviar...",
+      "sent": "Enviado",
+      "expired": "Expirado",
+      "stats": {
+        "active": "Ativos",
+        "completed": "Concluídos",
+        "wishlist": "Favoritos"
+      },
+      "tabs": {
+        "goals": "Objetivos",
+        "achievements": "Conquistas",
+        "wishlist": "Favoritos"
+      },
+      "emptyGoals": {
+        "title": "Ainda sem objetivos",
+        "subtitle": "{{name}} ainda não criou nenhum objetivo"
+      },
+      "emptyAchievements": {
+        "title": "Ainda sem conquistas",
+        "subtitle": "{{name}} ainda não concluiu nenhum objetivo"
+      },
+      "removeFriendConfirm": {
+        "title": "Remover Amigo",
+        "message": "Tens a certeza que queres remover {{name}} dos teus amigos?",
+        "confirm": "Remover",
+        "cancel": "Cancelar"
+      },
+      "error": {
+        "loadFailed": "Falha ao carregar o perfil. Por favor, tenta de novo.",
+        "notFound": "Utilizador não encontrado",
+        "couldNotLoad": "Não foi possível carregar o perfil"
+      },
+      "toast": {
+        "friendRemoved": "Amigo removido",
+        "friendRemoveFailed": "Falha ao remover o amigo. Por favor, tenta de novo.",
+        "failedLoad": "Falha ao carregar perfil. Tenta novamente.",
+        "failedRemove": "Não foi possível remover amigo. Tenta novamente.",
+        "failedRequest": "Não foi possível enviar pedido de amizade. Tenta novamente."
+      },
+      "daysLeft": "{{count}} dias restantes!",
+      "empty": {
+        "achievementsMessage": "Sem conquistas ainda",
+        "achievementsTitle": "Sem Conquistas",
+        "goalsMessage": "Sem objetivos ativos de momento",
+        "goalsTitle": "Sem Objetivos",
+        "wishlistMessage": "Sem favoritos ainda",
+        "wishlistTitle": "Sem Favoritos"
+      },
+      "experienceUnlocked": "Experiência desbloqueada",
+      "expiresInDays": "Expira em {{count}} dias",
+      "expiresTomorrow": "Expira amanhã!",
+      "friendsSince": "Amigos desde {{date}}",
+      "goalLabel": "Objetivo: {{title}}",
+      "noHints": "Ainda não foram enviadas dicas.",
+      "removeDialog": {
+        "cancel": "Cancelar",
+        "confirm": "Sim, remover",
+        "message": "Tens a certeza que queres remover {{name}} da tua lista de amigos?",
+        "thisUser": "este utilizador",
+        "title": "Remover Amigo?"
+      },
+      "selfAchievement": "Conquista Pessoal",
+      "sessionsMeta": "{{sessions}} sessões concluídas • {{weeks}} semanas",
+      "sessionsThisWeek": "Sessões esta semana",
+      "viewHintHistory": "Ver Histórico de Dicas",
+      "weeksCompleted": "Semanas concluídas"
+    },
+    "addFriendAccessibility": "Adicionar amigo",
+    "error": {
+      "couldNotLoad": "Não foi possível carregar amigos"
+    }
+  },
+  "giver": {
+    "purchasedGifts": {
+      "screenTitle": "Presentes Adquiridos",
+      "filters": {
+        "all": "Todos",
+        "pending": "Pendente",
+        "active": "Ativo",
+        "completed": "Concluído",
+        "expired": "Expirado"
+      },
+      "card": {
+        "recipient": "Para: {{name}}",
+        "status": {
+          "pending": "Pendente",
+          "active": "Ativo",
+          "completed": "Concluído",
+          "expired": "Expirado",
+          "claimed": "Resgatado"
+        },
+        "purchasedOn": "Adquirido em {{date}}",
+        "expiresOn": "Expira em {{date}}",
+        "viewDetails": "Ver Detalhes",
+        "resend": "Reenviar Presente",
+        "cancel": "Cancelar Presente"
+      },
+      "error": {
+        "loadFailed": "Falha ao carregar os presentes adquiridos. Por favor, tenta de novo.",
+        "cancelFailed": "Falha ao cancelar o presente. Por favor, tenta de novo.",
+        "resendFailed": "Falha ao reenviar o presente. Por favor, tenta de novo.",
+        "couldNotLoad": "Não foi possível carregar presentes"
+      },
+      "empty": {
+        "title": "Sem presentes adquiridos",
+        "subtitle": "Os presentes que adquirires aparecerão aqui",
+        "action": "Explorar Experiências",
+        "filteredMessage": "Sem presentes com este estado",
+        "filteredTitle": "Sem Presentes {{status}}",
+        "message": "Compra um presente para motivar alguém especial!"
+      },
+      "cardAccessibility": "Ver detalhes do presente {{title}}. Estado: {{status}}",
+      "claimCode": "Código: {{code}}",
+      "claimedBy": "Reclamado por: {{name}}",
+      "created": "Criado: {{date}}",
+      "experience": "Experiência",
+      "filter": {
+        "all": "Todos ({{count}})",
+        "allAccessibility": "Mostrar todos os {{count}} presentes",
+        "claimed": "Reclamados ({{count}})",
+        "claimedAccessibility": "Mostrar {{count}} presentes reclamados",
+        "pending": "Pendentes ({{count}})",
+        "pendingAccessibility": "Mostrar {{count}} presentes pendentes"
+      },
+      "na": "N/D",
+      "status": {
+        "expired": "Expirado",
+        "pending": "PENDENTE"
+      },
+      "surpriseExperience": "Experiência Surpresa",
+      "unknown": "Desconhecido"
+    },
+    "purchaseCTA": {
+      "title": "Pronto para Oferecer?",
+      "subtitle": "Dá o presente de uma experiência inesquecível",
+      "button": "Comprar Agora",
+      "priceFrom": "A partir de {{price}}",
+      "giftThis": "Oferecer Esta Experiência",
+      "addToCart": "Adicionar ao Carrinho",
+      "addedToCart": "Adicionado ao Carrinho",
+      "viewCart": "Ver Carrinho",
+      "buyThisExperience": "Comprar Esta Experiência",
+      "maybeLater": "Talvez Mais Tarde",
+      "dismissA11y": "Dispensar sugestão de experiência"
+    },
+    "cart": {
+      "screenTitle": "O Teu Carrinho",
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} itens",
+      "empty": {
+        "title": "O teu carrinho está vazio",
+        "message": "Explora experiências para encontrar o presente perfeito",
+        "action": "Continuar a Comprar"
+      },
+      "loadError": "Não foi possível carregar os itens do carrinho",
+      "removeDialog": {
+        "title": "Remover Item",
+        "message": "Tens a certeza que queres remover este item do teu carrinho?",
+        "confirm": "Remover",
+        "cancel": "Cancelar"
+      },
+      "toast": {
+        "itemRemoved": "Item removido do carrinho",
+        "updateFailed": "Falha ao atualizar a quantidade. Por favor, tenta de novo.",
+        "removeFailed": "Falha ao remover o item. Por favor, tenta de novo."
+      },
+      "info": {
+        "maxQuantity": "Podes adicionar até 10 itens de cada experiência.",
+        "emptyCheckout": "O teu carrinho está vazio. Adiciona itens primeiro."
+      },
+      "total": "Total",
+      "proceedToCheckout": "Continuar para o Checkout",
+      "keepShopping": "Continuar a Comprar",
+      "accessibility": {
+        "viewDetails": "Ver detalhes de {{title}}",
+        "image": "Imagem de {{title}}",
+        "removeItem": "Remover item do carrinho",
+        "decreaseQuantity": "Diminuir quantidade",
+        "increaseQuantity": "Aumentar quantidade"
+      }
+    },
+    "category": {
+      "screenTitle": "Experiências para Oferecer",
+      "screenSubtitle": "Motiva os teus amigos",
+      "searchPlaceholder": "Pesquisar experiências...",
+      "featured": "Mais Populares",
+      "filters": {
+        "all": "Todas",
+        "adventure": "Aventura",
+        "wellness": "Bem-estar",
+        "creative": "Criativo"
+      },
+      "empty": {
+        "noResults": "Sem resultados para \"{{query}}\"",
+        "noResultsMessage": "Tenta um termo de pesquisa diferente",
+        "noExperiences": "Sem Experiências Disponíveis",
+        "noExperiencesMessage": "Volta em breve para novas experiências!"
+      },
+      "error": {
+        "loadFailed": "Não foi possível carregar as experiências"
+      },
+      "toast": {
+        "wishlistFailed": "Falha ao atualizar os favoritos. Por favor, tenta de novo.",
+        "loginRequired": "Por favor, inicia sessão para usar os favoritos."
+      },
+      "accessibility": {
+        "featured": "Mais popular: {{title}}",
+        "view": "Ver {{title}}",
+        "coverImage": "Imagem de capa de {{title}}",
+        "addToWishlist": "Adicionar aos favoritos",
+        "removeFromWishlist": "Remover dos favoritos",
+        "search": "Pesquisar experiências",
+        "clearSearch": "Limpar pesquisa",
+        "dismissEmpower": "Fechar banner de empoderamento"
+      }
+    },
+    "experienceDetails": {
+      "whatToExpect": "O que esperar",
+      "location": "Localização",
+      "perPerson": "por pessoa",
+      "quantity": "Quantidade:",
+      "redirecting": "A redirecionar...",
+      "addToCart": "Adicionar ao Carrinho",
+      "adding": "A adicionar...",
+      "buyNow": "Comprar Agora",
+      "howItWorks": "Como funciona",
+      "toast": {
+        "addedToCart": "Adicionado(s) {{count}} item(ns) ao carrinho!",
+        "wishlistFailed": "Falha ao atualizar os favoritos. Por favor, tenta de novo.",
+        "cartFailed": "Não foi possível adicionar ao carrinho. Por favor, tenta de novo."
+      },
+      "accessibility": {
+        "goBack": "Voltar",
+        "viewCart": "Ver carrinho, {{count}} itens",
+        "addToWishlist": "Adicionar aos favoritos",
+        "removeFromWishlist": "Remover dos favoritos",
+        "viewImage": "Ver imagem em tamanho completo {{index}} de {{total}}",
+        "image": "Imagem de {{title}} {{index}}",
+        "howItWorks": "Como funciona",
+        "decreaseQuantity": "Diminuir quantidade",
+        "increaseQuantity": "Aumentar quantidade",
+        "addToCart": "Adicionar ao carrinho",
+        "buyNow": "Comprar agora"
+      }
+    },
+    "checkout": {
+      "screenTitle": "Checkout",
+      "yourGifts": "Os Teus Presentes",
+      "quantity": "Qtd: {{count}}",
+      "totalAmount": "Valor Total",
+      "total": "Total",
+      "paymentDetails": "Detalhes de Pagamento",
+      "securityText": "As tuas informações de pagamento são encriptadas e seguras",
+      "completePurchase": "Concluir Compra",
+      "pay": "Pagar {{amount}}",
+      "settingUp": "A configurar...",
+      "redirecting": "A redirecionar...",
+      "errorInitPayment": "Não foi possível inicializar o pagamento.",
+      "retry": "Tentar de novo",
+      "goBack": "Voltar",
+      "toast": {
+        "paymentSuccess": "O teu pagamento foi processado com sucesso!",
+        "paymentProcessing": "O teu pagamento está a ser processado. Receberás uma confirmação em breve.",
+        "paymentActionRequired": "É necessária uma ação adicional para concluir o teu pagamento.",
+        "verifyFailed": "Falha ao verificar o estado do pagamento. Por favor, contacta o suporte.",
+        "paymentSuccessCheckPurchased": "O teu pagamento foi bem-sucedido! Verifica em 'Presentes Adquiridos'.",
+        "loadFailed": "Não foi possível carregar as experiências para o checkout.",
+        "setupFailed": "Não foi possível configurar o pagamento. Por favor, tenta de novo."
+      },
+      "accessibility": {
+        "goBack": "Voltar"
+      }
+    },
+    "confirmation": {
+      "hero": {
+        "togetherTitle": "Desafio Criado!",
+        "paymentTitle": "Pagamento Bem-sucedido",
+        "togetherSubtitle": "Partilha o código de convite com o teu parceiro para começarem juntos!",
+        "empowerSubtitle": "O teu presente foi enviado para {{name}}!",
+        "selfGoalSubtitle": "Preparaste-te para o sucesso. Conclui o teu desafio para desbloqueares!",
+        "giftSubtitle": "O teu presente está pronto para partilhar",
+        "surpriseExperience": "Experiência Surpresa",
+        "weWillFind": "Encontraremos a recompensa perfeita à medida que progrides"
+      },
+      "redirecting": "A redirecionar...",
+      "personalMessage": {
+        "label": "Mensagem Pessoal",
+        "subtitle": "Adiciona uma mensagem especial para tornar este presente extra especial. Aparecerá quando resgatarem o presente.",
+        "placeholder": "A tua mensagem aqui...",
+        "attach": "Anexar Mensagem",
+        "sent": "Mensagem enviada!",
+        "error": "Por favor, escreve uma mensagem antes de enviar.",
+        "saveFailed": "Falha ao guardar a mensagem. Por favor, tenta de novo.",
+        "saved": "A tua mensagem personalizada foi guardada!"
+      },
+      "giftCode": {
+        "title": "Código do Presente",
+        "subtitle": "Partilha este código para desbloquear a experiência",
+        "copy": "Copiar Código",
+        "copied": "Copiado!",
+        "share": "Partilhar",
+        "copyFailed": "Não foi possível copiar para a área de transferência"
+      },
+      "howItWorks": {
+        "title": "Como Funciona",
+        "solo": {
+          "step1Title": "Partilha o Código",
+          "step1Desc": "Envia o código do presente ao destinatário",
+          "step2Title": "Definir Objetivos",
+          "step2Desc": "Criam objetivos pessoais para ganhar a experiência",
+          "step3Title": "Acompanhar Progresso",
+          "step3Desc": "Dicas de IA guiam-nos enquanto trabalham para os objetivos",
+          "step4Title": "Desbloquear Recompensa",
+          "step4Desc": "A experiência é revelada quando os objetivos são concluídos"
+        },
+        "together": {
+          "step1Title": "Partilha o Código",
+          "step1Desc": "Envia o convite ao teu parceiro",
+          "step2Title": "Eles Juntam-se",
+          "step2Desc": "O teu parceiro aceita e define o seu próprio objetivo",
+          "step3Title": "Treinar Juntos",
+          "step3Desc": "Acompanhem o progresso um do outro e mantenham a motivação",
+          "step4Title": "Desbloquear Recompensa",
+          "step4Desc": "Ambos concluem o desafio para desbloquear a experiência"
+        }
+      },
+      "buttons": {
+        "startChallenge": "Iniciar o Teu Desafio",
+        "backToFeed": "Voltar ao Feed",
+        "goToGoals": "Ir para Os Meus Objetivos",
+        "backToHome": "Voltar ao Início"
+      },
+      "share": {
+        "together": "Junta-te ao meu desafio de fitness no Ernit! Usa o código {{code}} ou regista-te em https://ernit.app/recipient/redeem/{{code}} para começarmos juntos",
+        "solo": "Olá! Ofereci-te uma experiência Ernit, um pequeno incentivo para os teus objetivos.\n\nRegista-te e resgata o teu presente em https://ernit.app/recipient/redeem/{{code}} para definires os teus objetivos. Quando concluíres os objetivos, verás o que te ofereci\n\nMerece-o. Desbloqueia-o. Desfruta-o",
+        "title": "Código do Presente",
+        "togetherTitle": "Convite para Desafio"
+      },
+      "toast": {
+        "loadFailed": "Não foi possível carregar os detalhes da experiência.",
+        "messageSaved": "A tua mensagem personalizada foi guardada!",
+        "messageFailed": "Falha ao guardar a mensagem. Por favor, tenta de novo.",
+        "copyFailed": "Não foi possível copiar para a área de transferência",
+        "shareFailed": "Não foi possível abrir o diálogo de partilha. Tenta de novo ou copia o código manualmente."
+      },
+      "accessibility": {
+        "image": "Imagem da experiência {{title}}",
+        "personalMessage": "Mensagem pessoal",
+        "copyCode": "Copiar código do presente",
+        "shareCode": "Partilhar código do presente"
+      }
+    },
+    "confirmationMultiple": {
+      "hero": {
+        "title": "Pagamento Bem-sucedido!",
+        "subtitle_one": "{{count}} presente pronto para partilhar",
+        "subtitle_other": "{{count}} presentes prontos para partilhar",
+        "subtitle": "{{count}} presente(s) prontos para partilhar"
+      },
+      "personalMessage": {
+        "label": "Mensagem Pessoal",
+        "subtitle": "Adiciona uma mensagem especial para tornar este presente extra especial.",
+        "placeholder": "A tua mensagem aqui...",
+        "attach": "Anexar Mensagem",
+        "sent": "Mensagem enviada!"
+      },
+      "giftCode": {
+        "label": "Código do Presente",
+        "copy": "Copiar",
+        "share": "Partilhar"
+      },
+      "howItWorks": {
+        "title": "Como Funciona",
+        "step1Title": "Partilha o Código",
+        "step1Desc": "Envia o código do presente ao destinatário",
+        "step2Title": "Definir Objetivos",
+        "step2Desc": "Criam objetivos pessoais para ganhar a experiência",
+        "step3Title": "Acompanhar Progresso",
+        "step3Desc": "Dicas de IA guiam-nos enquanto trabalham para os objetivos",
+        "step4Title": "Desbloquear Recompensa",
+        "step4Desc": "A experiência é revelada quando os objetivos são concluídos"
+      },
+      "buttons": {
+        "backToHome": "Voltar ao Início"
+      },
+      "loadError": {
+        "title": "Não foi possível carregar os detalhes da experiência",
+        "message": "Por favor, verifica a tua ligação e tenta de novo.",
+        "retry": "Tentar de novo"
+      },
+      "toast": {
+        "loadFailed": "Não foi possível carregar os detalhes da experiência.",
+        "messageSaved": "A tua mensagem personalizada foi guardada!",
+        "messageFailed": "Falha ao guardar a mensagem. Por favor, tenta de novo.",
+        "codeCopied": "Código do presente copiado para a área de transferência",
+        "copyFailed": "Não foi possível copiar para a área de transferência",
+        "codeUnavailable": "O código do presente ainda não está disponível.",
+        "shareFailed": "Não foi possível abrir o diálogo de partilha."
+      },
+      "accessibility": {
+        "image": "Imagem da experiência {{title}}",
+        "personalMessage": "Mensagem pessoal para {{title}}",
+        "copyCode": "Copiar código do presente para {{title}}",
+        "shareCode": "Partilhar código do presente para {{title}}",
+        "retry": "Tentar carregar experiências de novo",
+        "backToHome": "Voltar ao início"
+      }
+    },
+    "deferred": {
+      "screenTitle": "Protege o Teu Presente",
+      "infoCard": {
+        "title": "Sem cobrança até ao sucesso",
+        "subtitle": "Guarda o teu cartão agora. Só cobraremos quando o destinatário concluir o objetivo. Podes remover em qualquer altura em Presentes Adquiridos."
+      },
+      "cardDetails": "Detalhes do Cartão",
+      "securityText": "As tuas informações de pagamento são encriptadas e seguras",
+      "saveCard": "Guardar Cartão & Continuar",
+      "settingUp": "A configurar...",
+      "skipForNow": "Saltar por agora",
+      "toast": {
+        "skipInfo": "Podes adicionar os detalhes de pagamento mais tarde em Presentes Adquiridos.",
+        "cardValidationFailed": "Validação do cartão falhou. Por favor, verifica os detalhes do cartão e tenta de novo.",
+        "cardSaveFailed": "Não foi possível guardar o teu cartão. Por favor, verifica os detalhes e tenta de novo.",
+        "verificationIncomplete": "Verificação do cartão incompleta. Por favor, tenta de novo.",
+        "genericError": "Algo correu mal. Por favor, tenta de novo.",
+        "setupFailed": "Não foi possível configurar o formulário de cartão. Por favor, tenta de novo."
+      },
+      "accessibility": {
+        "goBack": "Voltar",
+        "skipCard": "Saltar configuração do cartão por agora"
+      }
+    },
+    "mystery": {
+      "screenTitle": "Oferecer um Desafio",
+      "stepTitle": "Como é revelada a recompensa?",
+      "stepSubtitle": "Devem saber para o que estão a trabalhar?",
+      "redirecting": "A redirecionar...",
+      "options": {
+        "revealedLabel": "Revelado",
+        "revealedTagline": "Sabem a recompensa desde o primeiro dia. Motivação total para a ganhar.",
+        "secretLabel": "Secreto",
+        "secretTagline": "A recompensa fica escondida. O Ernit dá dicas em cada sessão.",
+        "secretBadge": "Fator surpresa"
+      },
+      "continue": "Continuar",
+      "accessibility": {
+        "goBack": "Voltar",
+        "selectReveal": "Selecionar modo de revelação {{label}}"
+      }
+    }
+  },
+  "landing": {
+    "appName": "Ernit",
+    "tagline": "Experiências que valem a pena oferecer",
+    "signIn": "Entrar",
+    "signUp": "Começar",
+    "challenge": {
+      "toggle": {
+        "self": "Para mim",
+        "gift": "Para alguém especial"
+      },
+      "self": {
+        "titlePrefix": "Quero",
+        "titleSuffix": "",
+        "subtitle": "Define o teu objetivo. Compromete-te com uma recompensa.\nVai ganhá-la.",
+        "stat": "Pessoas com uma recompensa em jogo têm ",
+        "statHighlight": "2x mais probabilidade",
+        "statSuffix": " de criar o hábito.",
+        "statSource": "– Universidade da Califórnia",
+        "cta": "Iniciar o Meu Desafio",
+        "badge": "100% Gratuito",
+        "step1Title": "Escolhe o Teu Desafio",
+        "step1Desc": "Escolhe o que queres melhorar e por quanto tempo. Ginásio, yoga, corrida, leitura, ou qualquer outra coisa",
+        "step2Title": "Mantém-te Fiel",
+        "step2Desc": "Faz as tuas sessões, cria sequências e motiva-te com amigos que acompanham a tua jornada, e que podem até recompensar-te pelo caminho",
+        "step3Title": "Ganha-a",
+        "step3Desc": "Termina o teu desafio e merece a recompensa que mereces!",
+        "finalTitle": "Pronto para te\ndesafiar a ti mesmo?",
+        "finalSubtitle": "Junta-te a milhares de pessoas que constroem melhores hábitos com amigos.",
+        "finalCta": "Criar o Meu Desafio"
+      },
+      "gift": {
+        "titlePrefix": "Ajudá-los a",
+        "titleSuffix": "",
+        "subtitle": "Dá força a alguém que te importas.\nSó pagas quando eles tiverem sucesso.",
+        "stat": "Uma recompensa e alguém a apoiá-los torna-os ",
+        "statHighlight": "2x mais prováveis",
+        "statSuffix": " de ter sucesso.",
+        "statSource": "– Universidade da Pensilvânia",
+        "cta": "Oferecer uma Experiência",
+        "badge": "Só pagas no sucesso",
+        "step1Title": "Escolhe uma Recompensa",
+        "step1Desc": "Escolhe uma experiência que eles vão ganhar ao atingirem o seu objetivo",
+        "step2Title": "Eles Definem o Objetivo",
+        "step2Desc": "Eles escolhem o seu desafio e trabalham para o atingir, dia após dia",
+        "step3Title": "Pagas Quando Tiverem Sucesso",
+        "step3Desc": "Só pagas quando eles atingirem o objetivo. Zero risco. Toda a recompensa.",
+        "finalTitle": "Pronto para dar força\na alguém?",
+        "finalSubtitle": "Faz um presente que realmente significa algo.",
+        "finalCta": "Oferecer uma Experiência"
+      },
+      "howItWorks": {
+        "title": "Como Funciona",
+        "sectionTitle": "Três Passos Simples"
+      },
+      "team": {
+        "title": "A Equipa",
+        "coFounderCeo": "Co-Fundador e CEO",
+        "coFounderCto": "Co-Fundador e CTO"
+      },
+      "incubator": {
+        "incubatedAt": "Incubado em",
+        "visitWebsite": "Visitar o site da Unicorn Factory Lisboa",
+        "logoAlt": "Logótipo da Unicorn Factory Lisboa"
+      },
+      "cards": {
+        "goalSelf": "O teu objetivo",
+        "rewardSelf": "A tua recompensa",
+        "goalGift": "O objetivo",
+        "rewardGift": "A recompensa"
+      },
+      "footer": {
+        "copyright": "{{year}} Ernit. Todos os direitos reservados.",
+        "linkedinAlt": "Visitar o Ernit no LinkedIn",
+        "instagramAlt": "Visitar o Ernit no Instagram",
+        "tiktokAlt": "Visitar o Ernit no TikTok"
+      },
+      "nav": {
+        "goToApp": "Ir para a App",
+        "logIn": "Entrar",
+        "goToAppAlt": "Ir para a app",
+        "logInAlt": "Entrar na tua conta",
+        "goBackAlt": "Voltar"
+      },
+      "errors": {
+        "couldNotLoadRewardImages": "Não foi possível carregar as imagens das recompensas."
+      }
+    }
+  },
+  "wizard": {
+    "challenge": {
+      "header": {
+        "title": "Criar um Desafio"
+      },
+      "goalTypes": {
+        "gym": {
+          "tagline": "Constrói força e resistência"
+        },
+        "yoga": {
+          "tagline": "Encontra equilíbrio e flexibilidade"
+        },
+        "dance": {
+          "tagline": "Move-te e exprima-te"
+        },
+        "custom": {
+          "tagline": "Define o teu próprio caminho"
+        }
+      },
+      "stepTitles": {
+        "step1": "Escolhe o teu objetivo",
+        "step2": "Define o teu horário",
+        "step3": "Duração da sessão",
+        "step4": "Escolhe a tua recompensa",
+        "step5": "Pagamento",
+        "step6": "Rever"
+      },
+      "stepSubtitles": {
+        "step1": "Em que queres trabalhar?",
+        "step2": "Com que frequência vais treinar?",
+        "step3": "Quanto tempo dura cada sessão?",
+        "step4": "Escolhe uma experiência para desbloquear",
+        "step5": "Como preferes pagar?",
+        "step6": "Tudo parece bem?"
+      },
+      "discard": {
+        "alertTitle": "Descartar desafio?",
+        "alertMessage": "O teu progresso será perdido.",
+        "buttonStay": "Continuar a editar",
+        "buttonLeave": "Descartar"
+      },
+      "toasts": {
+        "storageError": "Não foi possível guardar o teu progresso. Por favor, tenta de novo.",
+        "createdPayNow": "Desafio criado! A redirecionar para o pagamento...",
+        "createdPayLater": "Desafio criado! Cartão guardado para mais tarde.",
+        "created": "Desafio criado!",
+        "goalLimitReached": "Atingiste o limite de objetivos ativos.",
+        "createFailed": "Não foi possível criar o desafio. Por favor, tenta de novo."
+      },
+      "validation": {
+        "selectGoalType": "Por favor, seleciona um tipo de objetivo para continuar.",
+        "enterCustomGoal": "Por favor, introduz o nome do teu objetivo personalizado.",
+        "sessionMaxTime": "O tempo de sessão não pode exceder 8 horas.",
+        "setSessionTime": "Por favor, define a duração da sessão para continuar.",
+        "pickReward": "Por favor, seleciona uma opção de recompensa para continuar."
+      },
+      "customGoal": {
+        "label": "Nome do objetivo",
+        "placeholder": "ex: Correr 5 km, Ler 20 livros..."
+      },
+      "sliders": {
+        "duration": "Duração",
+        "chill": "Suave",
+        "intense": "Intenso",
+        "week": "semana",
+        "weeks": "semanas",
+        "weeklySessions": "Sessões por semana",
+        "easy": "Fácil",
+        "beast": "Modo beast"
+      },
+      "dial": {
+        "minutes": "MINUTOS",
+        "min": "min",
+        "hr": "hr",
+        "useDial": "Usar marcador",
+        "customTime": "Introduzir tempo personalizado"
+      },
+      "calendar": {
+        "prevMonth": "Mês anterior",
+        "nextMonth": "Mês seguinte",
+        "selectDay": "Selecionar {{date}}",
+        "finishLabel": "Vais terminar por volta de",
+        "from": "a partir de"
+      },
+      "experience": {
+        "backToCategories": "Voltar às categorias",
+        "loadError": "Não foi possível carregar experiências. Toca para tentar de novo.",
+        "browseExperiences": "Explorar experiências",
+        "pickRewardToEarn": "Escolhe uma recompensa para ganhar",
+        "orSurprise": "ou deixa-nos surpreender-te",
+        "categories": {
+          "adventure": "Aventura",
+          "wellness": "Bem-estar",
+          "creative": "Criativo"
+        }
+      },
+      "payment": {
+        "lockIn": "Garantir agora",
+        "lockInDesc": "Paga hoje e a tua recompensa fica assegurada no momento em que crias o desafio.",
+        "lockInLabel": "Opção de pagamento antecipado",
+        "recommended": "Recomendado",
+        "payOnSuccess": "Pagar ao concluir",
+        "payOnSuccessDesc": "Guardamos o teu cartão agora e só cobramos quando completares o desafio.",
+        "payOnSuccessLabel": "Opção de pagar ao concluir",
+        "statTitle": "Os membros que pagam antecipadamente têm 2x mais probabilidade de completar o desafio.",
+        "statDesc": "O compromisso gera resultados."
+      },
+      "footer": {
+        "weekLabel_one": "{{count}} semana",
+        "weekLabel_other": "{{count}} semanas",
+        "viewDetails": "Ver detalhes",
+        "createChallenge": "Criar desafio",
+        "signUpCreate": "Regista-te para criar",
+        "continueNext": "Continuar",
+        "next": "Seguinte"
+      },
+      "confirm": {
+        "title": "Pronto para te comprometer?",
+        "subtitle": "Aqui está um resumo do teu desafio.",
+        "goalLabel": "Objetivo:",
+        "durationLabel": "Duração:",
+        "sessionsLabel": "Sessões/semana:",
+        "perSessionLabel": "Por sessão:",
+        "rewardLabel": "Recompensa:",
+        "rewardPrefLabel": "Pref. recompensa:",
+        "paymentLabel": "Pagamento:",
+        "payNowText": "Pagar agora",
+        "payLaterText": "Pagar ao concluir",
+        "pledgePayNow": "Ao confirmar, concordas em pagar agora e comprometes-te com o teu desafio.",
+        "pledgePayLater": "Ao confirmar, guardas o teu cartão e concordas em ser cobrado quando completares o desafio.",
+        "pledgeCategory": "Ao confirmar, comprometes-te com este desafio sem custo antecipado.",
+        "pledgeFree": "Ao confirmar, comprometes-te com este desafio.",
+        "cancel": "Cancelar",
+        "createAndPay": "Criar e pagar",
+        "letsGo": "Vamos lá"
+      },
+      "accessibility": {
+        "selectGoal": "Selecionar {{name}} como objetivo",
+        "customGoalName": "Nome do objetivo personalizado",
+        "hoursPerSession": "Horas por sessão",
+        "minutesPerSession": "Minutos por sessão",
+        "prevMonth": "Mês anterior",
+        "nextMonth": "Mês seguinte",
+        "selectDay": "Selecionar {{date}}",
+        "selectExperience": "Selecionar {{title}} por {{price}}",
+        "viewDetails": "Ver detalhes de {{title}}",
+        "filterBy": "Filtrar por {{label}}",
+        "selectCategory": "Selecionar categoria {{label}}",
+        "chooseExperience": "Escolher experiência",
+        "goBack": "Voltar",
+        "viewExperienceDetails": "Ver detalhes da experiência"
+      }
+    },
+    "gift": {
+      "header": {
+        "title": "Oferecer um Desafio"
+      },
+      "goalTypes": {
+        "gym": {
+          "tagline": "Constrói força e resistência"
+        },
+        "yoga": {
+          "tagline": "Encontra equilíbrio e flexibilidade"
+        },
+        "dance": {
+          "tagline": "Move-te e exprima-te"
+        },
+        "custom": {
+          "tagline": "Define o teu próprio caminho"
+        }
+      },
+      "challengeTypes": {
+        "solo": {
+          "label": "Desafio individual",
+          "tagline": "O teu amigo enfrenta o desafio sozinho e ganha a recompensa quando terminar."
+        },
+        "shared": {
+          "label": "Desafio partilhado",
+          "tagline": "Ambos enfrentam o mesmo desafio juntos e desbloqueiam a recompensa juntos."
+        }
+      },
+      "revealOptions": {
+        "secret": {
+          "label": "Manter em segredo",
+          "title": "Manter em segredo",
+          "tagline": "O teu amigo não verá a experiência até completar o desafio.",
+          "desc": "O teu amigo não verá a experiência até completar o desafio.",
+          "badge": "Recomendado"
+        },
+        "revealed": {
+          "label": "Revelar a experiência",
+          "tagline": "O teu amigo pode ver exatamente pelo que está a trabalhar."
+        },
+        "recommended": "Recomendado",
+        "revealedActive": "Manter em segredo",
+        "revealInstead": "Revelar a experiência"
+      },
+      "stepTitles": {
+        "chooseType": "Escolhe o tipo de desafio",
+        "pickReward": "Escolhe uma recompensa",
+        "revealMode": "Modo de revelação",
+        "secureReward": "Assegurar a recompensa",
+        "confirmGift": "Confirmar presente"
+      },
+      "stepSubtitles": {
+        "chooseType": "Individual ou partilhado?",
+        "pickRewardSolo": "Escolhe uma experiência que o teu amigo vai ganhar",
+        "pickRewardTogether": "Escolhe uma experiência que ambos vão ganhar",
+        "revealSolo": "O teu amigo deve ver a recompensa agora?",
+        "revealTogether": "Ambos devem ver a recompensa agora?",
+        "secureReward": "Como preferes pagar?",
+        "confirm": "Tudo parece bem?"
+      },
+      "togetherStepTitles": {
+        "step2": "Nomeia o teu desafio",
+        "step3": "Define o teu horário",
+        "step4": "Duração da sessão"
+      },
+      "togetherStepSubtitles": {
+        "step2": "Para que vão ambos trabalhar?",
+        "step3": "Com que frequência vão treinar juntos?",
+        "step4": "Quanto tempo dura cada sessão?"
+      },
+      "discard": {
+        "alertTitle": "Descartar presente?",
+        "alertMessage": "O teu progresso será perdido.",
+        "buttonStay": "Continuar a editar",
+        "buttonLeave": "Descartar"
+      },
+      "toasts": {
+        "storageError": "Não foi possível guardar o teu progresso. Por favor, tenta de novo.",
+        "paymentSetupFailed": "Falha na configuração do pagamento. Por favor, tenta de novo.",
+        "createFailed": "Não foi possível criar o presente. Por favor, tenta de novo."
+      },
+      "validation": {
+        "selectChallengeType": "Por favor, seleciona um tipo de desafio.",
+        "enterCustomChallengeType": "Por favor, introduz um nome de desafio personalizado.",
+        "sessionMaxTime": "O tempo de sessão não pode exceder 8 horas.",
+        "setSessionTime": "Por favor, define a duração da sessão para continuar.",
+        "selectSpecificExperience": "Por favor, seleciona uma experiência específica.",
+        "selectRewardOption": "Por favor, seleciona uma opção de recompensa.",
+        "chooseChallengeType": "Escolhe um tipo de desafio para começar.",
+        "pickReward": "Por favor, seleciona uma opção de recompensa para continuar.",
+        "choosePaymentOption": "Por favor, escolhe uma opção de pagamento."
+      },
+      "customGoal": {
+        "label": "Nome do desafio",
+        "placeholder": "ex: Correr 5 km, Ler 20 livros..."
+      },
+      "sliders": {
+        "duration": "Duração",
+        "chill": "Suave",
+        "intense": "Intenso",
+        "week": "semana",
+        "weeks": "semanas",
+        "weeklySessions": "Sessões por semana",
+        "easy": "Fácil",
+        "beast": "Modo beast"
+      },
+      "dial": {
+        "minutes": "MINUTOS",
+        "min": "min",
+        "hr": "hr",
+        "useDial": "Usar marcador",
+        "customTime": "Introduzir tempo personalizado"
+      },
+      "experience": {
+        "backToCategories": "Voltar às categorias",
+        "needHelp": "Precisas de ajuda para escolher?",
+        "popularExperiences": "Aqui estão algumas experiências populares para começar.",
+        "chooseExperience": "Escolhe uma experiência",
+        "browseShared": "Explorar experiências partilhadas",
+        "orSurpriseThem": "ou deixa-nos surpreendê-los",
+        "categories": {
+          "adventure": "Aventura",
+          "wellness": "Bem-estar",
+          "creative": "Criativo"
+        }
+      },
+      "payment": {
+        "lockIn": "Garantir agora",
+        "lockInDesc": "Paga hoje e a recompensa fica assegurada no momento em que envias o presente.",
+        "lockInLabel": "Opção de pagamento antecipado",
+        "recommended": "Recomendado",
+        "payOnSuccess": "Pagar ao concluir",
+        "payOnSuccessDesc": "Guardamos o teu cartão agora e só cobramos quando o teu amigo completar o desafio.",
+        "payOnSuccessLabel": "Opção de pagar ao concluir",
+        "statTitle": "Os doadores que pagam antecipadamente têm 2x mais taxas de conclusão.",
+        "statDesc": "O compromisso gera resultados.",
+        "paidUpfront": "Pago antecipadamente",
+        "payOnCompletion": "Pagar ao concluir"
+      },
+      "footer": {
+        "weekLabel_one": "{{count}} semana",
+        "weekLabel_other": "{{count}} semanas",
+        "viewDetails": "Ver detalhes",
+        "sendGift": "Enviar presente",
+        "signUpSend": "Regista-te para enviar",
+        "sendChallenge": "Enviar desafio",
+        "payAndSend": "Pagar e enviar",
+        "commitAndSend": "Comprometer e enviar",
+        "sending": "A enviar...",
+        "continueNext": "Continuar",
+        "next": "Seguinte"
+      },
+      "confirm": {
+        "title": "Enviar este presente?",
+        "subtitle": "Aqui está um resumo do teu presente.",
+        "typeLabel": "Desafio:",
+        "durationLabel": "Duração:",
+        "sessionsLabel": "Sessões/semana:",
+        "perSessionLabel": "Por sessão:",
+        "rewardLabel": "Recompensa:",
+        "rewardPrefLabel": "Pref. recompensa:",
+        "modeLabel": "Modo de revelação:",
+        "modeRevealed": "Revelado",
+        "modeSecret": "Secreto",
+        "paymentLabel": "Pagamento:",
+        "personalNoteLabel": "Nota pessoal (opcional)",
+        "personalNotePlaceholder": "Adiciona uma mensagem do coração...",
+        "pledgePayNow": "Ao confirmar, concordas em pagar agora e enviar este presente.",
+        "pledgePayLater": "Ao confirmar, guardas o teu cartão e concordas em ser cobrado quando o teu amigo completar o desafio.",
+        "pledgeCategory": "Ao confirmar, envias este desafio presente gratuito.",
+        "cancel": "Cancelar"
+      },
+      "accessibility": {
+        "selectChallengeType": "Selecionar tipo de desafio {{label}}",
+        "selectGoalType": "Selecionar tipo de objetivo {{name}}",
+        "hoursPerSession": "Horas por sessão",
+        "minutesPerSession": "Minutos por sessão",
+        "selectExperience": "Selecionar {{title}} por {{price}}",
+        "viewDetails": "Ver detalhes de {{title}}",
+        "filterBy": "Filtrar por {{label}}",
+        "selectCategory": "Selecionar categoria {{label}}",
+        "chooseSharedExperience": "Escolher experiência partilhada",
+        "keepSecret": "Manter experiência em segredo",
+        "lockIn": "Garantir pagamento agora",
+        "payOnSuccess": "Pagar ao concluir",
+        "goBack": "Voltar",
+        "viewExperienceDetails": "Ver detalhes da experiência"
+      }
+    },
+    "goal": {
+      "header": {
+        "title": "Define o Teu Objetivo"
+      },
+      "goalTypes": {
+        "gym": {
+          "tagline": "Constrói força e resistência"
+        },
+        "yoga": {
+          "tagline": "Encontra equilíbrio e flexibilidade"
+        },
+        "dance": {
+          "tagline": "Move-te e exprima-te"
+        },
+        "custom": {
+          "tagline": "Define o teu próprio caminho"
+        }
+      },
+      "stepTitles": {
+        "step1": "Escolhe o teu objetivo",
+        "step2": "Define o teu horário",
+        "step3": "Duração da sessão",
+        "step4": "Rever"
+      },
+      "stepSubtitles": {
+        "step1": "Em que queres trabalhar?",
+        "step2": "Com que frequência vais treinar?",
+        "step3": "Quanto tempo dura cada sessão?",
+        "step4": "Tudo parece bem?"
+      },
+      "discard": {
+        "alertTitle": "Descartar objetivo?",
+        "alertMessage": "O teu progresso será perdido.",
+        "buttonStay": "Continuar a editar",
+        "buttonLeave": "Descartar"
+      },
+      "toasts": {
+        "giftExpired": "Este presente expirou. Por favor, contacta o remetente.",
+        "loadExperienceError": "Não foi possível carregar os detalhes da experiência.",
+        "signInRequired": "Por favor, inicia sessão para continuar.",
+        "alreadyClaimed": "Este presente já foi reclamado.",
+        "claimFailed": "Não foi possível reclamar este presente. Por favor, tenta de novo.",
+        "revertFailed": "Não foi possível reverter. Por favor, tenta de novo.",
+        "createFailed": "Não foi possível criar o objetivo. Por favor, tenta de novo.",
+        "firstHintMessage": "A tua primeira dica aparecerá após a tua primeira sessão!"
+      },
+      "validation": {
+        "selectGoalType": "Por favor, seleciona um tipo de objetivo para continuar.",
+        "enterCustomGoal": "Por favor, introduz o nome do teu objetivo personalizado.",
+        "sessionMaxTime": "O tempo de sessão não pode exceder 8 horas.",
+        "setSessionTime": "Por favor, define a duração da sessão para continuar."
+      },
+      "reward": {
+        "yourReward": "A TUA RECOMPENSA",
+        "completeToUnlock": "Completa o teu desafio para desbloquear esta recompensa!"
+      },
+      "together": {
+        "banner": "{{name}} desafiou-te a juntar-te a ele!",
+        "someone": "Alguém",
+        "theirGoal": "O objetivo deles: {{goalName}}",
+        "acceptSame": "Aceitar o mesmo desafio",
+        "acceptSameLabel": "Aceitar o mesmo desafio que o teu parceiro",
+        "createOwn": "Criar o meu próprio",
+        "createOwnLabel": "Criar o meu próprio desafio"
+      },
+      "customGoal": {
+        "label": "Categoria do objetivo",
+        "placeholder": "ex: Corrida, Yoga, Culinária..."
+      },
+      "sliders": {
+        "duration": "Duração",
+        "chill": "Suave",
+        "intense": "Intenso",
+        "week": "semana",
+        "weeks": "semanas",
+        "weeklySessions": "Sessões por semana",
+        "easy": "Fácil",
+        "beast": "Modo beast"
+      },
+      "dial": {
+        "minutes": "MINUTOS",
+        "min": "min",
+        "hr": "hr",
+        "useDial": "Usar marcador",
+        "customTime": "Introduzir tempo personalizado"
+      },
+      "calendar": {
+        "prevMonth": "Mês anterior",
+        "nextMonth": "Mês seguinte",
+        "selectDay": "Selecionar {{date}}",
+        "finishLabel": "Vais terminar por volta de",
+        "from": "a partir de"
+      },
+      "footer": {
+        "weekLabel_one": "{{count}} semana",
+        "weekLabel_other": "{{count}} semanas",
+        "createGoal": "Definir o meu objetivo",
+        "next": "Seguinte"
+      },
+      "confirm": {
+        "title": "Pronto para te comprometer?",
+        "subtitle": "Aqui está um resumo do teu objetivo.",
+        "goalLabel": "Objetivo:",
+        "durationLabel": "Duração:",
+        "sessionsLabel": "Sessões/semana:",
+        "perSessionLabel": "Por sessão:",
+        "startDateLabel": "Data de início:",
+        "pledgeWithReward": "Ao confirmar, comprometes-te com este objetivo e a tua recompensa ficará garantida.",
+        "pledgeNoReward": "Ao confirmar, comprometes-te com este objetivo.",
+        "cancel": "Cancelar",
+        "letsGo": "Vamos lá"
+      },
+      "accessibility": {
+        "selectGoal": "Selecionar {{name}} como objetivo",
+        "customGoalCategory": "Categoria do objetivo personalizado",
+        "hoursPerSession": "Horas por sessão",
+        "minutesPerSession": "Minutos por sessão",
+        "minutesPerSessionPreset": "{{m}} minutos por sessão",
+        "useTimeDial": "Usar marcador de tempo",
+        "enterCustomTime": "Introduzir tempo personalizado",
+        "prevMonth": "Mês anterior",
+        "nextMonth": "Mês seguinte",
+        "selectDay": "Selecionar {{date}}"
+      }
+    }
+  },
+  "recipient": {
+    "journey": {
+      "screenTitle": "A Minha Jornada",
+      "achievementTitle": "Conquista",
+      "tabs": {
+        "sessions": "Sessões",
+        "hints": "Dicas",
+        "a11y": "Separador {{label}}",
+        "active": "Ativos",
+        "completed": "Concluídos",
+        "all": "Todos"
+      },
+      "empty": {
+        "active": {
+          "title": "Sem objetivos ativos",
+          "subtitle": "Inicia um novo desafio para começares a tua jornada"
+        },
+        "completed": {
+          "title": "Ainda sem objetivos concluídos",
+          "subtitle": "Completa os teus objetivos ativos para os veres aqui"
+        },
+        "all": {
+          "title": "Ainda sem objetivos",
+          "subtitle": "Começa a tua jornada criando o teu primeiro objetivo"
+        },
+        "sessions": "Ainda não há sessões registadas. Completa a tua primeira sessão para a veres aqui.",
+        "hints": "Ainda sem dicas. Inicia a tua primeira sessão para receberes dicas personalizadas.",
+        "hintsSubtitle": "As dicas aparecerão aqui à medida que progrides nas sessões.",
+        "hintsTitle": "Sem dicas reveladas",
+        "sessionsSubtitle": "Completa a tua primeira sessão e aparecerá aqui.",
+        "sessionsTitle": "Sem sessões"
+      },
+      "error": {
+        "loadFailed": "Falha ao carregar a jornada. Por favor, tenta de novo."
+      },
+      "sessionCard": {
+        "weekBadge": "Semana {{week}}",
+        "privateA11y": "Sessão marcada como privada",
+        "viewPhotoA11y": "Ver foto da sessão",
+        "notesLabel": "Notas",
+        "shareText": "Partilhado no feed",
+        "shareA11y": "Partilhado no feed",
+        "hideMotivationsA11y": "Esconder motivações",
+        "showMotivationsA11y": "Mostrar motivações",
+        "week": "Semana {{number}}"
+      },
+      "statsBar": {
+        "sessions": "Sessões",
+        "avg": "Méd.",
+        "longest": "Mais Longa",
+        "total": "Total",
+        "streak": "Sequência"
+      },
+      "hint": {
+        "sessionLabel": "Sessão {{number}}",
+        "imageA11y": "Imagem de dica para a sessão {{session}}",
+        "sent": "enviada {{time}}",
+        "viewImageA11y": "Ver imagem da dica"
+      },
+      "completedSection": {
+        "goalCompleted": "Objetivo Concluído!",
+        "sessions": "Sessões",
+        "weeks": "Semanas",
+        "streak": "Sequência",
+        "completedOn": "Concluído a {{date}}",
+        "yourReward": "A Tua Recompensa",
+        "couponLabel": "O Teu Código de Resgate",
+        "copyCode": "Copiar Código",
+        "generatingCode": "A gerar o teu código...",
+        "partnerContact": "Contactar para Agendar",
+        "phoneLabel": "Telefone",
+        "copyPhoneA11y": "Copiar número de telefone",
+        "buyTitle": "Reserva a Tua Experiência",
+        "buySubtext": "Toca abaixo para comprar e reservar a tua experiência",
+        "buyButton": "Comprar por {{price}}",
+        "expired": "O período de compra expirou",
+        "shareButton": "Partilhar Conquista",
+        "recommended": "Recomendado para ti",
+        "browseAll": "Ver todos",
+        "mysteryReward": "Recompensa Mistério",
+        "revealPrompt": "Completa o teu objetivo para revelar a tua recompensa",
+        "yourRewardLabel": "A Tua Recompensa",
+        "dreamRewardLabel": "A Tua Recompensa de Sonho"
+      },
+      "milestones": {
+        "weekComplete": "Semana {{week}} Concluída!",
+        "sessionMilestone": "{{count}} Sessões Realizadas!"
+      },
+      "completed": {
+        "title": "Objetivo Concluído",
+        "buyCTASubtext": "Compra a tua recompensa agora e resgata-a instantaneamente.",
+        "buyCTATitle": "Mereceste isto!",
+        "buyNowWithPrice": "Comprar · {{price}}",
+        "completedOn": "Concluído a {{date}}",
+        "copyCode": "Copiar Código",
+        "copyCouponA11y": "Copiar código do cupão",
+        "copyEmailA11y": "Copiar email",
+        "copyPhoneA11y": "Copiar número de telefone",
+        "couponLabel": "O Teu Código de Resgate",
+        "emailLabel": "Email",
+        "generatingCode": "A gerar o teu código...",
+        "getExperience": "Obter Esta Experiência",
+        "partnerContact": "Contacto do Parceiro",
+        "phoneLabel": "Telefone (WhatsApp)",
+        "purchaseWindowExpired": "O prazo de compra expirou",
+        "shareAchievement": "Partilhar Conquista",
+        "statSessions": "Sessões",
+        "statStreak": "Sequência",
+        "statWeeks": "Semanas",
+        "yourReward": "A Tua Recompensa"
+      },
+      "sections": {
+        "sessions": "Sessões",
+        "hints": "Dicas"
+      },
+      "stats": {
+        "sessions": "Sessões",
+        "avg": "Méd",
+        "longest": "Mais Longa",
+        "total": "Total",
+        "streak": "Sequência"
+      },
+      "active": {
+        "browseAll": "Ver todas as experiências de {{category}}",
+        "mysteryRevealPrompt": "Completa o desafio para revelar!",
+        "mysteryReward": "Recompensa Mistério",
+        "recommendedTitle": "Recomendado para ti",
+        "sessionsToEarn": "{{done}}/{{total}} sessões para ganhar",
+        "sessionsToReveal": "{{done}}/{{total}} sessões para revelar",
+        "yourDreamReward": "A Tua Recompensa de Sonho",
+        "yourReward": "A Tua Recompensa"
+      },
+      "milestone": {
+        "sessions": "{{count}} Sessões",
+        "weekComplete": "Semana {{number}} Concluída"
+      }
+    },
+    "achievement": {
+      "screenTitle": "Conquista",
+      "goalCompleted": "Objetivo Concluído!",
+      "completedOn": "Concluído em {{date}}",
+      "duration": "Duração: {{weeks}} semanas",
+      "totalSessions": "Total de Sessões: {{count}}",
+      "longestStreak": "Maior Sequência: {{count}} dias",
+      "reward": "A Tua Recompensa",
+      "yourReward": "A Tua Recompensa",
+      "claimReward": "Resgatar Experiência",
+      "alreadyClaimed": "Experiência Resgatada",
+      "shareAchievement": "Partilhar Conquista",
+      "sessionsChip": "Sessões",
+      "weeksChip": "Semanas",
+      "streakChip": "Sequência",
+      "couponLabel": "O Teu Código de Resgate",
+      "copyCouponA11y": "Copiar código de resgate",
+      "copyCode": "Copiar Código",
+      "partnerContact": "Contactar para Agendar",
+      "phoneLabel": "Telefone",
+      "emailLabel": "E-mail",
+      "copyPhoneA11y": "Copiar número de telefone",
+      "copyEmailA11y": "Copiar endereço de e-mail",
+      "whatsappButton": "WhatsApp",
+      "whatsappA11y": "Agendar via WhatsApp",
+      "emailButton": "E-mail",
+      "emailA11y": "Agendar via E-mail",
+      "shareButton": "Partilhar Conquista",
+      "sessionsHeader": "Sessões",
+      "noSessions": "Nenhuma sessão registada",
+      "hintsHeader": "Dicas",
+      "streakLabel": "sequência de sessões",
+      "ctaKeepStreak": "Mantém a tua sequência de {{count}} sessões viva!",
+      "ctaNextChallenge": "Pronto para o próximo desafio?",
+      "ctaStreakMessage": "Inicia um novo objetivo para manteres — a tua sequência reinicia após 7 dias de inatividade",
+      "ctaStreakContinues": "A tua sequência de {{count}} sessões continua!",
+      "ctaActiveGoals": "Ainda tens objetivos ativos — continua!",
+      "ctaStreakContinuesMessage": "Continua com os teus outros objetivos para a fazeres crescer ainda mais",
+      "browseButton": "Explorar Experiências",
+      "browseA11y": "Explorar experiências",
+      "backToGoals": "Voltar aos Objetivos",
+      "backToGoalsA11y": "Voltar aos objetivos",
+      "celebration": {
+        "incredible": "Fizeste algo incrível.",
+        "crushedIt": "Arrasaste completamente.",
+        "legend": "És uma lenda.",
+        "hardWork": "O esforço compensa.",
+        "newYou": "Este és o novo tu.",
+        "deserved": "Mereceste cada momento.",
+        "proud": "Orgulha-te de ti.",
+        "milestone": "Este é um momento marcante."
+      },
+      "error": {
+        "loadFailed": "Falha ao carregar a conquista. Por favor, tenta de novo.",
+        "claimFailed": "Falha ao resgatar a recompensa. Por favor, tenta de novo.",
+        "partnerPhoneUnavailable": "O número de telefone do parceiro não está disponível.",
+        "partnerEmailUnavailable": "O e-mail do parceiro não está disponível.",
+        "whatsappError": "Não foi possível abrir o WhatsApp. Por favor, tenta outro método de contacto.",
+        "emailFallback": "Não foi possível abrir o cliente de e-mail. Por favor, tenta outro método de contacto."
+      },
+      "toast": {
+        "rewardClaimed": "Recompensa resgatada! Verifica o teu e-mail para mais detalhes.",
+        "shareSuccess": "Conquista partilhada!",
+        "shareFailed": "Falha ao partilhar a conquista"
+      },
+      "statSessions": "Sessões",
+      "statStreak": "Sequência",
+      "statWeeks": "Semanas"
+    },
+    "couponEntry": {
+      "screenTitle": "Resgatar Presente",
+      "headingLine1": "Introduz o Teu",
+      "headingLine2": "Código de Presente",
+      "subtitle": "Introduz o código que recebeste para começar a tua jornada",
+      "codePlaceholder": "ex. ERNIT-XXXX-XXXX",
+      "claimButton": "Resgatar o Teu Presente",
+      "logoA11y": "Logótipo Ernit",
+      "howItWorksTitle": "Como Funciona",
+      "howItWorksStep1": "Introduz o código que recebeste do teu patrocinador",
+      "howItWorksStep2": "Define o teu objetivo pessoal para ganhares a experiência",
+      "howItWorksStep3": "Completa as sessões e coleciona dicas geradas por IA",
+      "howItWorksStep4": "Desbloqueia a tua recompensa quando terminares!",
+      "messageModal": {
+        "title": "Uma Mensagem Para Ti",
+        "from": "Do teu patrocinador",
+        "continueButton": "Continuar para Definir o Teu Objetivo"
+      },
+      "title": "Introduz o Teu Código de Cupão",
+      "subtitle2": "Resgata um código de cupão para desbloquear uma experiência",
+      "redeemButton": "Resgatar",
+      "redeemingButton": "A resgatar...",
+      "success": {
+        "title": "Cupão Resgatado!",
+        "subtitle": "A tua experiência foi desbloqueada"
+      },
+      "error": {
+        "emptyCode": "Por favor, introduz o teu código de presente",
+        "invalidFormat": "Os códigos de presente devem estar no formato ERNIT-XXXX-XXXX",
+        "loginRequired": "Por favor, inicia sessão para resgatar o teu presente",
+        "invalidOrClaimed": "Este código é inválido ou já foi utilizado",
+        "expiredCode": "Este código de presente expirou",
+        "genericError": "Algo correu mal. Por favor, tenta de novo.",
+        "invalidCode": "Código de cupão inválido. Por favor, verifica e tenta de novo.",
+        "alreadyUsed": "Este cupão já foi utilizado.",
+        "redeemFailed": "Falha ao resgatar o cupão. Por favor, tenta de novo."
+      }
+    },
+    "share": {
+      "screenTitle": "Partilhar",
+      "cardStatSessions": "SESSÕES",
+      "cardStatWeeks": "SEMANAS",
+      "cardStatStreak": "SEQUÊNCIA",
+      "cardStatTotalTime": "TEMPO TOTAL",
+      "cardGoalCompleted": "OBJETIVO CONCLUÍDO",
+      "formatStory": "Story 9:16",
+      "formatPost": "Post 1:1",
+      "themeLight": "Claro",
+      "themeDark": "Escuro",
+      "statsSectionLabel": "ESTATÍSTICAS",
+      "rewardSectionLabel": "RECOMPENSA",
+      "toggleSessions": "Sessões",
+      "toggleWeeks": "Semanas",
+      "toggleStreak": "Sequência",
+      "toggleTotalTime": "Tempo Total",
+      "toggleReward": "Mostrar Recompensa",
+      "shareButton": "Partilhar",
+      "sharingButton": "A partilhar...",
+      "imageSaved": "Imagem guardada!",
+      "shareDialogTitle": "Partilha a tua conquista",
+      "error": {
+        "saveFailed": "Falha ao guardar a imagem",
+        "shareFailed": "Falha ao partilhar a imagem",
+        "renderFailed": "Falha ao renderizar o cartão de partilha"
+      },
+      "goalProgress": "Vê o meu progresso em {{goalName}}! Estou a {{progress}}% do caminho.",
+      "goalCompleted": "Acabei de concluir o meu objetivo: {{goalName}}! {{sessions}} sessões em {{weeks}} semanas.",
+      "achievement": "Ganhei uma conquista no Ernit! {{goalName}} - concluído em {{weeks}} semanas.",
+      "inviteFriend": "Junta-te a mim no Ernit e desafiemo-nos mutuamente! Descarrega a app: {{link}}",
+      "formatLabel": "Formato",
+      "shareError": "Não foi possível partilhar. Tenta novamente.",
+      "sharingUnavailable": "Partilha indisponível neste dispositivo.",
+      "showReward": "Mostrar Recompensa",
+      "statSessions": "SESSÕES",
+      "statStreak": "SEQUÊNCIA",
+      "statTotalTime": "TEMPO TOTAL",
+      "statWeeks": "SEMANAS",
+      "themeLabel": "Tema"
+    },
+    "detailedGoal": {
+      "header": {
+        "editButton": "Editar",
+        "menuButton": "Opções"
+      },
+      "sections": {
+        "thisWeek": "Esta Semana",
+        "progress": "Progresso",
+        "reward": "A Tua Recompensa",
+        "friends": "Amigos a Apoiar-te",
+        "activity": "Atividade"
+      },
+      "thisWeek": {
+        "sessionsLogged": "{{logged}} de {{target}} sessões registadas",
+        "logSession": "Registar Sessão",
+        "sessionLogged": "Sessão registada hoje",
+        "allSessionsDone": "Todas as sessões feitas esta semana!"
+      },
+      "progress": {
+        "weeksCompleted": "{{completed}} de {{total}} semanas",
+        "sessionsTotal": "{{completed}} de {{total}} sessões",
+        "currentStreak": "sequência de {{count}} dias",
+        "noStreak": "Começa a tua sequência!"
+      },
+      "reward": {
+        "locked": "Completa o teu objetivo para desbloquear",
+        "unlocked": "Recompensa desbloqueada!",
+        "claim": "Resgatar Agora",
+        "viewDetails": "Ver Detalhes"
+      },
+      "menu": {
+        "editGoal": "Editar Objetivo",
+        "requestChange": "Pedir uma Alteração ao Objetivo",
+        "removeGoal": "Remover Objetivo",
+        "edit": "Editar Objetivo",
+        "pause": "Pausar Objetivo",
+        "resume": "Retomar Objetivo",
+        "abandon": "Abandonar Objetivo",
+        "share": "Partilhar Objetivo"
+      },
+      "removeDialog": {
+        "title": "Remover Objetivo?",
+        "message": "Isto irá remover permanentemente o teu objetivo e todo o historial de sessões. Não é possível desfazer.",
+        "sharedSuffix": "Este é um desafio partilhado — o desafio do teu parceiro também será afetado.",
+        "pendingSuffix": "O teu apoiante está à espera de rever este objetivo.",
+        "confirm": "Remover",
+        "cancel": "Manter Objetivo"
+      },
+      "abandonConfirm": {
+        "title": "Abandonar Objetivo",
+        "message": "Tens a certeza que queres abandonar este objetivo? O teu progresso será perdido.",
+        "confirm": "Abandonar",
+        "cancel": "Cancelar"
+      },
+      "empoweredBy": "Apoiado por {{name}}",
+      "withPartner": "com {{firstName}}",
+      "mysteryGift": "Presente Mistério",
+      "waitingPartnerFinish": "Concluíste o teu desafio! À espera que o teu parceiro termine.",
+      "waitingPartnerAccept": "À espera que o teu parceiro aceite o desafio",
+      "partnerProgress": "Parceiro: {{current}}/{{total}} sessões",
+      "resendInvite": "Reenviar Convite",
+      "goalRemoved": "Objetivo removido",
+      "goalUpdated": "Objetivo atualizado!",
+      "discoveryMatch": "Encontrámos a experiência perfeita para ti!",
+      "workingOnMyOwn": "A treinar sozinho",
+      "yourGiver": "o teu patrocinador",
+      "yourVenue": "o teu local",
+      "cancelSessionMessage": "Tens a certeza que queres cancelar esta sessão? O progresso não será guardado.",
+      "notification": {
+        "sessionUpTitle": "Tempo da Sessão Esgotado!",
+        "sessionUpBody": "Bom trabalho! Podes agora terminar a tua sessão e registar o teu progresso."
+      },
+      "error": {
+        "loadFailed": "Falha ao carregar os detalhes do objetivo. Por favor, tenta de novo.",
+        "sessionLogFailed": "Falha ao registar a sessão. Por favor, tenta de novo.",
+        "updateFailed": "Falha ao atualizar o objetivo. Por favor, tenta de novo.",
+        "cameraPermission": "É necessário acesso à câmara para capturar média da sessão.",
+        "galleryPermission": "É necessário acesso à galeria para selecionar média da sessão.",
+        "startSession": "Falha ao iniciar a sessão. Por favor, tenta de novo.",
+        "sessionWait": "Por favor, aguarda {{seconds}} segundos entre sessões.",
+        "gpsDistance": "Pareces estar a {{distance}}km de {{venue}}. Estás por perto? A iniciar a sessão de qualquer forma.",
+        "suggestedChangeStart": "{{name}} sugeriu uma alteração ao objetivo. Por favor, revê e aceita ou modifica a sugestão antes de iniciares uma sessão.",
+        "suggestedChangeStartAnother": "{{name}} sugeriu uma alteração ao objetivo. Por favor, revê e aceita ou modifica a sugestão antes de iniciares outra sessão.",
+        "suggestedChangeContinue": "{{name}} sugeriu uma alteração ao objetivo. Por favor, revê e aceita ou modifica a sugestão antes de continuares.",
+        "suggestedChangeContinueMore": "{{name}} sugeriu uma alteração ao objetivo. Por favor, revê e aceita ou modifica a sugestão antes de continuares com mais sessões.",
+        "lockedSingleSession": "Objetivos com apenas 1 dia e 1 sessão por semana não podem ser concluídos até à aprovação do patrocinador.",
+        "waitingApprovalStart": "À espera da aprovação de {{name}}! Podes iniciar com a primeira sessão, mas as restantes serão desbloqueadas após {{name}} aprovar o teu objetivo (ou automaticamente em 24 horas).",
+        "offline": "Parece que estás offline. A tua sessão está guardada — por favor, tenta de novo quando tiveres ligação.",
+        "updateProgress": "Não foi possível atualizar o progresso do objetivo. Por favor, tenta de novo.",
+        "discoveryPersist": "Falha ao guardar a tua descoberta. Por favor, tenta de novo.",
+        "venueSave": "Falha ao guardar o local. Por favor, tenta de novo.",
+        "inviteCode": "Não foi possível encontrar o código de convite"
+      },
+      "toast": {
+        "sessionLogged": "Sessão registada!",
+        "goalPaused": "Objetivo pausado",
+        "goalResumed": "Objetivo retomado",
+        "goalAbandoned": "Objetivo abandonado"
+      }
+    },
+    "completedGoal": {
+      "banner": {
+        "title": "Objetivo Concluído!",
+        "subtitle": "Parabéns pela tua conquista"
+      },
+      "completed": "Concluído",
+      "weeks_one": "{{count}} semana",
+      "weeks_other": "{{count}} semanas",
+      "sessions_one": "{{count}} sessão",
+      "sessions_other": "{{count}} sessões",
+      "selfAchievement": "Conquista Pessoal",
+      "stats": {
+        "duration": "Duração",
+        "totalSessions": "Total de Sessões",
+        "longestStreak": "Maior Sequência",
+        "completionRate": "Taxa de Conclusão"
+      },
+      "reward": {
+        "title": "A Tua Recompensa",
+        "claim": "Resgatar Experiência",
+        "claimed": "Experiência Resgatada",
+        "viewDetails": "Ver Detalhes da Experiência"
+      },
+      "share": "Partilhar Conquista",
+      "viewJourney": "Ver A Minha Jornada"
+    },
+    "goalCardModals": {
+      "pauseGoal": {
+        "title": "Pausar Objetivo",
+        "message": "Pausar o teu objetivo irá parar o contador de sequência. Podes retomar quando quiseres.",
+        "confirm": "Pausar Objetivo",
+        "cancel": "Continuar"
+      },
+      "resumeGoal": {
+        "title": "Retomar Objetivo",
+        "message": "Pronto para voltar ao caminho certo?",
+        "confirm": "Retomar Objetivo",
+        "cancel": "Ainda Não"
+      },
+      "abandonGoal": {
+        "title": "Abandonar Objetivo",
+        "message": "Tens a certeza? O teu progresso e sequência serão perdidos permanentemente.",
+        "confirm": "Abandonar",
+        "cancel": "Continuar"
+      },
+      "deleteGoal": {
+        "title": "Apagar Objetivo",
+        "message": "Isto irá apagar permanentemente o teu objetivo e todo o progresso. Não é possível desfazer.",
+        "confirm": "Apagar",
+        "cancel": "Cancelar"
+      },
+      "cancelSession": {
+        "title": "Cancelar Sessão?",
+        "no": "Não",
+        "yesCancel": "Sim, cancelar"
+      },
+      "celebration": {
+        "sessionComplete": "Sessão Concluída",
+        "weekComplete": "Semana Completa!",
+        "week1Title": "Primeira Semana Concluída!",
+        "week1Subtitle": "Começo incrível, continua assim!",
+        "week2Title": "Duas Semanas Fortes!",
+        "week2Subtitle": "Estás a criar um hábito real!",
+        "week3Title": "Três Semanas! Imparável!",
+        "week3Subtitle": "Estás em forma agora!",
+        "weekNTitle": "Campeão da Semana {{n}}!",
+        "weekNSubtitle": "A tua consistência é incrível!",
+        "you": "Tu",
+        "completedSession": "concluiu sessão",
+        "justNow": "Agora mesmo",
+        "sessionsThisWeek": "Sessões esta semana",
+        "weeksCompleted": "Semanas concluídas",
+        "shareToFeed": "Partilhar no Feed",
+        "skip": "Saltar",
+        "close": "Fechar"
+      }
+    },
+    "pledgedExperience": {
+      "title": "A Tua Experiência de Recompensa",
+      "locked": "Completa o teu objetivo para desbloquear esta experiência",
+      "daysLeft": "{{count}} dias para o fim",
+      "sessionsLeft": "{{count}} sessões restantes",
+      "almostThere": "Quase lá!",
+      "readyToClaim": "Pronto para resgatar!",
+      "claimed": "Resgatado",
+      "bookNow": "Reservar Agora",
+      "viewDetails": "Ver Detalhes",
+      "giftReceived": "Presente recebido",
+      "yourReward": "A tua recompensa"
+    },
+    "sessionAction": {
+      "logSession": "Registar Sessão de Hoje",
+      "alreadyLogged": "Sessão registada hoje",
+      "logAnother": "Registar Outra Sessão",
+      "sessionCount_one": "{{count}} sessão registada hoje",
+      "sessionCount_other": "{{count}} sessões registadas hoje",
+      "notes": "Adicionar notas (opcional)",
+      "notesPlaceholder": "Como correu?",
+      "confirm": "Confirmar Sessão",
+      "confirming": "A registar...",
+      "startSession": "Iniciar Sessão",
+      "loading": "A carregar...",
+      "weekCompleted": "Completaste esta semana!",
+      "nextWeekStarts": "A próxima semana começa em {{date}}",
+      "waitingForApproval": "À espera de aprovação",
+      "greatJobToday": "Bom trabalho hoje!",
+      "sessionsToReward_one": "Só {{count}} sessão para a tua recompensa!",
+      "sessionsToReward_other": "Só {{count}} sessões para a tua recompensa!",
+      "sessionsToReward": "Só {{count}} sessões para a tua recompensa!",
+      "weekComplete": "Semana completa! Desfruta do resto",
+      "sessionsRemainingThisWeek_one": "Mais {{count}} sessão esta semana — até amanhã!",
+      "sessionsRemainingThisWeek_other": "Mais {{count}} sessões esta semana — até amanhã!",
+      "sessionsRemainingThisWeek": "Mais {{count}} sessões esta semana — até amanhã!",
+      "error": {
+        "logFailed": "Falha ao registar a sessão. Por favor, tenta de novo."
+      },
+      "toast": {
+        "sessionLogged": "Sessão registada!",
+        "streakContinued": "Sequência continuada! {{count}} dias",
+        "streakStarted": "Sequência iniciada! Continua assim!"
+      }
+    },
+    "sessionMedia": {
+      "addPhoto": "Adicionar Fotografia",
+      "addVideo": "Adicionar Vídeo",
+      "photoAdded": "Fotografia adicionada",
+      "videoAdded": "Vídeo adicionado",
+      "remove": "Remover",
+      "captureSession": "Captura a tua sessão",
+      "lookingGood": "Ficou bem!",
+      "shareWithFriends": "Partilhar com os teus amigos no feed?",
+      "takePhotoOrVideo": "Tira uma foto ou vídeo para recordar esta sessão",
+      "camera": "Câmara",
+      "gallery": "Galeria",
+      "change": "Alterar",
+      "continue": "Continuar",
+      "skip": "Saltar",
+      "skipWithoutPhoto": "Saltar sem foto",
+      "takePhoto": "Tirar foto",
+      "chooseFromGallery": "Escolher da galeria",
+      "options": {
+        "camera": "Tirar Fotografia",
+        "gallery": "Escolher da Galeria",
+        "video": "Gravar Vídeo"
+      },
+      "error": {
+        "uploadFailed": "Falha ao carregar o ficheiro. Por favor, tenta de novo.",
+        "sizeTooLarge": "O ficheiro é demasiado grande. Por favor, escolhe um ficheiro mais pequeno.",
+        "invalidType": "Tipo de ficheiro inválido. Por favor, escolhe uma fotografia ou vídeo."
+      }
+    },
+    "streak": {
+      "current": "Sequência Atual",
+      "longest": "Melhor Sequência",
+      "days_one": "{{count}} dia",
+      "days_other": "{{count}} dias",
+      "noStreak": "Ainda sem sequência",
+      "streakLost": "Sequência perdida",
+      "keepItUp": "Continua assim!",
+      "newRecord": "Novo recorde!",
+      "sessionStreak": "Sequência de Sessões!",
+      "resetWarning": "Continua assim! A tua sequência reinicia após 7 dias de inatividade",
+      "thisWeek": "Esta semana: {{done}}/{{target}} sessões",
+      "compact": {
+        "zeroTitle": "Começa a tua sequência hoje!",
+        "zeroSubtitle": "Completa uma sessão para acender a chama",
+        "oneTitle": "1 dia de sequência!",
+        "oneSubtitle": "Continua — volta amanhã!",
+        "twoTitle": "2 dias seguidos!",
+        "twoSubtitle": "Mais um dia e a tua sequência está em chamas!"
+      }
+    },
+    "timer": {
+      "start": "Iniciar Temporizador",
+      "pause": "Pausar",
+      "resume": "Retomar",
+      "stop": "Parar e Registar Sessão",
+      "elapsed": "Decorrido",
+      "running": "Temporizador a correr",
+      "paused": "Temporizador pausado",
+      "almostThere": "Quase lá!",
+      "timesUp": "Tempo esgotado!",
+      "holdToFinish": "Manter para Terminar",
+      "holding": "A manter...",
+      "keepGoing": "Continua...",
+      "cancel": "Cancelar",
+      "cancelSession": "Cancelar sessão",
+      "confirmStop": {
+        "title": "Parar Temporizador",
+        "message": "Parar o temporizador e registar esta sessão?",
+        "confirm": "Registar Sessão",
+        "cancel": "Continuar"
+      }
+    },
+    "weeklyCalendar": {
+      "title": "Esta Semana",
+      "today": "hoje",
+      "sessionLogged": "sessão registada",
+      "days": {
+        "mon": "Seg",
+        "tue": "Ter",
+        "wed": "Qua",
+        "thu": "Qui",
+        "fri": "Sex",
+        "sat": "Sáb",
+        "sun": "Dom"
+      },
+      "legend": {
+        "done": "Feito",
+        "today": "Hoje",
+        "missed": "Falhado",
+        "upcoming": "A vir"
+      }
+    },
+    "goalStatus": {
+      "active": "Ativo",
+      "paused": "Pausado",
+      "completed": "Concluído",
+      "abandoned": "Abandonado",
+      "expired": "Expirado",
+      "pending": "Pendente",
+      "yourGiver": "o teu ofertante",
+      "goalChangeSuggested": "Alteração de Objetivo Sugerida",
+      "goalChangeSuggestedMessage": "{{giverName}} sugeriu uma alteração ao objetivo. Por favor, revê e aceita ou modifica a sugestão nas tuas notificações.",
+      "goalChangeSuggestedAfterFirst": "Parabéns pela tua primeira sessão! {{giverName}} sugeriu uma alteração ao objetivo. Por favor, revê e aceita ou modifica a sugestão nas tuas notificações para continuar.",
+      "goalChangeSuggestedContinue": "{{giverName}} sugeriu uma alteração ao objetivo. Por favor, revê e aceita ou modifica a sugestão antes de continuar.",
+      "goalNotApproved": "Objetivo Não Aprovado",
+      "oneDayOneSessionBlocked": "Objetivos com apenas 1 dia e 1 sessão por semana não podem ser concluídos até à aprovação do ofertante.",
+      "firstSessionDone": "Primeira Sessão Concluída",
+      "firstSessionDoneMessage": "Parabéns pela tua primeira sessão! As sessões restantes serão desbloqueadas depois de {{giverName}} aprovar este objetivo (ou automaticamente em 24 horas).",
+      "waitingApprovalFirstDone": "À espera da aprovação de {{giverName}}! Podes começar com a primeira sessão, mas as restantes serão desbloqueadas depois de {{giverName}} aprovar o teu objetivo (ou automaticamente em 24 horas).",
+      "waitingForApproval": "À Espera de Aprovação",
+      "waitingApprovalBanner": "À espera da aprovação de {{giverName}}! Podes começar com a primeira sessão, mas as restantes serão desbloqueadas depois de {{giverName}} aprovar o teu objetivo (ou automaticamente em 24 horas)."
+    },
+    "goalProgress": {
+      "onTrack": "No caminho certo",
+      "aheadOfSchedule": "Adiantado",
+      "behindSchedule": "Atrasado",
+      "justStarted": "A começar",
+      "almostThere": "Quase lá!",
+      "completed": "Concluído!",
+      "startsToday": "Começa hoje",
+      "startsTomorrow": "Começa amanhã",
+      "startedYesterday": "Começou ontem",
+      "startedDaysAgo": "Começou há {{days}} dias",
+      "startsInDays": "Começa em {{days}} dias",
+      "startsOn": "Começa em {{date}}",
+      "projectedFinish": "Se continuares assim, terminais em {{date}}!"
+    }
+  },
+  "booking": {
+    "whatsapp": {
+      "message": "Olá! Gostaria de reservar a experiência: {{experienceName}}. Recebi-a como presente no Ernit.",
+      "buttonLabel": "Reservar via WhatsApp",
+      "error": "Não foi possível abrir o WhatsApp. Por favor, tenta outro método de contacto.",
+      "defaultPartnerName": "olá",
+      "earliestConvenience": "assim que possível",
+      "scheduleMessage": "Olá {{partnerName}}!\n\nSou {{userName}} e completei o meu objetivo Ernit e ganhei {{experienceTitle}}!\n\nGostaria de agendar a minha experiência para {{date}}.\n\nAté breve!"
+    },
+    "email": {
+      "subject": "Reserva de Experiência - {{experienceName}}",
+      "body": "Olá,\n\nGostaria de reservar a seguinte experiência:\n\nExperiência: {{experienceName}}\nCódigo de Presente: {{giftCode}}\n\nPor favor, indique as datas disponíveis.\n\nObrigado!",
+      "buttonLabel": "Reservar via E-mail",
+      "error": "Não foi possível abrir o cliente de e-mail. Por favor, tenta outro método de contacto.",
+      "defaultPartnerName": "olá",
+      "earliestConvenience": "assim que possível",
+      "scheduleBody": "Olá {{partnerName}}!\n\nCompletei o meu objetivo Ernit e ganhei {{experienceTitle}}!\n\nGostaria de agendar a minha experiência para {{date}}.\n\nAté breve!\n{{userName}}"
+    }
+  },
+  "modals": {
+    "logoutConfirmation": {
+      "title": "Confirmação de Fim de Sessão",
+      "message": "Tens a certeza que queres terminar a sessão? Terás de entrar novamente para aceder à tua conta.",
+      "cancel": "Cancelar",
+      "logout": "Terminar Sessão",
+      "confirm": "Terminar Sessão"
+    },
+    "howItWorks": {
+      "title": "Como Funciona o Ernit",
+      "exampleTitle": "Exemplo: O Presente de Escalada de Sarah",
+      "step1Title": "O Mike compra a experiência",
+      "step1Description": "O Mike escolhe uma sessão de escalada para a Sarah e compra-a como presente. A Sarah saberá o que é o presente quando completar o seu objetivo.",
+      "step2Title": "A Sarah define um objetivo",
+      "step2Description": "A Sarah recebe um código e define o seu desafio: \"Ir ao ginásio 3x por semana durante 4 semanas\"",
+      "step3Title": "As dicas revelam pistas",
+      "step3Description": "A cada sessão no ginásio, a Sarah recebe dicas motivacionais geradas por IA.",
+      "step4Title": "Objetivo cumprido = Surpresa desbloqueada!",
+      "step4Description": "A Sarah completa o seu objetivo e desbloqueia a surpresa: uma sessão de escalada!",
+      "cta": "Motivação aliada à recompensa. Isso é o Ernit!",
+      "close": "Percebi, vamos começar!",
+      "learnMore": "Saber Mais"
+    },
+    "claimExperience": {
+      "title": "Resgatar a Tua Experiência",
+      "subtitle": "Mereceste — escolhe a tua recompensa!",
+      "claimButton": "Resgatar \"{{title}}\"",
+      "browseCategory": "Ver Experiências de {{category}}",
+      "browseOther": "Ver Outras Experiências",
+      "cancel": "Cancelar",
+      "loading": "A levar-te lá...",
+      "error": {
+        "loadFailed": "Falha ao carregar os detalhes da experiência. Por favor, tenta de novo.",
+        "bookingFailed": "Falha ao iniciar a reserva. Por favor, tenta de novo."
+      }
+    },
+    "empowerChoice": {
+      "title": "Oferecer uma Experiência",
+      "subtitle": "Celebra o progresso de {{name}}",
+      "giftButton": "Oferecer \"{{title}}\"",
+      "browseCategory": "Ver Experiências de {{category}}",
+      "browseOther": "Escolher Outra Experiência",
+      "cancel": "Cancelar",
+      "error": {
+        "sendFailed": "Falha ao enviar a motivação. Por favor, tenta de novo."
+      }
+    },
+    "motivation": {
+      "title": "Enviar Motivação",
+      "headerSubtitle": "Deixa uma mensagem encorajadora para {{name}}",
+      "tabText": "Texto e Foto",
+      "tabVoice": "Mensagem de Voz",
+      "tabTextA11y": "Mensagem de texto e foto",
+      "tabVoiceA11y": "Mensagem de voz",
+      "placeholder": "Consegues! Continua...",
+      "charRemaining": "{{count}} caracteres restantes",
+      "addPhoto": "Adicionar Foto",
+      "needInspiration": "Precisas de inspiração?",
+      "recordingStatus": "A gravar...",
+      "tapToRecord": "Toca para Gravar",
+      "voiceNote": "Máx. 30 segundos. Motivações de voz são apenas áudio.",
+      "cancel": "Cancelar",
+      "send": "Enviar",
+      "sending": "A enviar...",
+      "successText": "Mensagem enviada!",
+      "successSubtext": "{{name}} verá na próxima sessão",
+      "errorAlreadySent": "Já enviaste motivação para esta sessão.",
+      "errorGeneric": "Falha ao enviar motivação. Por favor, tenta de novo.",
+      "errorEmpty": "Por favor, escreve uma mensagem ou anexa uma imagem",
+      "closeModal": "Fechar modal de motivação",
+      "hideExamples": "Ocultar exemplos de inspiração",
+      "showExamples": "Mostrar exemplos de inspiração"
+    },
+    "experienceDetail": {
+      "location": "Localização",
+      "whatToExpect": "O que esperar",
+      "perPerson": "por pessoa",
+      "dismissModal": "Fechar modal",
+      "selectReward": "Selecionar esta recompensa",
+      "selected": "Selecionado"
+    },
+    "experienceReveal": {
+      "revealedHeadline": "A tua recompensa foi\nrevelada!",
+      "progressReached": "{{pct}}% do teu objetivo atingido",
+      "perPerson": "por pessoa",
+      "claimButton": "Resgatar Esta Experiência  {{price}}",
+      "browseOthers": "Ver outras opções",
+      "browseOthersA11y": "Ver outras opções de experiências",
+      "dismissReveal": "Fechar revelação"
+    },
+    "goalEdit": {
+      "title": "Editar Objetivo",
+      "titleRequest": "Pedir Alteração ao Objetivo",
+      "requestSentTitle": "Pedido Enviado",
+      "requestSentEmoji": "📬",
+      "requestSentHeading": "Pedido enviado!",
+      "requestSentBody": "O teu patrocinador foi notificado e pode aprovar ou recusar o teu pedido de alteração.",
+      "done": "Feito",
+      "giftedGoalInfo": "Como este é um objetivo oferecido, a tua edição será enviada como pedido ao teu patrocinador para aprovação.",
+      "currentGoalLabel": "Objetivo atual:",
+      "currentGoalValue_one": "{{weeks}} semana, {{sessions}} sessão/semana",
+      "currentGoalValue_other": "{{weeks}} semanas, {{sessions}} sessões/semana",
+      "requestedGoalLabel": "Objetivo pedido:",
+      "newGoalLabel": "Novo objetivo:",
+      "weeksLabel": "Semanas (máx. 5):",
+      "sessionsLabel": "Sessões por semana (máx. 7):",
+      "decreaseWeeks": "Diminuir semanas",
+      "increaseWeeks": "Aumentar semanas",
+      "weeksValue": "Valor das semanas",
+      "decreaseSessions": "Diminuir sessões",
+      "increaseSessions": "Aumentar sessões",
+      "sessionsValue": "Valor das sessões",
+      "minWeeksNote_one": "Mín. {{count}} semana (já completaste {{completed}})",
+      "minWeeksNote_other": "Mín. {{count}} semanas (já completaste {{completed}})",
+      "minSessionsNote_one": "Mín. {{count}} sessão (já registaste {{logged}} esta semana)",
+      "minSessionsNote_other": "Mín. {{count}} sessões (já registaste {{logged}} esta semana)",
+      "messagePlaceholder": "Adiciona uma mensagem ao teu patrocinador (opcional)...",
+      "cancel": "Cancelar",
+      "sendRequest": "Enviar Pedido",
+      "saveChanges": "Guardar Alterações",
+      "error": {
+        "missingGoal": "Informação do objetivo em falta.",
+        "saveFailed": "Falha ao guardar. Por favor, tenta de novo."
+      },
+      "minWeeksNote": "Mín. {{count}} semanas (já completaste {{completed}})",
+      "minSessionsNote": "Mín. {{count}} sessões (já registaste {{logged}} esta semana)"
+    },
+    "goalChangeSuggestion": {
+      "title": "Sugestão de Alteração ao Objetivo",
+      "messageFrom": "Mensagem de {{name}}:",
+      "originalGoal": "O teu objetivo original:",
+      "giverSuggestion": "Sugestão de {{name}}:",
+      "chooseGoal": "Escolhe o teu objetivo:",
+      "range": "Intervalo: {{minWeeks}}-{{maxWeeks}} semanas, {{minSessions}}-{{maxSessions}} sessões/semana",
+      "weeksLabel": "Semanas:",
+      "sessionsLabel": "Sessões por semana:",
+      "decreaseWeeks": "Diminuir semanas",
+      "increaseWeeks": "Aumentar semanas",
+      "decreaseSessions": "Diminuir sessões por semana",
+      "increaseSessions": "Aumentar sessões por semana",
+      "messagePlaceholder": "A tua mensagem para {{name}} (opcional)...",
+      "cancel": "Cancelar",
+      "acceptChanges": "Aceitar Alterações",
+      "error": {
+        "missingGoal": "Informação do objetivo em falta. Por favor, tenta de novo.",
+        "maxWeeks": "A duração máxima é 5 semanas.",
+        "maxSessions": "O máximo é 7 sessões por semana.",
+        "updateFailed": "Falha ao atualizar o objetivo. Por favor, tenta de novo."
+      }
+    },
+    "discoveryQuiz": {
+      "firstQuestion": "Pergunta rápida! ✨",
+      "nextQuestion": "Mais uma pergunta! 🎯",
+      "skipForNow": "Saltar por agora",
+      "adventure": {
+        "adv_1": {
+          "text": "Praia ou montanha?",
+          "opt0": "Praia",
+          "opt1": "Montanha"
+        },
+        "adv_2": {
+          "text": "Manhã ou noite?",
+          "opt0": "Manhã",
+          "opt1": "Noite"
+        },
+        "adv_3": {
+          "text": "Emoção a solo ou aventura em grupo?",
+          "opt0": "Emoção a solo",
+          "opt1": "Aventura em grupo"
+        },
+        "adv_4": {
+          "text": "Água ou céu?",
+          "opt0": "Água",
+          "opt1": "Céu"
+        },
+        "adv_5": {
+          "text": "Descoberta suave ou adrenalina?",
+          "opt0": "Descoberta suave",
+          "opt1": "Adrenalina"
+        }
+      },
+      "wellness": {
+        "wel_1": {
+          "text": "Interior ou exterior?",
+          "opt0": "Interior",
+          "opt1": "Exterior"
+        },
+        "wel_2": {
+          "text": "Ativo ou restaurador?",
+          "opt0": "Ativo",
+          "opt1": "Restaurador"
+        },
+        "wel_3": {
+          "text": "Silêncio ou música?",
+          "opt0": "Silêncio",
+          "opt1": "Música"
+        },
+        "wel_4": {
+          "text": "Calor ou frio?",
+          "opt0": "Calor",
+          "opt1": "Frio"
+        },
+        "wel_5": {
+          "text": "Tratamento manual ou autoguiado?",
+          "opt0": "Tratamento manual",
+          "opt1": "Autoguiado"
+        }
+      },
+      "creative": {
+        "cre_1": {
+          "text": "Prático ou observar?",
+          "opt0": "Prático",
+          "opt1": "Observar"
+        },
+        "cre_2": {
+          "text": "Criação a solo ou colaborativa?",
+          "opt0": "Criação a solo",
+          "opt1": "Colaborativa"
+        },
+        "cre_3": {
+          "text": "Tradicional ou moderno?",
+          "opt0": "Tradicional",
+          "opt1": "Moderno"
+        },
+        "cre_4": {
+          "text": "Aula estruturada ou exploração livre?",
+          "opt0": "Aula estruturada",
+          "opt1": "Exploração livre"
+        },
+        "cre_5": {
+          "text": "Artes visuais ou artes performativas?",
+          "opt0": "Artes visuais",
+          "opt1": "Artes performativas"
+        }
+      }
+    },
+    "comment": {
+      "title": "Comentários",
+      "editPlaceholder": "Edita o teu comentário...",
+      "writePlaceholder": "Escreve um comentário...",
+      "noComments": "Ainda sem comentários",
+      "noCommentsFirst": "Sê o primeiro a comentar!",
+      "charCount": "{{count}}/300",
+      "commentOptions": "Opções do comentário",
+      "edit": "Editar",
+      "delete": "Apagar",
+      "edited": "editado",
+      "closeComments": "Fechar comentários",
+      "cancelEdit": "Cancelar edição",
+      "deleteConfirm": {
+        "title": "Apagar Comentário",
+        "message": "Tens a certeza que queres apagar este comentário?",
+        "confirm": "Apagar",
+        "cancel": "Cancelar"
+      },
+      "error": {
+        "postFailed": "Não foi possível enviar o comentário. Por favor, tenta de novo.",
+        "deleteFailed": "Não foi possível apagar o comentário. Por favor, tenta de novo."
+      }
+    },
+    "commentSection": {
+      "viewAll": "Ver todos os {{count}} comentários"
+    },
+    "hintPopup": {
+      "title": "A Tua Dica!",
+      "giverHint": "{{name}} deixou-te uma dica",
+      "swipeToReveal": "Desliza abaixo para revelar a tua dica",
+      "awesome": "Incrível!",
+      "dismissHint": "Fechar dica",
+      "hintImageA11y": "Imagem da dica"
+    },
+    "hintHistory": {
+      "title": "Histórico de Dicas",
+      "sessionLabel": "Sessão {{number}}",
+      "voiceMessage": "Mensagem de voz",
+      "voiceMessageDuration": "Mensagem de voz ({{duration}}s)",
+      "noHintsTitle": "Ainda sem dicas enviadas",
+      "noHintsMessage": "As dicas que enviares aparecerão aqui para referência futura",
+      "hintImageA11y": "Imagem da dica"
+    },
+    "personalizedHint": {
+      "title": "Deixar uma Dica",
+      "sessionSubtitle": "Para a sessão #{{number}}",
+      "tabText": "Texto e Foto",
+      "tabVoice": "Mensagem de Voz",
+      "tabTextA11y": "Dica de texto e foto",
+      "tabVoiceA11y": "Dica de mensagem de voz",
+      "placeholder": "A tua dica encorajadora...",
+      "charRemaining": "{{count}} caracteres restantes",
+      "addPhoto": "Adicionar Foto",
+      "needInspiration": "Precisas de inspiração?",
+      "recordingStatus": "A gravar...",
+      "tapToRecord": "Toca para Gravar",
+      "voiceNote": "Máx. 30 segundos. As dicas de voz são apenas áudio.",
+      "cancel": "Cancelar",
+      "sendHint": "Enviar Dica",
+      "sending": "A enviar...",
+      "closeHintModal": "Fechar modal de dica",
+      "hideExamples": "Ocultar exemplos de dicas",
+      "showExamples": "Mostrar exemplos de dicas",
+      "errorEmpty": "Por favor, insira uma mensagem de dica",
+      "errorSendFailed": "Falha ao enviar dica. Por favor, tente novamente."
+    },
+    "contact": {
+      "titleFeedback": "Dar Feedback",
+      "titleSupport": "Obter Suporte",
+      "subjectLabel": "Assunto",
+      "subjectPlaceholderFeedback": "Pedido de funcionalidade, melhoria de UI, etc.",
+      "subjectPlaceholderSupport": "Relatório de bug, problema de pagamento, etc.",
+      "messageLabel": "Mensagem",
+      "messagePlaceholderFeedback": "Fala-nos sobre a tua ideia, sugestão, ou o que gostas no Ernit...",
+      "messagePlaceholderSupport": "Descreve o problema que estás a ter (bug, problema de pagamento, problema de progressão, etc.)...",
+      "respondInfo": "Responderemos para {{email}}",
+      "sendButton": "Enviar Mensagem",
+      "fillAllFields": "Por favor, preenche todos os campos",
+      "sendFailed": "Falha ao enviar. Por favor, tenta de novo.",
+      "successTitle": "Mensagem Enviada!",
+      "successMessageFeedback": "Obrigado pelo teu feedback. Entraremos em contacto em {{email}} dentro de 24-48 horas.",
+      "successMessageSupport": "Obrigado pela tua mensagem. Entraremos em contacto em {{email}} dentro de 24-48 horas.",
+      "closeButton": "Fechar",
+      "closeA11y": "Fechar formulário de contacto"
+    },
+    "venueSelection": {
+      "title": "Onde vais treinar?",
+      "subtitle": "Marca o teu ginásio ou estúdio para verificarmos as tuas sessões.",
+      "webPlaceholder": "Escreve o nome do teu ginásio ou estúdio",
+      "nativePlaceholder": "Pesquisa por um ginásio ou estúdio",
+      "confirmVenue": "Confirmar local",
+      "noVenuesFound": "Nenhum local encontrado. Tenta uma pesquisa diferente.",
+      "skipText": "Vou treinar por conta própria",
+      "dismissA11y": "Fechar seleção de local",
+      "closeA11y": "Fechar",
+      "clearA11y": "Limpar campo",
+      "clearSearchA11y": "Limpar pesquisa",
+      "venueInputA11y": "Campo de nome do local",
+      "searchInputA11y": "Campo de pesquisa de ginásio",
+      "loadingA11y": "A carregar locais",
+      "resultsA11y": "Resultados da pesquisa de locais",
+      "skipA11y": "Saltar seleção de local",
+      "errorLoadFailed": "Não foi possível carregar os detalhes do local. Tente novamente ou ignore.",
+      "errorGeneric": "Algo correu mal. Tente novamente ou ignore."
+    },
+    "bookingCalendar": {
+      "title": "Quando queres fazer a tua experiência?",
+      "prevMonthA11y": "Mês anterior",
+      "nextMonthA11y": "Próximo mês",
+      "cancel": "Cancelar",
+      "bookFor": "Reservar para {{date}}"
+    },
+    "pwa": {
+      "installTitle": "Instalar Ernit",
+      "iosSubtitle": "Obtém a experiência completa da app com notificações push",
+      "androidSubtitle": "Obtém a experiência completa da app",
+      "step1Title": "Toca no botão Partilhar",
+      "step1Description": "Procura o ícone de partilha na barra do Safari (parte inferior do ecrã)",
+      "step2Title": "Seleciona \"Adicionar ao Ecrã Inicial\"",
+      "step2Description": "Desliza para baixo e toca em \"Adicionar ao Ecrã Inicial\"",
+      "step3Title": "Toca em \"Adicionar\"",
+      "step3Description": "Confirma tocando em \"Adicionar\" no canto superior direito",
+      "benefitsTitle": "Vais obter:",
+      "benefit1": "✓ Notificações push para objetivos e dicas",
+      "benefit2": "✓ Lançamento mais rápido da app",
+      "benefit3": "✓ Experiência em ecrã completo",
+      "benefit4": "✓ Lançamento mais rápido a partir do ecrã inicial",
+      "maybeLater": "Talvez Depois",
+      "installApp": "Instalar App",
+      "notNow": "Agora Não",
+      "closeA11y": "Fechar prompt de instalação"
+    },
+    "popupMenu": {
+      "moreOptions": "Mais opções"
+    },
+    "offlineBanner": {
+      "message": "Estás offline — algumas funcionalidades podem não estar disponíveis"
+    },
+    "animationPreview": {
+      "title": "Pré-visualização de Animação",
+      "subtitle": "Avança as sessões para pré-visualizar as animações de sequência",
+      "sessions": "Sessões: {{count}}",
+      "tierLabel": "Faixa de Sequência (nível: {{tier}})",
+      "noStreak": "Sem sequência (0 sessões)",
+      "play": "Reproduzir",
+      "pause": "Pausar"
+    },
+    "reactionViewer": {
+      "allTab": "Todos",
+      "allTabWithCount": "Todos ({{count}})",
+      "allReactions": "Todas as reações",
+      "reactionType": "reações {{emoji}}",
+      "noReactionsTitle": "Ainda sem reações",
+      "noReactionsMessage": "Sê o primeiro a reagir!"
+    },
+    "journeyDemo": {
+      "replayA11y": "Repetir demonstração da jornada",
+      "replay": "Repetir",
+      "rewardUnlocked": "Desbloqueaste a tua recompensa!",
+      "youveEarned": "Ganhaste",
+      "scheduleText": "Estás pronto para agendar a tua experiência",
+      "phases": {
+        "setGoal": "Definir Objetivo",
+        "buildHabit": "Criar Hábito",
+        "getReward": "Obter Recompensa"
+      }
+    }
+  }
+}

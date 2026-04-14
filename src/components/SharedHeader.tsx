@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { getLocaleString } from '../utils/i18nHelpers';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
@@ -94,6 +96,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
     const colors = useColors();
     const { width: screenWidth } = useWindowDimensions();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
     const headerPaddingHorizontal = screenWidth < 380 ? Spacing.lg : Spacing.xl;
 
     const navigation = useRootNavigation();
@@ -150,7 +153,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
     const timeOffset = DateHelper.getOffset();
     const hasTimeOffset = timeOffset !== 0;
     const simulatedTimeLabel = hasTimeOffset
-        ? DateHelper.now().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        ? DateHelper.now().toLocaleDateString(getLocaleString(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
         : null;
 
     const handleBackPress = () => {
@@ -159,7 +162,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
         } else if (navigation.canGoBack()) {
             navigation.goBack();
         } else {
-            navigation.navigate('Goals');
+            navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Goals' } });
         }
     };
 
@@ -168,7 +171,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
     };
 
     const handleCartPress = () => {
-        navigation.navigate('Cart');
+        navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'Cart' } });
     };
 
     return (
@@ -181,7 +184,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                             onPress={handleBackPress}
                             style={styles.backButton}
                             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                            accessibilityLabel="Go back"
+                            accessibilityLabel={t('accessibility.goBack')}
                             accessibilityRole="button"
                         >
                             <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2} />
@@ -203,7 +206,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                                     styles.debugButton,
                                     state.debugMode && styles.debugActiveBackground,
                                 ]}
-                                accessibilityLabel="Toggle debug mode"
+                                accessibilityLabel={t('accessibility.toggleDebugMode')}
                                 accessibilityRole="button"
                             >
                                 <Bug
@@ -225,7 +228,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                             onPress={handleCartPress}
                             icon={<ShoppingCart color={colors.textSecondary} size={22} strokeWidth={1.8} />}
                             badge={cartItemCount}
-                            accessibilityLabel="Shopping cart"
+                            accessibilityLabel={t('accessibility.shoppingCart')}
                             styles={styles}
                         />
                     )}
@@ -234,7 +237,7 @@ const SharedHeader: React.FC<SharedHeaderProps> = ({
                             onPress={handleNotificationsPress}
                             icon={<Bell color={colors.textSecondary} size={22} strokeWidth={1.8} />}
                             badge={unreadCount}
-                            accessibilityLabel="Notifications"
+                            accessibilityLabel={t('accessibility.notifications')}
                             styles={styles}
                         />
                     )}

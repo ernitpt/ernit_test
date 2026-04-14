@@ -7,6 +7,7 @@ import {
     Platform,
     BackHandler,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Colors, useColors } from '../config';
 import { BorderRadius } from '../config/borderRadius';
 import { Typography } from '../config/typography';
@@ -22,6 +23,7 @@ interface HowItWorksModalProps {
 function HowItWorksModal({ visible, onClose }: HowItWorksModalProps) {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
+    const { t } = useTranslation();
 
     // Android hardware back button
     useEffect(() => {
@@ -35,7 +37,7 @@ function HowItWorksModal({ visible, onClose }: HowItWorksModalProps) {
     }, [visible, onClose]);
 
     return (
-        <BaseModal visible={visible} onClose={onClose} title="How Ernit Works" variant="bottom" noPadding>
+        <BaseModal visible={visible} onClose={onClose} title={t('modals.howItWorks.title')} variant="bottom" noPadding>
             <ScrollView
                 style={styles.scrollView}
                 showsVerticalScrollIndicator={false}
@@ -45,7 +47,7 @@ function HowItWorksModal({ visible, onClose }: HowItWorksModalProps) {
                 <View style={styles.exampleHeader}>
                     <Text style={styles.exampleIcon}>🧗‍♀️</Text>
                     <Text style={styles.exampleTitle}>
-                        Example: Sarah's Rock Climbing Gift
+                        {t('modals.howItWorks.exampleTitle')}
                     </Text>
                 </View>
 
@@ -55,9 +57,9 @@ function HowItWorksModal({ visible, onClose }: HowItWorksModalProps) {
                         <Text style={styles.stepNumberText}>1</Text>
                     </View>
                     <View style={styles.stepContent}>
-                        <Text style={styles.stepTitle}>Mike buys the experience</Text>
+                        <Text style={styles.stepTitle}>{t('modals.howItWorks.step1Title')}</Text>
                         <Text style={styles.stepDescription}>
-                            Mike chooses a rock climbing session for Sarah and purchases it as a gift. Sarah will know what the gift is once she completes her goal.
+                            {t('modals.howItWorks.step1Description')}
                         </Text>
                     </View>
                 </View>
@@ -68,9 +70,9 @@ function HowItWorksModal({ visible, onClose }: HowItWorksModalProps) {
                         <Text style={styles.stepNumberText}>2</Text>
                     </View>
                     <View style={styles.stepContent}>
-                        <Text style={styles.stepTitle}>Sarah sets a goal</Text>
+                        <Text style={styles.stepTitle}>{t('modals.howItWorks.step2Title')}</Text>
                         <Text style={styles.stepDescription}>
-                            Sarah receives a code and sets her challenge: "Go to the gym 3x per week for 4 weeks"
+                            {t('modals.howItWorks.step2Description')}
                         </Text>
                     </View>
                 </View>
@@ -81,9 +83,9 @@ function HowItWorksModal({ visible, onClose }: HowItWorksModalProps) {
                         <Text style={styles.stepNumberText}>3</Text>
                     </View>
                     <View style={styles.stepContent}>
-                        <Text style={styles.stepTitle}>Hints reveal clues</Text>
+                        <Text style={styles.stepTitle}>{t('modals.howItWorks.step3Title')}</Text>
                         <Text style={styles.stepDescription}>
-                            Each gym session, Sarah gets AI generated motivational hints.
+                            {t('modals.howItWorks.step3Description')}
                         </Text>
                     </View>
                 </View>
@@ -94,9 +96,9 @@ function HowItWorksModal({ visible, onClose }: HowItWorksModalProps) {
                         <Text style={styles.stepNumberText}>4</Text>
                     </View>
                     <View style={styles.stepContent}>
-                        <Text style={styles.stepTitle}>Goal complete = Surprise unlocked!</Text>
+                        <Text style={styles.stepTitle}>{t('modals.howItWorks.step4Title')}</Text>
                         <Text style={styles.stepDescription}>
-                            Sarah completes her goal and unlocks the surprise: a rock climbing session! 🎉
+                            {t('modals.howItWorks.step4Description')}
                         </Text>
                     </View>
                 </View>
@@ -104,7 +106,7 @@ function HowItWorksModal({ visible, onClose }: HowItWorksModalProps) {
                 {/* Call to Action */}
                 <View style={styles.ctaContainer}>
                     <Text style={styles.ctaText}>
-                        Motivation meets reward. That's Ernit!
+                        {t('modals.howItWorks.cta')}
                     </Text>
                 </View>
             </ScrollView>
@@ -112,7 +114,7 @@ function HowItWorksModal({ visible, onClose }: HowItWorksModalProps) {
             {/* Bottom Button */}
             <View style={styles.buttonContainer}>
                 <Button
-                    title="Got it, let's start!"
+                    title={t('modals.howItWorks.close')}
                     onPress={onClose}
                     variant="primary"
                     size="lg"

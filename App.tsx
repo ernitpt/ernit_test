@@ -7,9 +7,14 @@ import Colors from './src/config/colors';
 import { PWAInstaller } from './src/components/PWAInstaller';
 import { pushNotificationService } from './src/services/PushNotificationService';
 import { initializeAnalytics } from './src/utils/analytics';
+import { initializeClarity } from './src/utils/clarity';
+import { analyticsService } from './src/services/AnalyticsService';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { ToastProvider } from './src/context/ToastContext';
 import { ThemeProvider } from './src/themes/ThemeContext';
+import { LanguageProvider } from './src/context/LanguageContext';
+import { I18nextProvider } from 'react-i18next';
+import i18n from './src/i18n';
 import ToastOverlay from './src/components/Toast';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { logger } from './src/utils/logger';
@@ -26,6 +31,18 @@ import {
 // PWA: Register service worker and inject manifest at module load time (before React renders).
 // This runs as early as possible so Chrome can detect installability before beforeinstallprompt fires.
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  // Set body/html/root background to match app surface — prevents white flash during navigation transitions.
+  // Inject a global style rule so all React Native Web containers also match.
+  const bgStyle = document.createElement('style');
+  bgStyle.innerHTML = `
+    html, body, #root, #expo-root {
+      background-color: #FAFAF5 !important;
+    }
+  `;
+  document.head.appendChild(bgStyle);
+  if (document.documentElement) document.documentElement.style.backgroundColor = '#FAFAF5';
+  if (document.body) document.body.style.backgroundColor = '#FAFAF5';
+
   // Service worker registration
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/firebase-messaging-sw.js').catch((err) => {
@@ -91,6 +108,9 @@ export default function App() {
 
       // Initialize Google Analytics 4 (web only)
       initializeAnalytics();
+      // Initialize Microsoft Clarity (web only — heatmaps & session replays)
+      initializeClarity();
+      analyticsService.trackEvent('app_open', 'navigation', { platform: Platform.OS });
 
       // Use MutationObserver to watch for title changes and reset to "Ernit"
       const titleObserver = new MutationObserver(() => {
@@ -127,7 +147,9 @@ export default function App() {
 
   return (
     <ThemeProvider>
-    <SafeAreaProvider>
+    <LanguageProvider>
+    <I18nextProvider i18n={i18n}>
+    <SafeAreaProvider style={{ flex: 1, backgroundColor: '#FAFAF5' }}>
       <NativeStripeProvider>
         <ErrorBoundary screenName="App">
           <AppProvider>
@@ -142,6 +164,8 @@ export default function App() {
         </ErrorBoundary>
       </NativeStripeProvider>
     </SafeAreaProvider>
+    </I18nextProvider>
+    </LanguageProvider>
     </ThemeProvider>
   );
 }

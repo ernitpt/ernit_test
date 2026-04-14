@@ -1,8 +1,10 @@
 // screens/Recipient/GoalSettingScreen.tsx
 import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { formatLocalDate, getMonthNames, getWeekdayAbbreviations } from '../../utils/i18nHelpers';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import SpriteAnimation from '../../components/SpriteAnimation';
-import { FOOTER_HEIGHT } from '../../components/FooterNavigation';
+import { FOOTER_HEIGHT } from '../../components/CustomTabBar';
 import {
   View,
   Text,
@@ -37,7 +39,6 @@ import { goalService } from '../../services/GoalService';
 import { analyticsService } from '../../services/AnalyticsService';
 import { notificationService } from '../../services/NotificationService';
 import { userService } from '../../services/userService';
-import MainScreen from '../MainScreen';
 import { db, auth } from '../../services/firebase';
 import { addDoc, collection, deleteField, doc, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { experienceService } from '../../services/ExperienceService';
@@ -67,35 +68,38 @@ type NavProp = NativeStackNavigationProp<RootStackParamList, 'GoalSetting'>;
 
 const GYM_SPRITE = require('../../assets/sprites/bicep_sprite.png');
 
-const getGoalTypes = (colors: typeof Colors) => [
-  { icon: null, sprite: GYM_SPRITE, name: 'Gym', tagline: 'Hit the weights', color: colors.success },
-  { icon: '🧘', sprite: null, name: 'Yoga', tagline: 'Find your flow', color: colors.info },
-  { icon: '💃', sprite: null, name: 'Dance', tagline: 'Move to the beat', color: colors.warning },
-  { icon: '✏️', sprite: null, name: 'Add your own', tagline: 'Create your challenge', color: colors.textMuted },
+const getGoalTypes = (colors: typeof Colors, t: (key: string) => string) => [
+  { icon: '\u{1F3CB}\uFE0F', sprite: null, name: 'Gym', tagline: t('wizard.goal.goalTypes.gym.tagline'), color: colors.success },
+  { icon: '🧘', sprite: null, name: 'Yoga', tagline: t('wizard.goal.goalTypes.yoga.tagline'), color: colors.info },
+  { icon: '💃', sprite: null, name: 'Dance', tagline: t('wizard.goal.goalTypes.dance.tagline'), color: colors.warning },
+  { icon: '✏️', sprite: null, name: 'Add your own', tagline: t('wizard.goal.goalTypes.custom.tagline'), color: colors.textMuted },
 ];
 
-const STEP_TITLES = [
-  'What is your goal?',
-  'Set your intensity',
-  'How long per session?',
-  'When do you start?',
-];
-
-const STEP_SUBTITLES = [
-  'Pick a category that matches your gift',
-  'How hard do you want to push yourself?',
-  'Set the duration for each time you show up',
-  "Pick a date and let's make it happen",
-];
+// STEP_TITLES and STEP_SUBTITLES are declared inside the component with t()
 
 // ─── Main Screen Component ──────────────────────────────────────────
 const GoalSettingScreen = () => {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavProp>();
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const GOAL_TYPES = useMemo(() => getGoalTypes(colors), [colors]);
+  const GOAL_TYPES = useMemo(() => getGoalTypes(colors, t), [colors, t]);
+
+  const STEP_TITLES = useMemo(() => [
+    t('wizard.goal.stepTitles.step1'),
+    t('wizard.goal.stepTitles.step2'),
+    t('wizard.goal.stepTitles.step3'),
+    t('wizard.goal.stepTitles.step4'),
+  ], [t]);
+
+  const STEP_SUBTITLES = useMemo(() => [
+    t('wizard.goal.stepSubtitles.step1'),
+    t('wizard.goal.stepSubtitles.step2'),
+    t('wizard.goal.stepSubtitles.step3'),
+    t('wizard.goal.stepSubtitles.step4'),
+  ], [t]);
   const routeParams = route.params as { experienceGift?: ExperienceGift } | undefined;
   const experienceGift = routeParams?.experienceGift;
   const { state, dispatch } = useApp();
@@ -149,14 +153,14 @@ const GoalSettingScreen = () => {
     if (currentStep === 1 || goalCreatedRef.current) return; // Allow back from step 1 or after creation
     e.preventDefault();
     Alert.alert(
-      'Discard changes?',
-      'You have unsaved progress. Are you sure you want to leave?',
+      t('wizard.goal.discard.alertTitle'),
+      t('wizard.goal.discard.alertMessage'),
       [
-        { text: 'Stay', style: 'cancel' },
-        { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+        { text: t('wizard.goal.discard.buttonStay'), style: 'cancel' },
+        { text: t('wizard.goal.discard.buttonLeave'), style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
       ]
     );
-  }, [currentStep]);
+  }, [currentStep, t]);
 
   // Validate required data
   const hasValidData = Boolean(
@@ -168,7 +172,9 @@ const GoalSettingScreen = () => {
     if (!hasValidData) {
       logger.warn('Missing/invalid experienceGift on GoalSettingScreen, redirecting to RecipientFlow');
       navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'RecipientFlow' }] }));
+      return;
     }
+    analyticsService.trackEvent('goal_creation_started', 'conversion', { experienceGiftId: experienceGift?.id }, 'GoalSettingScreen');
   }, [hasValidData, navigation]);
 
   useEffect(() => {
@@ -189,7 +195,7 @@ const GoalSettingScreen = () => {
       };
       const expiresAt = toJSDate(experienceGift.expiresAt);
       if (expiresAt && expiresAt < new Date()) {
-        showError('This gift has expired and can no longer be claimed.');
+        showError(t('wizard.goal.toasts.giftExpired'));
         navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'RecipientFlow' }] }));
       }
     }
@@ -198,13 +204,11 @@ const GoalSettingScreen = () => {
   if (!hasValidData || !experienceGift) {
     return (
       <ErrorBoundary screenName="GoalSettingScreen" userId={state.user?.id}>
-        <MainScreen activeRoute="Goals">
           <View style={{ padding: Spacing.xl, gap: Spacing.lg }}>
             <SkeletonBox width="100%" height={120} borderRadius={12} />
             <SkeletonBox width="60%" height={20} borderRadius={8} />
             <SkeletonBox width="100%" height={48} borderRadius={12} />
           </View>
-        </MainScreen>
       </ErrorBoundary>
     );
   }
@@ -231,7 +235,7 @@ const GoalSettingScreen = () => {
           userId: state.user?.id,
           additionalData: { experienceId: experienceGift?.experienceId },
         });
-        showError('Could not load experience details.');
+        showError(t('wizard.goal.toasts.loadExperienceError'));
       }
     };
     fetchExperience();
@@ -338,7 +342,7 @@ const GoalSettingScreen = () => {
             return false;
           }
           if (hoursNum > 3 || (hoursNum === 3 && minutesNum > 0)) {
-            showError('Each session cannot exceed 3 hours.');
+            showError(t('wizard.goal.validation.sessionMaxTime'));
             return false;
           }
         } else {
@@ -382,7 +386,7 @@ const GoalSettingScreen = () => {
     try {
       const currentUserId = state.user?.id;
       if (!currentUserId) {
-        showError('Please sign in to continue.');
+        showError(t('wizard.goal.toasts.signInRequired'));
         setIsSubmitting(false);
         return;
       }
@@ -404,9 +408,9 @@ const GoalSettingScreen = () => {
       } catch (claimError: unknown) {
         const claimErrMsg = claimError instanceof Error ? claimError.message : '';
         if (claimErrMsg === 'Gift already claimed') {
-          showError('This code has already been claimed by someone else. Please check with the person who sent it to you.');
+          showError(t('wizard.goal.toasts.alreadyClaimed'));
         } else if (claimErrMsg === 'User not authenticated') {
-          showError('Please sign in to continue.');
+          showError(t('wizard.goal.toasts.signInRequired'));
         } else {
           await logErrorToFirestore(claimError instanceof Error ? claimError : new Error(claimErrMsg), {
             screenName: 'GoalSettingScreen',
@@ -414,7 +418,7 @@ const GoalSettingScreen = () => {
             userId: currentUserId,
             additionalData: { giftId: experienceGift.id },
           });
-          showError('Failed to claim this gift. Please try again.');
+          showError(t('wizard.goal.toasts.claimFailed'));
         }
         return;
       }
@@ -477,7 +481,7 @@ const GoalSettingScreen = () => {
           });
         } catch (revertError: unknown) {
           logger.error('Failed to revert gift claim:', revertError);
-          showError('Something went wrong. Please contact support with your claim code — we will fix this.');
+          showError(t('wizard.goal.toasts.revertFailed'));
         }
         throw goalError; // Re-throw to hit the outer error handler
       }
@@ -599,7 +603,7 @@ const GoalSettingScreen = () => {
           category: selectedCategory === 'Add your own' ? customCategory : selectedCategory,
         },
       });
-      showError('Goal creation failed. Your gift code is still valid — please try again.');
+      showError(t('wizard.goal.toasts.createFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -616,11 +620,8 @@ const GoalSettingScreen = () => {
   };
 
   // ─── Calendar helpers ─────────────────────────────────────────────
-  const calendarMonthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-  const calendarWeekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const calendarMonthNames = useMemo(() => getMonthNames(), []);
+  const calendarWeekDays = useMemo(() => getWeekdayAbbreviations(), []);
 
   const getCalendarDays = (monthDate: Date) => {
     const year = monthDate.getFullYear();
@@ -757,13 +758,13 @@ const GoalSettingScreen = () => {
             )}
             <View style={{ flex: 1 }}>
               <Text style={{ ...Typography.smallBold, color: colors.primary, marginBottom: Spacing.xs }}>
-                YOUR REWARD
+                {t('wizard.goal.reward.yourReward')}
               </Text>
               <Text style={{ ...Typography.heading3, color: colors.textPrimary, marginBottom: Spacing.xs }}>
                 {experience.title}
               </Text>
               <Text style={{ ...Typography.caption, color: colors.textSecondary }}>
-                Complete your challenge to unlock this reward!
+                {t('wizard.goal.reward.completeToUnlock')}
               </Text>
             </View>
           </View>
@@ -786,11 +787,11 @@ const GoalSettingScreen = () => {
             borderColor: colors.warningBorder,
           }}>
             <Text style={{ ...Typography.smallBold, color: colors.warningDark, marginBottom: Spacing.sm }}>
-              {experienceGift?.giverName || 'Someone'} is doing this together with you!
+              {t('wizard.goal.together.banner', { name: experienceGift?.giverName || t('wizard.goal.together.someone') })}
             </Text>
             {togetherData.goalName ? (
               <Text style={{ ...Typography.body, color: colors.textPrimary, marginBottom: Spacing.xs }}>
-                Their goal: {togetherData.goalName}
+                {t('wizard.goal.together.theirGoal', { goalName: togetherData.goalName })}
               </Text>
             ) : null}
             <Text style={{ ...Typography.caption, color: colors.textSecondary, marginBottom: Spacing.lg }}>
@@ -808,9 +809,9 @@ const GoalSettingScreen = () => {
                 onPress={handleAcceptGiverGoal}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel="Accept same challenge as giver"
+                accessibilityLabel={t('wizard.goal.together.acceptSameLabel')}
               >
-                <Text style={{ ...Typography.smallBold, color: colors.white }}>Accept same challenge</Text>
+                <Text style={{ ...Typography.smallBold, color: colors.white }}>{t('wizard.goal.together.acceptSame')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={{
@@ -825,9 +826,9 @@ const GoalSettingScreen = () => {
                 onPress={() => setAcceptedGiverGoal(true)}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel="Create my own challenge"
+                accessibilityLabel={t('wizard.goal.together.createOwnLabel')}
               >
-                <Text style={{ ...Typography.smallBold, color: colors.textSecondary }}>Create my own</Text>
+                <Text style={{ ...Typography.smallBold, color: colors.textSecondary }}>{t('wizard.goal.together.createOwn')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -873,7 +874,7 @@ const GoalSettingScreen = () => {
                 }
               }}
               accessibilityRole="button"
-              accessibilityLabel={`Select ${goal.name} goal`}
+              accessibilityLabel={t('wizard.goal.accessibility.selectGoal', { name: goal.name })}
             >
               {goal.sprite ? (
                 <View style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
@@ -905,15 +906,15 @@ const GoalSettingScreen = () => {
 
       {validationErrors.category && (
         <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.md }}>
-          Please select a goal type
+          {t('wizard.goal.validation.selectGoalType')}
         </Text>
       )}
 
       {selectedCategory === 'Add your own' && (
         <View style={styles.customGoalContainer}>
           <TextInput
-            label="Enter your custom goal:"
-            placeholder="e.g., Painting, Meditation, Guitar..."
+            label={t('wizard.goal.customGoal.label')}
+            placeholder={t('wizard.goal.customGoal.placeholder')}
             value={customCategory}
             onChangeText={(text) => {
               setCustomCategory(text);
@@ -923,10 +924,10 @@ const GoalSettingScreen = () => {
                 setValidationErrors(prev => ({ ...prev, category: true }));
               }
             }}
-            error={validationErrors.category && customCategory.trim() === '' ? 'Please enter a custom goal' : undefined}
+            error={validationErrors.category && customCategory.trim() === '' ? t('wizard.goal.validation.enterCustomGoal') : undefined}
             maxLength={50}
             autoFocus
-            accessibilityLabel="Custom goal category"
+            accessibilityLabel={t('wizard.goal.accessibility.customGoalCategory')}
             containerStyle={{ marginBottom: 0 }}
           />
         </View>
@@ -938,27 +939,27 @@ const GoalSettingScreen = () => {
     <View style={styles.stepContent}>
       <View style={styles.section}>
         <ModernSlider
-          label="Duration"
+          label={t('wizard.goal.sliders.duration')}
           value={weeks}
           min={1}
           max={5}
           onChange={setWeeks}
-          leftLabel="Chill"
-          rightLabel="Intense"
-          unit="week"
-          unitPlural="weeks"
+          leftLabel={t('wizard.goal.sliders.chill')}
+          rightLabel={t('wizard.goal.sliders.intense')}
+          unit={t('wizard.goal.sliders.week')}
+          unitPlural={t('wizard.goal.sliders.weeks')}
         />
       </View>
 
       <View style={styles.section}>
         <ModernSlider
-          label="Weekly Sessions"
+          label={t('wizard.goal.sliders.weeklySessions')}
           value={sessionsPerWeek}
           min={1}
           max={7}
           onChange={setSessionsPerWeek}
-          leftLabel="Easy"
-          rightLabel="Beast"
+          leftLabel={t('wizard.goal.sliders.easy')}
+          rightLabel={t('wizard.goal.sliders.beast')}
         />
       </View>
     </View>
@@ -1092,7 +1093,7 @@ const GoalSettingScreen = () => {
                 textTransform: 'uppercase',
                 letterSpacing: 2,
               }}>
-                MINUTES
+                {t('wizard.goal.dial.minutes')}
               </Text>
             </View>
 
@@ -1135,13 +1136,13 @@ const GoalSettingScreen = () => {
                 onPress={() => snapToPreset(m)}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel={`${m} minutes per session`}
+                accessibilityLabel={t('wizard.goal.accessibility.minutesPerSessionPreset', { m })}
                 accessibilityState={{ selected: sessionMinutes === m }}
               >
                 <Text style={[
                   styles.presetChipText,
                   sessionMinutes === m && styles.presetChipTextActive,
-                ]}>{m} min</Text>
+                ]}>{m} {t('wizard.goal.dial.min')}</Text>
               </TouchableOpacity>
             </MotiView>
           ))}
@@ -1153,13 +1154,13 @@ const GoalSettingScreen = () => {
           onPress={() => setShowCustomTime(!showCustomTime)}
           activeOpacity={0.7}
           accessibilityRole="button"
-          accessibilityLabel={showCustomTime ? 'Use the time dial' : 'Enter a custom session time'}
+          accessibilityLabel={showCustomTime ? t('wizard.goal.accessibility.useTimeDial') : t('wizard.goal.accessibility.enterCustomTime')}
         >
           <Text style={{
             ...Typography.bodyBold,
             color: colors.primary,
           }}>
-            {showCustomTime ? 'Use the dial' : 'Or enter a custom time ›'}
+            {showCustomTime ? t('wizard.goal.dial.useDial') : t('wizard.goal.dial.customTime')}
           </Text>
         </TouchableOpacity>
 
@@ -1185,17 +1186,17 @@ const GoalSettingScreen = () => {
                   placeholderTextColor={colors.textMuted}
                   returnKeyType="next"
                   onSubmitEditing={() => minutesRef.current?.focus()}
-                  accessibilityLabel="Hours per session"
+                  accessibilityLabel={t('wizard.goal.accessibility.hoursPerSession')}
                 />
-                <Text style={styles.timeLabel}>hr</Text>
+                <Text style={styles.timeLabel}>{t('wizard.goal.dial.hr')}</Text>
               </View>
               <View style={styles.timeInputGroup}>
                 <RNTextInput
                   ref={minutesRef}
                   style={styles.timeInput}
                   value={minutes}
-                  onChangeText={(t) => {
-                    const clean = sanitizeNumericInput(t);
+                  onChangeText={(text) => {
+                    const clean = sanitizeNumericInput(text);
                     const m = parseInt(clean || '0', 10);
                     setMinutes(m > 59 ? '59' : clean);
                     if (validationErrors.time) setValidationErrors(prev => ({ ...prev, time: false }));
@@ -1205,9 +1206,9 @@ const GoalSettingScreen = () => {
                   placeholder="00"
                   placeholderTextColor={colors.textMuted}
                   returnKeyType="done"
-                  accessibilityLabel="Minutes per session"
+                  accessibilityLabel={t('wizard.goal.accessibility.minutesPerSession')}
                 />
-                <Text style={styles.timeLabel}>min</Text>
+                <Text style={styles.timeLabel}>{t('wizard.goal.dial.min')}</Text>
               </View>
             </View>
           </MotiView>
@@ -1215,7 +1216,7 @@ const GoalSettingScreen = () => {
 
         {validationErrors.time && (
           <Text style={{ color: colors.error, ...Typography.caption, marginTop: Spacing.sm, textAlign: 'center' }}>
-            Please set a time per session (at least 5 minutes)
+            {t('wizard.goal.validation.setSessionTime')}
           </Text>
         )}
       </View>
@@ -1244,7 +1245,7 @@ const GoalSettingScreen = () => {
                 style={[styles.calNavBtn, isCurrentMonth && { opacity: 0.3 }]}
                 disabled={isCurrentMonth}
                 accessibilityRole="button"
-                accessibilityLabel="Previous month"
+                accessibilityLabel={t('wizard.goal.calendar.prevMonth')}
               >
                 <ChevronLeft color={colors.textSecondary} size={20} />
               </TouchableOpacity>
@@ -1255,7 +1256,7 @@ const GoalSettingScreen = () => {
                 onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}
                 style={styles.calNavBtn}
                 accessibilityRole="button"
-                accessibilityLabel="Next month"
+                accessibilityLabel={t('wizard.goal.calendar.nextMonth')}
               >
                 <ChevronRight color={colors.textSecondary} size={20} />
               </TouchableOpacity>
@@ -1288,7 +1289,7 @@ const GoalSettingScreen = () => {
                     disabled={disabled}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel={date ? `Select ${date.toLocaleDateString()}` : undefined}
+                    accessibilityLabel={date ? t('wizard.goal.calendar.selectDay', { date: formatLocalDate(date, { month: 'short', day: 'numeric' }) }) : undefined}
                   >
                     {date && (
                       <Text style={[
@@ -1307,14 +1308,14 @@ const GoalSettingScreen = () => {
           </View>
 
           <View style={styles.endDateContainer}>
-            <Text style={styles.endDateLabel}>You will finish your goal on</Text>
+            <Text style={styles.endDateLabel}>{t('wizard.goal.calendar.finishLabel')}</Text>
             <Text style={styles.endDateValue}>
-              {goalEndDate.toLocaleDateString('en-US', {
+              {formatLocalDate(goalEndDate, {
                 weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
               })}
             </Text>
             <Text style={styles.endDateSublabel}>
-              {weeks} week{weeks > 1 ? 's' : ''} from {plannedStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {t('wizard.goal.footer.weekLabel', { count: weeks })} {t('wizard.goal.calendar.from')} {formatLocalDate(plannedStartDate, { month: 'short', day: 'numeric' })}
             </Text>
           </View>
         </View>
@@ -1335,7 +1336,6 @@ const GoalSettingScreen = () => {
   // ─── Render ───────────────────────────────────────────────────────
   return (
     <ErrorBoundary screenName="GoalSettingScreen" userId={state.user?.id}>
-      <MainScreen activeRoute="Goals">
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
@@ -1346,7 +1346,7 @@ const GoalSettingScreen = () => {
               <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.8}>
                 <ChevronLeft color={colors.textPrimary} size={24} strokeWidth={2.5} />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Set Your Goal</Text>
+              <Text style={styles.headerTitle}>{t('wizard.goal.header.title')}</Text>
               <View style={styles.stepIndicator}>
                 <Text style={styles.stepIndicatorText}>{currentStep}/{TOTAL_STEPS}</Text>
               </View>
@@ -1404,7 +1404,7 @@ const GoalSettingScreen = () => {
                     end={{ x: 1, y: 1 }}
                     style={styles.ctaGradient}
                   >
-                    <Text style={styles.ctaText}>Create Goal</Text>
+                    <Text style={styles.ctaText}>{t('wizard.goal.footer.createGoal')}</Text>
                     <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                   </LinearGradient>
                 </TouchableOpacity>
@@ -1416,7 +1416,7 @@ const GoalSettingScreen = () => {
                     end={{ x: 1, y: 1 }}
                     style={styles.ctaGradient}
                   >
-                    <Text style={styles.ctaText}>Next</Text>
+                    <Text style={styles.ctaText}>{t('wizard.goal.footer.next')}</Text>
                     <ChevronRight color={colors.white} size={20} strokeWidth={3} />
                   </LinearGradient>
                 </TouchableOpacity>
@@ -1429,44 +1429,44 @@ const GoalSettingScreen = () => {
         <BaseModal
           visible={showConfirm}
           onClose={() => setShowConfirm(false)}
-          title="Confirm Your Goal"
+          title={t('wizard.goal.confirm.title')}
           variant="center"
         >
           <View style={{ width: '100%', alignItems: 'center' }}>
             <Text style={styles.modalSubtitle}>
-              Ready to commit? Let's do this!
+              {t('wizard.goal.confirm.subtitle')}
             </Text>
 
             <View style={styles.modalDetails}>
               <Text style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Goal: </Text>
+                <Text style={styles.modalLabel}>{t('wizard.goal.confirm.goalLabel')} </Text>
                 {finalCategory || '—'}
               </Text>
               <Text style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Duration: </Text>
-                {weeks} {weeks === 1 ? 'week' : 'weeks'}
+                <Text style={styles.modalLabel}>{t('wizard.goal.confirm.durationLabel')} </Text>
+                {t('wizard.goal.footer.weekLabel', { count: weeks })}
               </Text>
               <Text style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Sessions/week: </Text>
+                <Text style={styles.modalLabel}>{t('wizard.goal.confirm.sessionsLabel')} </Text>
                 {sessionsPerWeek}
               </Text>
               <Text style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Per session: </Text>
+                <Text style={styles.modalLabel}>{t('wizard.goal.confirm.perSessionLabel')} </Text>
                 {showCustomTime
                   ? `${hours || '0'}h ${minutes || '0'}m`
                   : `${sessionMinutes} min`
                 }
               </Text>
               <Text style={styles.modalRow}>
-                <Text style={styles.modalLabel}>Start date: </Text>
-                {plannedStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                <Text style={styles.modalLabel}>{t('wizard.goal.confirm.startDateLabel')} </Text>
+                {formatLocalDate(plannedStartDate, { month: 'short', day: 'numeric', year: 'numeric' })}
               </Text>
             </View>
 
             <Text style={styles.pledgeNote}>
               {experience
-                ? 'Your reward is waiting — complete the challenge to unlock it!'
-                : 'Complete your challenge to earn your reward!'
+                ? t('wizard.goal.confirm.pledgeWithReward')
+                : t('wizard.goal.confirm.pledgeNoReward')
               }
             </Text>
 
@@ -1475,7 +1475,7 @@ const GoalSettingScreen = () => {
                 variant="ghost"
                 onPress={() => setShowConfirm(false)}
                 disabled={isSubmitting}
-                title="Cancel"
+                title={t('wizard.goal.confirm.cancel')}
                 style={styles.modalButton}
               />
 
@@ -1484,7 +1484,7 @@ const GoalSettingScreen = () => {
                   variant="primary"
                   onPress={confirmCreateGoal}
                   loading={isSubmitting}
-                  title="Let's Go!"
+                  title={t('wizard.goal.confirm.letsGo')}
                   fullWidth
                   style={styles.modalButton}
                 />
@@ -1502,10 +1502,9 @@ const GoalSettingScreen = () => {
             totalSessions={createdGoal ? createdGoal.targetCount * createdGoal.sessionsPerWeek : 1}
             onClose={handleHintPopupClose}
             isFirstHint={true}
-            additionalMessage={"🎯 You'll receive your second hint after completing your first session!"}
+            additionalMessage={t('wizard.goal.toasts.firstHintMessage')}
           />
         )}
-      </MainScreen>
     </ErrorBoundary>
   );
 };
@@ -1791,12 +1790,19 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
   },
   ctaButton: {
     borderRadius: BorderRadius.lg,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+      },
+      android: {
+        boxShadow: `0 8 16 0 ${colors.primary}4D`,
+      },
+      default: {},
+    }),
+  } as any,
   ctaGradient: {
     flexDirection: 'row',
     alignItems: 'center',
