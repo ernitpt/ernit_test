@@ -967,7 +967,8 @@
       "sessionsMeta": "{{sessions}} sessions completed • {{weeks}} weeks",
       "sessionsThisWeek": "Sessions this week",
       "viewHintHistory": "View Hint History",
-      "weeksCompleted": "Weeks completed"
+      "weeksCompleted": "Weeks completed",
+      "hintHistoryTitle": "Hint History"
     },
     "addFriendAccessibility": "Add a friend",
     "error": {
@@ -1173,6 +1174,9 @@
       },
       "accessibility": {
         "goBack": "Go back"
+      },
+      "errors": {
+        "loadFailed": "Could not load experiences for checkout."
       }
     },
     "confirmation": {
@@ -1252,6 +1256,9 @@
         "personalMessage": "Personal message",
         "copyCode": "Copy gift code",
         "shareCode": "Share gift code"
+      },
+      "errors": {
+        "giftLoadFailed": "Could not load gift details"
       }
     },
     "confirmationMultiple": {
@@ -1438,6 +1445,12 @@
       },
       "errors": {
         "couldNotLoadRewardImages": "Could not load reward images."
+      },
+      "rotatingWords": {
+        "workout": "workout",
+        "doYoga": "do yoga",
+        "dance": "dance",
+        "run": "run"
       }
     }
   },
@@ -2106,6 +2119,9 @@
         "whatsappError": "Unable to open WhatsApp. Please try another contact method.",
         "emailFallback": "Unable to open email client. Please try another contact method."
       },
+      "errors": {
+        "loadFailed": "Could not load achievement details"
+      },
       "toast": {
         "rewardClaimed": "Reward claimed! Check your email for details.",
         "shareSuccess": "Achievement shared!",
@@ -2227,6 +2243,7 @@
       "menu": {
         "editGoal": "Edit Goal",
         "requestChange": "Request a Goal Change",
+        "changeReward": "Change Reward",
         "removeGoal": "Remove Goal",
         "edit": "Edit Goal",
         "pause": "Pause Goal",
@@ -2285,8 +2302,11 @@
         "updateProgress": "Could not update goal progress. Please try again.",
         "discoveryPersist": "Failed to save your discovery. Please try again.",
         "venueSave": "Failed to save venue. Please try again.",
-        "inviteCode": "Could not find invite code"
+        "inviteCode": "Could not find invite code",
+        "rematchFailed": "Couldn't find another match. Please try again.",
+        "noExperiencesAvailable": "No experiences available yet. Please browse the catalog manually."
       },
+      "noOtherMatches": "That's the only match in this category. Try browsing manually.",
       "toast": {
         "sessionLogged": "Session logged!",
         "goalPaused": "Goal paused",
@@ -2368,7 +2388,8 @@
         "weeksCompleted": "Weeks completed",
         "shareToFeed": "Share to Feed",
         "skip": "Skip",
-        "close": "Close"
+        "close": "Close",
+        "fromGiver": "From {{name}}"
       }
     },
     "pledgedExperience": {
@@ -2517,16 +2538,17 @@
       "pending": "Pending",
       "yourGiver": "your giver",
       "goalChangeSuggested": "Goal Change Suggested",
-      "goalChangeSuggestedMessage": "{{giverName}} has suggested a goal change. Please review and accept or modify the suggestion in your notifications.",
-      "goalChangeSuggestedAfterFirst": "Congrats on your first session! {{giverName}} has suggested a goal change. Please review and accept or modify the suggestion in your notifications to continue.",
+      "goalChangeSuggestedMessage": "{{giverName}} suggested a change — review in notifications.",
+      "goalChangeSuggestedAfterFirst": "First session in. {{giverName}} suggested a change — review in notifications.",
       "goalChangeSuggestedContinue": "{{giverName}} has suggested a goal change. Please review and accept or modify the suggestion before continuing.",
       "goalNotApproved": "Goal Not Approved",
       "oneDayOneSessionBlocked": "Goals with only 1 day and 1 session per week cannot be completed until giver's approval.",
+      "oneDayOneSessionBlockedBanner": "{{giverName}} needs to approve before you can start.",
       "firstSessionDone": "First Session Done",
-      "firstSessionDoneMessage": "Congrats on your first session! The remaining sessions will unlock after {{giverName}} approves this goal (or automatically in 24 hours).",
+      "firstSessionDoneMessage": "Nice — first session in. Waiting for {{giverName}} to approve the rest.",
       "waitingApprovalFirstDone": "Waiting for {{giverName}}'s approval! You can start with the first session, but the remaining sessions will unlock after {{giverName}} approves your goal (or automatically in 24 hours).",
       "waitingForApproval": "Waiting for Approval",
-      "waitingApprovalBanner": "Waiting for {{giverName}}'s approval! You can start with the first session, but the remaining sessions will unlock after {{giverName}} approves your goal (or automatically in 24 hours)."
+      "approvalDeadlinePassedBanner": "Approval window passed — unlocking your goal."
     },
     "goalProgress": {
       "onTrack": "On track",
@@ -2645,12 +2667,13 @@
       "selected": "Selected"
     },
     "experienceReveal": {
-      "revealedHeadline": "Your reward has\nbeen revealed!",
-      "progressReached": "{{pct}}% of your goal reached",
+      "revealedHeadline": "We picked something\nfor you!",
+      "curatedSubtitle": "Based on your answers",
       "perPerson": "per person",
-      "claimButton": "Claim This Experience  {{price}}",
-      "browseOthers": "Browse other options",
-      "browseOthersA11y": "Browse other experience options",
+      "lockInButton": "Lock it in",
+      "showAnotherButton": "Show me another",
+      "letMePick": "Let me pick myself",
+      "letMePickA11y": "Browse experiences manually",
       "dismissReveal": "Dismiss reveal"
     },
     "goalEdit": {
@@ -2967,5 +2990,14 @@
         "getReward": "Get Reward"
       }
     }
+  },
+  "giftFlow": {
+    "errors": {
+      "experiencesLoadFailedTitle": "Could not load experiences",
+      "experiencesLoadFailedMessage": "Check your connection and try again"
+    }
+  },
+  "experience": {
+    "locationIframeTitle": "Location"
   }
 }

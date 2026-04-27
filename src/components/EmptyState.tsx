@@ -28,8 +28,8 @@ export const EmptyState = React.memo<EmptyStateProps>(({
 
   return (
     <MotiView
-      from={{ opacity: 0, translateY: 8 }}
-      animate={{ opacity: 1, translateY: 0 }}
+      from={{ translateY: 8 }}
+      animate={{ translateY: 0 }}
       transition={{ type: 'timing', duration: 400 }}
     >
       <View style={[styles.container, style]} accessibilityRole="summary">

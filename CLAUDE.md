@@ -22,9 +22,9 @@
 1.  **Skeleton Loaders**: MUST be used for all async/loading states. No spinning wheels.
 2.  **Typography**: Use system fonts (Inter/SF Pro) properly scaled.
 3.  **Feedback**: Actions (save, delete, update) must have haptic or visual feedback (toast/animation).
-6.  **Animated Entry for Action Buttons**: Floating action buttons, menu triggers (e.g., 3-dot menus), and overlay action buttons MUST appear with a smooth entrance/exit animation via `moti`. Standard pattern: `from={{ opacity: 0, scale: 0.85, translateY: -4 }}` / `animate={{ opacity: 1, scale: 1, translateY: 0 }}` / `exit={{ opacity: 0, scale: 0.85, translateY: -4 }}` with `duration: 150`.
-4.  Implement "Glassmorphism" or "Neumorphism" where appropriate.
-5.  Ensure all forms have inline validation.
+4.  **Animated Entry for Action Buttons**: Floating action buttons, menu triggers (e.g., 3-dot menus), and overlay action buttons MUST appear with a smooth entrance/exit animation via `moti`. Standard pattern: `from={{ opacity: 0, scale: 0.85, translateY: -4 }}` / `animate={{ opacity: 1, scale: 1, translateY: 0 }}` / `exit={{ opacity: 0, scale: 0.85, translateY: -4 }}` with `duration: 150`.
+5.  Implement "Glassmorphism" or "Neumorphism" where appropriate.
+6.  Ensure all forms have inline validation.
 
 ## 🎨 Design Token Enforcement
 - **ALWAYS** use tokens from `src/config/` (Colors, Typography, Spacing, BorderRadius, Shadows).
@@ -36,7 +36,7 @@
 - **ALWAYS** use `<Avatar>` from `src/components/Avatar.tsx` for user profile images (sizes: sm/md/lg, auto-fallback to initials).
 - **ALWAYS** use `<EmptyState>` from `src/components/EmptyState.tsx` for empty list/content states.
 - **ALWAYS** use `<BaseModal>` from `src/components/BaseModal.tsx` for modal dialogs (variants: center/bottom).
-- Import pattern: `import Colors from '../config/colors';` (or `../../config/colors` from screens).
+- Import pattern: `import { Colors, useColors } from '../config';` — use `Colors.*` for static tokens (outside components, in `StyleSheet.create`), and `const colors = useColors();` inside components for theme-aware access. `useColors()` resolves from `ThemeContext` and is the standard across 116+ files; the legacy `import Colors from '../config/colors'` pattern is deprecated.
 
 ## 🛠️ Code Standards
 - **No Emojis or Icons on Buttons**: NEVER use emoji characters or icon components in button labels, titles, or menu items. Text-only buttons.
@@ -48,6 +48,28 @@
     - **Cloud Functions**: Validate all inputs (`httpsCallable`).
 - **Input Sanitization**: Use `sanitizeText` from `src/utils/sanitization.ts` for ALL user-provided string inputs before writing to Firestore or displaying in untrusted contexts. Also available: `sanitizeEmail`, `sanitizeNumber`, `sanitizeUrl`, `sanitizeProfileData`, `sanitizeGoalData`, `sanitizeComment`. Import: `import { sanitizeText } from '../utils/sanitization';`.
 - **Responsive Sizing**: Use `vh()` from `src/utils/responsive.ts` for layout dimensions that must scale with screen height. Do NOT use raw `Dimensions.get('window').height` arithmetic in screen files.
+
+## 🧩 Skill Override Notes
+
+Some Anthropic-authored skills in `.claude/skills/` (symlinked from `.agents/skills/`) give generic React Native advice that conflicts with this project's rules. When those skills are invoked, **this project's rules always win.**
+
+### `building-native-ui`
+Useful for: Reanimated, gestures, list virtualization, Hermes tips.
+**Override:** ignore its advice to:
+- Use **inline styles** — this project uses `StyleSheet.create()` + design tokens from `src/config/`.
+- Use **CSS `boxShadow`** — use `Shadows.*` tokens from `src/config/shadows`.
+- Build modals via **Expo Router `Stack.Screen presentation: 'modal'`** — this project uses React Navigation + `<BaseModal>` from `src/components/BaseModal.tsx`.
+- Use **kebab-case screen files** — this project uses PascalCase.
+
+### `ui-ux-pro-max`
+Useful for: color palettes, font pairings, chart types, design references.
+**Override:** ignore its advice to:
+- Use **spinners / progress indicators** for async loading — this project mandates **skeleton loaders only** (see `<SkeletonBox>` in `src/components/SkeletonLoader.tsx`).
+- Use **scale 0.95–1.05** for press feedback — the canonical Moti action-button pattern here is `scale: 0.85, translateY: -4, duration: 150` (see `moti` skill).
+- Build generic buttons/cards/inputs/modals — always use the project's shared components from `src/components/` (see Design Token Enforcement section above).
+
+### `frontend-design`
+**Removed from this project** (symlink deleted). It's web-only and directly contradicts the Inter/SF Pro font rule. Do not re-link without resolving the conflict.
 
 ## 🧮 Model Strategy (Token Optimization)
 - **Opus = Orchestrator**: Use the main Opus context for planning, complex reasoning, architectural decisions, debugging, and review.

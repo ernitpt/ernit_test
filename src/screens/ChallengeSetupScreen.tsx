@@ -187,6 +187,7 @@ export default function ChallengeSetupScreen() {
 
     // Analytics: track wizard start on mount
     useEffect(() => {
+        analyticsService.trackEvent('screen_view', 'navigation', { screen: 'ChallengeSetupScreen' }, 'ChallengeSetupScreen');
         analyticsService.trackEvent('challenge_setup_started', 'conversion', {});
     }, []);
 

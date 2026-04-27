@@ -47,3 +47,11 @@ Friends can buy the pledged experience for a free-goal user at any point during 
 - **Purchased Goal**: `experienceGiftId` on Goal links to `experienceGifts` document.
 - **Free Goal**: `pledgedExperience` snapshot on Goal (no purchase required to create).
 - **Gift Redeemed**: `isRedeemed` + `redeemedAt` + `redeemedGoalId` set atomically in `attachGiftToGoal`.
+
+## Related Notifications
+See `notifications-system.md` for full list. The gift/experience flow fires:
+- `gift_received` — recipient gets a new gift.
+- `experience_empowered` — a friend bought the pledged experience for a free-goal user.
+- `pending_gift_available` — fired by `onGoalCreated` trigger when a new goal is created and the user has unattached gifts waiting to be linked via `attachGiftToGoal`.
+- `payment_charged` / `payment_failed` / `payment_cancelled` — deferred gift payment outcomes.
+- `shared_start` / `shared_unlock` / `shared_completion` / `shared_session` / `shared_partner_removed` — Together/Shared challenge lifecycle.

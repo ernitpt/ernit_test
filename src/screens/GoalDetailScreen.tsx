@@ -21,6 +21,7 @@ import { Spacing } from '../config/spacing';
 import { Shadows } from '../config/shadows';
 import Button from '../components/Button';
 import { logger } from '../utils/logger';
+import { analyticsService } from '../services/AnalyticsService';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -101,6 +102,12 @@ const GoalDetailScreen: React.FC = () => {
     return Math.min(100, Math.round((goal.currentCount / goal.targetCount) * 100));
   }, [goal]);
 
+  // Screen-view enrichment — fires once goal is loaded
+  useEffect(() => {
+    if (!goal) return;
+    analyticsService.trackEvent('screen_view', 'navigation', { goalId: goal.id, weeklyPct, overallPct }, 'GoalDetailScreen');
+  }, [goal?.id]);
+
   const weekWindow = useMemo(() => {
     if (!goal?.weekStartAt) return null;
     const start = toDateSafe(goal.weekStartAt);
@@ -163,8 +170,8 @@ const GoalDetailScreen: React.FC = () => {
   return (
     <ErrorBoundary screenName="GoalDetailScreen" userId={state.user?.id}>
     <MotiView
-      from={{ opacity: 0, translateY: 8 }}
-      animate={{ opacity: 1, translateY: 0 }}
+      from={{ translateY: 8 }}
+      animate={{ translateY: 0 }}
       transition={{ type: 'timing', duration: 250 }}
       style={{ flex: 1, backgroundColor: colors.surface }}
     >

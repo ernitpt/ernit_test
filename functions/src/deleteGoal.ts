@@ -184,8 +184,27 @@ export const deleteGoal = onRequest(
                                 isRedeemed: false,
                                 redeemedGoalId: null,
                                 status: 'active',
+                                detachedAt: FieldValue.serverTimestamp(),
+                                detachReason: 'goal_removed',
                                 updatedAt: FieldValue.serverTimestamp(),
                             });
+
+                            // Notify giver that their empower gift was detached so they know
+                            // the recipient's goal is gone and the gift is once again claimable.
+                            // Skip notification when giver is the same user that owned the goal
+                            // (self-gift) — no useful signal.
+                            if (freshGiftData.giverId && freshGiftData.giverId !== goalData.userId) {
+                                tx.set(db.collection('notifications').doc(), {
+                                    userId: freshGiftData.giverId,
+                                    type: 'gift_detached',
+                                    title: 'Gift detached',
+                                    message: `${userName} removed the goal your gift was attached to. It can be attached to another of their goals.`,
+                                    data: { goalId, giftId: goalData.experienceGiftId },
+                                    read: false,
+                                    createdAt: FieldValue.serverTimestamp(),
+                                });
+                                logger.info(`[deleteGoal] Queued gift_detached notification to giver ${freshGiftData.giverId}`);
+                            }
                         }
                     }
 

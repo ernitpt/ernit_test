@@ -38,6 +38,7 @@ import { vh } from '../../utils/responsive';
 import { sanitizeText } from '../../utils/sanitization';
 import { getUserMessage } from '../../utils/AppError';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { analyticsService } from '../../services/AnalyticsService';
 
 type ConfirmationMultipleNavigationProp = NativeStackNavigationProp<
   GiverStackParamList,
@@ -95,6 +96,8 @@ const ConfirmationMultipleScreen = () => {
   }, [hasValidData, navigation]);
 
   useEffect(() => {
+    const giftCount = experienceGifts?.length ?? 0;
+    analyticsService.trackEvent('screen_view', 'navigation', { giftCount }, 'ConfirmationMultipleScreen');
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Animated.parallel([
       Animated.spring(scaleAnim, {
@@ -164,6 +167,7 @@ const ConfirmationMultipleScreen = () => {
       return;
     }
     const message = sanitizeText(raw, 500);
+    analyticsService.trackEvent('button_click', 'engagement', { buttonName: 'send_personalized_message', giftId, messageLength: message.length }, 'ConfirmationMultipleScreen');
 
     setSendingMessageId(giftId);
     try {

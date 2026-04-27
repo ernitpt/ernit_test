@@ -267,6 +267,7 @@ export default function GiftFlowScreen() {
 
     // Track gift flow started on mount
     useEffect(() => {
+        analyticsService.trackEvent('screen_view', 'navigation', { screen: 'GiftFlowScreen' }, 'GiftFlowScreen');
         analyticsService.trackEvent('gift_flow_started', 'conversion', {}, 'GiftFlowScreen');
     }, []);
 
@@ -1263,7 +1264,7 @@ export default function GiftFlowScreen() {
                             <SkeletonBox width="100%" height={60} borderRadius={12} />
                         </View>
                     ) : experienceLoadError ? (
-                        <EmptyState title="Could not load experiences" message="Check your connection and try again" />
+                        <EmptyState title={t('giftFlow.errors.experiencesLoadFailedTitle')} message={t('giftFlow.errors.experiencesLoadFailedMessage')} />
                     ) : (
                         <View style={styles.stackedCategories}>
                             {visibleCategories.map((cat) => {

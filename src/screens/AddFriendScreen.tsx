@@ -16,6 +16,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, UserSearchResult } from '../types';
 import { friendService } from '../services/FriendService';
+import { AppError } from '../utils/AppError';
+import { logErrorToFirestore } from '../utils/errorLogger';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -123,7 +125,45 @@ const AddFriendScreen: React.FC = () => {
       // 5. Rollback on failure
       logger.error('Error sending friend request:', error);
       setSearchResults(previousResults);
-      showError(t('friends.add.toast.failedRequest'));
+
+      // Persist non-business errors to Firestore so they're visible in admin tooling.
+      // Skip expected business errors (already friends, dup, rate limit) — those aren't bugs.
+      const businessCodes = ['ALREADY_FRIENDS', 'DUPLICATE_REQUEST', 'REVERSE_REQUEST', 'RATE_LIMIT', 'SELF_REQUEST'];
+      const code = error instanceof AppError ? error.code : undefined;
+      if (!code || !businessCodes.includes(code)) {
+        await logErrorToFirestore(error instanceof Error ? error : new Error(String(error)), {
+          screenName: 'AddFriendScreen',
+          feature: 'SendFriendRequest',
+          userId: currentUserId,
+          additionalData: { recipientId: user.id, errorCode: code ?? 'unknown' },
+        });
+      }
+
+      // Surface the specific reason so the user knows what to do
+      // (the old generic toast hid duplicate/already-friends/rate-limit cases).
+      if (error instanceof AppError) {
+        switch (error.code) {
+          case 'ALREADY_FRIENDS':
+            showError(t('friends.add.toast.alreadyFriends', { defaultValue: 'You are already friends with this person.' }));
+            break;
+          case 'DUPLICATE_REQUEST':
+            showError(t('friends.add.toast.duplicateRequest', { defaultValue: 'You already sent this person a friend request.' }));
+            break;
+          case 'REVERSE_REQUEST':
+            showError(t('friends.add.toast.reverseRequest', { defaultValue: 'This person already sent you a request — check your notifications.' }));
+            break;
+          case 'RATE_LIMIT':
+            showError(t('friends.add.toast.rateLimit', { defaultValue: 'Too many friend requests. Try again in a few minutes.' }));
+            break;
+          case 'SELF_REQUEST':
+            showError(t('friends.add.toast.selfRequest', { defaultValue: 'You cannot send a friend request to yourself.' }));
+            break;
+          default:
+            showError(t('friends.add.toast.failedRequest'));
+        }
+      } else {
+        showError(t('friends.add.toast.failedRequest'));
+      }
     }
   }, [currentUserId, currentUserName, currentUserProfileImageUrl, showSuccess, showError, state.user?.profile?.country]);
 

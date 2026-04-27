@@ -54,6 +54,7 @@ import { Avatar } from '../components/Avatar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FOOTER_HEIGHT } from '../components/CustomTabBar';
 import { MotiView } from 'moti';
+import { analyticsService } from '../services/AnalyticsService';
 
 // =========================
 // Goal Card (Active goals)
@@ -341,7 +342,6 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
           </View>
         ) : (
           <View style={[styles.achColorBanner, { backgroundColor: colors.primarySurface }]}>
-            <Text style={{ ...Typography.display }}>🎁</Text>
             <View style={styles.achCompletedBadge}>
               <Text style={styles.achCompletedBadgeText}>{t('profile.achievements.completed')}</Text>
             </View>
@@ -349,7 +349,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
         )}
         <View style={styles.achievementContent}>
           <Text style={styles.achievementTitle} numberOfLines={1}>{goal.title}</Text>
-          <Text style={styles.achGoalLabel} numberOfLines={1}>🎁 {pledged.title}</Text>
+          <Text style={styles.achGoalLabel} numberOfLines={1}>{pledged.title}</Text>
           <StatsRow sessions={sessions} weeks={weeks} completedAt={completedAt} />
           {canClaimExperience && (
             <TouchableOpacity
@@ -393,7 +393,6 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
         </View>
       ) : (
         <View style={[styles.achColorBanner, { backgroundColor: colors.primarySurface }]}>
-          <Text style={{ ...Typography.display }}>🎁</Text>
           <View style={styles.achCompletedBadge}>
             <Text style={styles.achCompletedBadgeText}>Completed</Text>
           </View>
@@ -411,7 +410,7 @@ const AchievementCard: React.FC<{ goal: Goal }> = React.memo(({ goal }) => {
             <Text style={styles.achievementTitle} numberOfLines={1}>
               {goal.title}
             </Text>
-            <Text style={styles.achGoalLabel} numberOfLines={1}>🎁 {experience?.title || 'Experience'}</Text>
+            <Text style={styles.achGoalLabel} numberOfLines={1}>{experience?.title || 'Experience'}</Text>
             <StatsRow sessions={sessions} weeks={weeks} completedAt={completedAt} />
           </>
         )}
@@ -532,6 +531,12 @@ const UserProfileScreen: React.FC = () => {
   // Always-current ref for state.user so rollbacks use fresh data, not a stale closure
   const stateUserRef = useRef(state.user);
   useEffect(() => { stateUserRef.current = state.user; }, [state.user]);
+
+  // Screen-view enrichment (fires once data is loaded)
+  useEffect(() => {
+    if (loading) return;
+    analyticsService.trackEvent('screen_view', 'navigation', { activeGoalsCount: activeGoals.length, completedGoalsCount: completedGoals.length, wishlistCount: wishlist.length }, 'UserProfileScreen');
+  }, [loading]);
 
   const loadProfileAndGoals = useCallback(async () => {
     if (!userId) { setLoading(false); setRefreshing(false); return; }

@@ -580,6 +580,12 @@ service cloud.firestore {
         (request.auth.uid == resource.data.senderId ||
          request.auth.uid == resource.data.recipientId);
 
+      // Admin read for admin dashboard (user detail page)
+      // Uses inline get() — matches the pattern used by experiences/partnerInvites/etc.
+      // The isAdmin() helper uses .exists() which has inconsistent behavior on list queries.
+      allow read: if request.auth != null
+        && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.isAdmin == true;
+
       allow create: if request.auth != null &&
         request.auth.uid == request.resource.data.senderId
         // Must have required fields
@@ -623,6 +629,11 @@ service cloud.firestore {
       allow read, delete: if request.auth != null &&
         (request.auth.uid == resource.data.userId ||
          request.auth.uid == resource.data.friendId);
+
+      // Admin read for admin dashboard (user detail page)
+      // Uses inline get() — matches the pattern used by experiences/partnerInvites/etc.
+      allow read: if request.auth != null
+        && get(/databases/$(database)/documents/partnerUsers/$(request.auth.uid)).data.isAdmin == true;
 
       // Creating friendship doc — creator must be one of the users AND a prior accepted
       // friendRequest must exist between these two users.
@@ -845,17 +856,21 @@ service cloud.firestore {
             || exists(/databases/$(database)/documents/friends/$(userId2 + '_' + userId1));
       }
 
-      // SECURITY DECISION (2026-03-09): Posts are readable by any authenticated user.
-      // This is intentional — Firestore rules evaluate per-document, so areFriends()
-      // checks on list queries would cause N×2 exists() calls (prohibitively expensive).
-      // Privacy is enforced client-side via friend-list filtering.
-      // Posts contain only goal progress data (no sensitive PII beyond display name).
-      // If stricter privacy is needed, migrate to per-user feed subcollections (fan-out).
+      // SECURITY DECISION (2026-03-09): List queries are readable by any authenticated
+      // user (Firestore rules evaluate per-document, so areFriends() checks on list
+      // would cause N×2 exists() calls — prohibitively expensive). List-level privacy
+      // is enforced client-side via `where('userId', 'in', [friendIds])` server-side
+      // filter in FeedService.getFriendsFeed (capped at 100 docs per query).
       //
-      // SECURITY MITIGATION (2026-03-17): get() requires ownership or friendship;
-      // list() is capped at 100 docs per query to limit bulk scraping.
-      // Posts are readable by any authenticated user (privacy enforced client-side)
-      allow get: if request.auth != null;
+      // SECURITY HARDENING (2026-04-17): Direct `get()` of a single post NOW requires
+      // ownership or friendship. This closes the attack where a user enumerates post
+      // IDs and fetches arbitrary goal-progress data. Legitimate direct reads
+      // (CommentService.getDoc on comment-target, post-owner viewing own post) both
+      // satisfy the check. `getFeedPost` is unused client-side.
+      allow get: if request.auth != null && (
+        request.auth.uid == resource.data.userId
+        || areFriends(request.auth.uid, resource.data.userId)
+      );
       allow list: if request.auth != null && request.query.limit <= 100;
 
       // Create: users can create their own posts OR givers can create goal_approved posts for recipients
@@ -964,16 +979,22 @@ service cloud.firestore {
      * 📊 ANALYTICS EVENTS
      * ===================== **/
     match /events/{eventId} {
-      // Write-only: authenticated users can create events, no client reads
-      // SECURITY FIX (HIGH-5): Added field validation to prevent arbitrary data injection
-      allow create: if request.auth != null
-        && request.auth.uid == request.resource.data.userId
+      // Write-only: authenticated users AND anonymous (pre-auth) sessions can create events.
+      // Anonymous events use userId == 'anonymous'; authenticated must match their uid.
+      // This enables pre-signup funnel measurement (landing → signup conversion).
+      // SECURITY: Field validation prevents arbitrary data injection; client-side rate limit
+      // (60 events/min/session in AnalyticsService) limits anonymous spam.
+      allow create: if
+        (request.auth == null
+          ? request.resource.data.userId == 'anonymous'
+          : (request.resource.data.userId == request.auth.uid || request.resource.data.userId == 'anonymous'))
         && request.resource.data.keys().hasOnly(['eventName', 'category', 'userId', 'timestamp', 'properties', 'sessionId', 'screenName', 'userAgent', 'environment'])
         && request.resource.data.eventName is string
         && request.resource.data.eventName.size() <= 100
         && request.resource.data.category is string
         && request.resource.data.category.size() <= 50
         && request.resource.data.userId is string
+        && request.resource.data.userId.size() <= 128
         && (!('screenName' in request.resource.data) || (
           request.resource.data.screenName is string &&
           request.resource.data.screenName.size() <= 100))

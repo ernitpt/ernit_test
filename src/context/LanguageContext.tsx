@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Localization from 'expo-localization';
 import i18n from '../i18n';
 
 export type AppLanguage = 'en' | 'pt';
@@ -23,24 +22,12 @@ export const useLanguage = () => {
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<AppLanguage>('en');
 
-  // Load persisted language on mount
+  // Load persisted language on mount. Default is English — user must explicitly switch to Portuguese.
   useEffect(() => {
     AsyncStorage.getItem(LANGUAGE_STORAGE_KEY).then(stored => {
       if (stored === 'en' || stored === 'pt') {
         setLanguageState(stored);
         i18n.changeLanguage(stored);
-      } else {
-        // No stored preference — detect device locale
-        try {
-          const locales = Localization.getLocales();
-          const deviceLang = locales[0]?.languageTag || '';
-          if (deviceLang.startsWith('pt')) {
-            setLanguageState('pt');
-            i18n.changeLanguage('pt');
-          }
-        } catch {
-          // Fallback to English
-        }
       }
     }).catch(() => {});
   }, []);

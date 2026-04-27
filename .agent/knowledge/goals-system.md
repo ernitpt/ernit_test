@@ -45,10 +45,15 @@ Self-set challenges — no purchase required. Created via `createFreeGoal()`.
 - `attachGiftToGoal()` links a purchased gift to an existing free goal
 
 ### Screens
-- `PledgeGoalSettingScreen` — Goal type, duration, sessions, optional experience selection
-- `FreeGoalCompletionScreen` — Shown when a free goal is completed
-- `ChallengeLandingScreen` — Public marketing landing page for free challenges
-- `ChallengeSetupScreen` — Challenge builder (goal type + sliders + optional experience)
+- `src/screens/recipient/GoalSettingScreen.tsx` — Goal type, duration, sessions, optional experience selection (used for both purchased and free goals)
+- `src/screens/recipient/CompletedGoalCard.tsx` — Inline completion card shown in `GoalDetailScreen` when a goal is finished (no standalone completion screen)
+- `src/screens/ChallengeLandingScreen.tsx` — Public marketing landing page for free challenges
+- `src/screens/ChallengeSetupScreen.tsx` — Challenge builder (goal type + sliders + optional experience)
+- `src/screens/GiftFlowScreen.tsx` — Multi-step gift creation wizard (challenge type → experience → payment → reveal → confirm)
+
+### Firestore Triggers
+- `functions/src/triggers/onGoalCreated.ts` — Fires on new goal creation; sends `pending_gift_available` notification to the owner if they have unattached gifts waiting to be linked.
+- `functions/src/triggers/chargeDeferredGift.ts` — Fires on `goals/{goalId}` updates where `isCompleted` transitions to `true`. Handles deferred payment capture and shared-challenge unlock.
 
 ## Motivations System (`MotivationService.ts`)
 Friends leave encouragement messages for goal owners. Stored as subcollection: `goals/{goalId}/motivations`.

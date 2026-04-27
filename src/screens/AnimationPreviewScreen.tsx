@@ -10,6 +10,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import StreakBanner from './recipient/components/StreakBanner';
 import { Colors, useColors } from '../config';
+import { analyticsService } from '../services/AnalyticsService';
 import { Typography } from '../config/typography';
 import { BorderRadius } from '../config/borderRadius';
 import { Spacing } from '../config/spacing';
@@ -24,6 +25,11 @@ const AnimationPreviewScreen = () => {
   const [autoPlay, setAutoPlay] = useState(false);
   const [speed, setSpeed] = useState(1);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Screen-view enrichment
+  useEffect(() => {
+    analyticsService.trackEvent('screen_view', 'navigation', { debugScreen: true }, 'AnimationPreviewScreen');
+  }, []);
 
   // Auto-play
   useEffect(() => {

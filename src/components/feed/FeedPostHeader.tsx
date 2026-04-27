@@ -34,12 +34,22 @@ const FeedPostHeader: React.FC<FeedPostHeaderProps> = ({
                 accessibilityRole="button"
                 accessibilityLabel={t('feed.postHeader.viewProfile', { userName })}
             >
-                <Avatar
-                    uri={userProfileImageUrl}
-                    name={userName}
-                    size="md"
-                    style={{ borderWidth: 2, borderColor: typeColor + '4D' }}
-                />
+                <View
+                    style={{
+                        borderWidth: 2,
+                        borderColor: typeColor,
+                        borderRadius: 26,
+                        padding: 2,
+                    }}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                >
+                    <Avatar
+                        uri={userProfileImageUrl}
+                        name={userName}
+                        size="md"
+                    />
+                </View>
 
                 <View style={styles.headerInfo}>
                     <Text style={styles.userName} numberOfLines={1}>

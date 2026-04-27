@@ -10,8 +10,6 @@
     "lint": "echo \"Skipping lint\"",
     "build": "expo export --platform web",
     "deploy": "firebase deploy --only functions",
-    "migrate:feed:preview": "tsc && node dist/utils/feedBackfillMigration.js",
-    "migrate:feed": "tsc && node dist/utils/feedBackfillMigration.js execute",
     "log": "node scripts/log-change.js",
     "test": "jest --passWithNoTests"
   },

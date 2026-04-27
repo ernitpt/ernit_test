@@ -1,3 +1,8 @@
+---
+name: data-gathering
+description: Standardizes analytics event tracking across the Ernit app via the centralized AnalyticsService singleton. Use whenever adding, modifying, or reviewing analytics tracking (trackEvent, trackScreenView, trackButtonClick) or changing the events Firestore collection schema.
+---
+
 # Data Gathering Skill
 
 ## Purpose

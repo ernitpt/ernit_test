@@ -59,8 +59,8 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void
 
   return (
     <MotiView
-      from={{ opacity: 0, translateY: -20, scale: 0.95 }}
-      animate={{ opacity: 1, translateY: 0, scale: 1 }}
+      from={{ translateY: -20, scale: 0.95 }}
+      animate={{ translateY: 0, scale: 1 }}
       exit={{ opacity: 0, translateY: -20, scale: 0.95 }}
       transition={{ type: 'timing', duration: 250 }}
       style={[

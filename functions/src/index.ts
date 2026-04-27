@@ -16,6 +16,7 @@ import { sendContactEmail } from "./sendContactEmail";
 import { createFreeGift } from "./createFreeGift";
 import { createDeferredGift } from "./createDeferredGift";
 import { chargeDeferredGift } from "./triggers/chargeDeferredGift";
+import { onGoalCreated } from "./triggers/onGoalCreated";
 import { onUserDeleted } from "./triggers/onUserDeleted";
 import { retryFailedCharges } from "./retryFailedCharges";
 
@@ -53,6 +54,7 @@ if (process.env.FUNCTIONS_EMULATOR === 'true' || process.env.DEPLOY_TEST_FUNCTIO
     const { createFreeGift_Test } = require("./createFreeGift_Test");
     const { createDeferredGift_Test } = require("./createDeferredGift_Test");
     const { chargeDeferredGift_Test } = require("./triggers/chargeDeferredGift_Test");
+    const { onGoalCreated_Test } = require("./triggers/onGoalCreated_Test");
     const { deleteGoal_Test } = require("./deleteGoal_Test");
     const { onUserDeleted_Test } = require("./triggers/onUserDeleted_Test");
 
@@ -69,6 +71,7 @@ if (process.env.FUNCTIONS_EMULATOR === 'true' || process.env.DEPLOY_TEST_FUNCTIO
     exports.createFreeGift_Test = createFreeGift_Test;
     exports.createDeferredGift_Test = createDeferredGift_Test;
     exports.chargeDeferredGift_Test = chargeDeferredGift_Test;
+    exports.onGoalCreated_Test = onGoalCreated_Test;
     exports.deleteGoal_Test = deleteGoal_Test;
     exports.onUserDeleted_Test = onUserDeleted_Test;
 }
@@ -93,6 +96,7 @@ export {
     createFreeGift,
     createDeferredGift,
     chargeDeferredGift,
+    onGoalCreated,
     onUserDeleted,
     retryFailedCharges,
 };

@@ -8,7 +8,6 @@ import {
     Animated,
     Platform,
     ScrollView,
-    ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
@@ -213,7 +212,7 @@ const FeedScreen: React.FC = () => {
         loadFeed(true);
     }, [isLoadingMore, hasMore, isLoading, loadFeed]); // FIX 5B: added loadFeed dep
 
-    const renderPost = useCallback(({ item }: { item: FeedPostType }) => {
+    const renderPost = useCallback(({ item, index }: { item: FeedPostType; index: number }) => {
         const isHighlighted = item.id === highlightedPostId;
 
         const borderColor = isHighlighted
@@ -242,14 +241,11 @@ const FeedScreen: React.FC = () => {
             </Animated.View>
         );
 
-        // Skip MotiView on Android — opacity:0 animation causes white flash artifacts
-        if (Platform.OS === 'android') return card;
-
         return (
             <MotiView
                 from={{ opacity: 0, translateY: 12 }}
                 animate={{ opacity: 1, translateY: 0 }}
-                transition={{ type: 'timing', duration: 350 }}
+                transition={{ type: 'spring', damping: 18, delay: Math.min(index * 50, 300) }}
             >
                 {card}
             </MotiView>
@@ -342,7 +338,8 @@ const FeedScreen: React.FC = () => {
                         ListEmptyComponent={renderEmpty}
                         ListFooterComponent={isLoadingMore ? (
                             <View style={styles.loadingMore}>
-                                <ActivityIndicator size="small" color={colors.textMuted} />
+                                <FeedPostSkeleton />
+                                <FeedPostSkeleton />
                             </View>
                         ) : null}
                         showsVerticalScrollIndicator={false}

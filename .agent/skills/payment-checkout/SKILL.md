@@ -243,4 +243,4 @@ Use this before submitting any PR that touches payment or checkout code:
 - [ ] Self-purchase with goalId: gift auto-attached via `goalService.attachGiftToGoal()`
 - [ ] ConfirmationScreen validates route params and redirects if invalid
 - [ ] Navigation adapts based on flow type (empower / self-purchase / gift-to-others)
-- [ ] Skeleton loaders or ActivityIndicator used for all loading states
+- [ ] Skeleton loaders used for all loading states (no `ActivityIndicator` — CLAUDE.md forbids spinners)

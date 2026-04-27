@@ -9,11 +9,14 @@ description: Enforces consistent form handling, input validation, and submission
 
 All forms in the Ernit app follow a single set of conventions for styling, validation, state management, and submission. This skill codifies those patterns so every form is predictable and accessible.
 
+**Component-first rule (per CLAUDE.md):** Every text field should use the shared `<TextInput>` component at [src/components/TextInput.tsx](../../../src/components/TextInput.tsx), which has label, error, helper-text, disabled, success, and icon states built in. Only drop down to a raw `RNTextInput` when `<TextInput>` genuinely can't meet your case.
+
 **Announce at start:** "I'm using the form-validation skill to ensure consistent form handling."
 
 ## Key Imports
 ```tsx
-import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
+import { TextInput } from '../components/TextInput';
+import { Colors, useColors, Typography, Spacing, BorderRadius, Shadows } from '../config';
 import { validateEmail } from '../utils/helpers';
 import { sanitizeText, sanitizeComment, sanitizeNumber, MAX_LENGTHS } from '../utils/sanitization';
 import { logErrorToFirestore } from '../utils/errorLogger';
@@ -21,9 +24,55 @@ import { logErrorToFirestore } from '../utils/errorLogger';
 
 ---
 
-## 1. Input Field Styling
+## 1. Input Fields — `<TextInput>` component (preferred)
 
-Every `TextInput` must use design tokens. Never hardcode colors, radii, or spacing.
+**Use the shared component for every form field.** It handles label, error, helper text, disabled state, focus ring, success state, and left/right icons — matching the project's visual standard without any manual styling.
+
+```tsx
+import { TextInput } from '../components/TextInput';
+
+<TextInput
+  label="Email"
+  placeholder="you@example.com"
+  value={formData.email}
+  onChangeText={(v) => handleChange('email', v)}
+  error={errors.email}
+  helperText="We'll never share this"
+  keyboardType="email-address"
+  autoCapitalize="none"
+  accessibilityLabel="Email address"
+/>
+```
+
+**Props of interest:**
+- `label?: string` — renders styled label above input
+- `error?: string` — renders red border + error text below; do not combine with `helperText`
+- `helperText?: string` — gray helper text below input
+- `success?: boolean` + `successText?: string` — green state
+- `disabled?: boolean`
+- `leftIcon` / `rightIcon: ReactNode`
+- All standard `RNTextInputProps` pass through (`keyboardType`, `multiline`, `maxLength`, etc.)
+
+**Multiline example:**
+```tsx
+<TextInput
+  label="Message"
+  placeholder="Write your message..."
+  value={text}
+  onChangeText={setText}
+  multiline
+  maxLength={500}
+  error={errors.message}
+/>
+```
+
+**Why `<TextInput>` over raw styling:** consistent focus ring (`colors.secondary`), consistent error color (`colors.error`), consistent disabled appearance, automatic `accessibilityLabel` fallback from `label`, theme-aware colors via `useColors()`. One fix propagates everywhere.
+
+---
+
+## 1b. Raw Input Styling (legacy / escape hatch only)
+
+**Only when `<TextInput>` cannot cover your case** (e.g., editing a pre-component screen, or a specialized input like the checkout number fields). Always use design tokens — never hardcode colors, radii, or spacing.
 
 **Standard single-line input:**
 ```tsx

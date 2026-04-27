@@ -18,6 +18,7 @@ import i18n from './src/i18n';
 import ToastOverlay from './src/components/Toast';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { logger } from './src/utils/logger';
+import { installGlobalErrorHandlers } from './src/utils/globalErrorHandlers';
 import NativeStripeProvider from './src/components/NativeStripeProvider';
 
 import {
@@ -94,6 +95,9 @@ export default function App() {
 
   useEffect(() => {
     logger.log('[App] useEffect running...');
+
+    // Install global error handlers FIRST so any subsequent init errors are captured
+    installGlobalErrorHandlers();
 
     // Setup local notification handler
     try {

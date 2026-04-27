@@ -38,6 +38,7 @@ import HowItWorksModal from './HowItWorksModal';
 import { logger } from '../utils/logger';
 import { DateHelper } from '../utils/DateHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { pushNotificationService } from '../services/PushNotificationService';
 import { Colors, Typography, Spacing, BorderRadius, Shadows, Animations } from '../config';
 import { useToast } from '../context/ToastContext';
 import { userService } from '../services/userService';
@@ -336,6 +337,14 @@ const SideMenu: React.FC<SideMenuProps> = ({ visible, onClose }) => {
     onClose();
     try {
       try { await AsyncStorage.removeItem('global_timer_state'); } catch {}
+
+      // Remove this device's FCM token from the current user's Firestore doc BEFORE
+      // signing out. Prevents a subsequent user logging in on this device from
+      // inheriting push notifications intended for the logged-out user.
+      const currentUserId = state.user?.id;
+      if (currentUserId) {
+        try { await pushNotificationService.removeTokenForUser(currentUserId); } catch {}
+      }
 
       DateHelper.reset();
 

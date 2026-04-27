@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatLocalDate } from '../utils/i18nHelpers';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -35,6 +35,7 @@ import ErrorRetry from '../components/ErrorRetry';
 import { EmptyState } from '../components/EmptyState';
 import { FOOTER_HEIGHT } from '../components/CustomTabBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { analyticsService } from '../services/AnalyticsService';
 
 type FriendsListNavigationProp = NativeStackNavigationProp<RootStackParamList, 'FriendsList'>;
 
@@ -107,6 +108,12 @@ const FriendsListScreen: React.FC = () => {
     }, [loadFriends])
   );
 
+  // Screen-view enrichment
+  useEffect(() => {
+    if (isLoading) return;
+    analyticsService.trackEvent('screen_view', 'navigation', { friendCount: friends.length }, 'FriendsListScreen');
+  }, [isLoading, friends.length]);
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadFriends(true);
@@ -114,6 +121,7 @@ const FriendsListScreen: React.FC = () => {
   }, [loadFriends]);
 
   const handleFriendPress = useCallback((friendId: string) => {
+    analyticsService.trackEvent('button_click', 'engagement', { buttonName: 'view_friend', friendId }, 'FriendsListScreen');
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     navigation.navigate('MainTabs', { screen: 'FeedTab', params: { screen: 'FriendProfile', params: { userId: friendId } } });
   }, [navigation]);
@@ -124,8 +132,8 @@ const FriendsListScreen: React.FC = () => {
 
     return (
       <MotiView
-        from={{ opacity: 0, translateY: 10 }}
-        animate={{ opacity: 1, translateY: 0 }}
+        from={{ translateY: 10 }}
+        animate={{ translateY: 0 }}
         transition={{ type: 'timing', duration: 300 }}
       >
         <View style={styles.friendItem}>
@@ -176,7 +184,7 @@ const FriendsListScreen: React.FC = () => {
             </Text>
 
             <TouchableOpacity
-              onPress={() => navigation.navigate('AddFriend')}
+              onPress={() => { analyticsService.trackEvent('button_click', 'engagement', { buttonName: 'add_friend' }, 'FriendsListScreen'); navigation.navigate('AddFriend'); }}
               style={styles.addFriendIconButton}
               activeOpacity={0.7}
               accessibilityRole="button"

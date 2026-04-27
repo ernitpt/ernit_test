@@ -63,6 +63,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { vh } from '../../utils/responsive';
 import { toJSDate } from '../../utils/GoalHelpers';
 import Button from '../../components/Button';
+import { analyticsService } from '../../services/AnalyticsService';
 
 // ─── Shared Helpers ──────────────────────────────────────────────────────────
 const fmtDurationShort = (secs: number): string => {
@@ -1163,6 +1164,7 @@ const JourneyScreen = () => {
 
   const handleCopyCoupon = useCallback(async () => {
     if (!couponCode) return;
+    analyticsService.trackEvent('button_click', 'engagement', { buttonName: 'copy_code' }, 'JourneyScreen');
     await Clipboard.setStringAsync(couponCode);
     setIsCopied(true);
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
@@ -1250,6 +1252,12 @@ const JourneyScreen = () => {
   const handleCancelBooking = useCallback(() => {
     setShowCalendar(false);
   }, []);
+
+  // Screen-view enrichment
+  useEffect(() => {
+    if (!currentGoal?.id) return;
+    analyticsService.trackEvent('screen_view', 'navigation', { goalId: currentGoal.id, sessionsLogged: sessions.length, isCompleted: currentGoal.isCompleted }, 'JourneyScreen');
+  }, [currentGoal?.id, sessions.length]);
 
   // ─── Hints data ──────────────────────────────────────────────────────────
   const hintsArray =
@@ -1629,14 +1637,7 @@ const JourneyScreen = () => {
               <Button
                 variant="primary"
                 title={t('recipient.journey.completed.shareAchievement')}
-                onPress={() => navigation.navigate('ShareGoal', {
-                  goal: currentGoal,
-                  experienceGift: currentGoal.pledgedExperience ? {
-                    pledgedExperience: currentGoal.pledgedExperience,
-                  } as any : undefined,
-                  sessions: sessions,
-                  sessionStreak: currentGoal.completionStreak,
-                })}
+                onPress={() => { analyticsService.trackEvent('share_goal_completed', 'social', { goalId: currentGoal.id, channel: 'native_share' }, 'JourneyScreen'); navigation.navigate('ShareGoal', { goal: currentGoal, experienceGift: currentGoal.pledgedExperience ? { pledgedExperience: currentGoal.pledgedExperience } as any : undefined, sessions: sessions, sessionStreak: currentGoal.completionStreak }); }}
                 fullWidth
               />
             </View>

@@ -6,7 +6,7 @@
  * builds a preference profile used by DiscoveryService for experience matching.
  */
 
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     View,
     Text,
@@ -46,7 +46,13 @@ interface QuizQuestion {
 export interface DiscoveryQuizModalProps {
     visible: boolean;
     onClose: () => void;
-    onAnswer: (questionId: string, answer: string) => void;
+    /**
+     * Called with the selected answer. Must be async — the quiz awaits it
+     * before closing so the parent can complete Firestore writes and patch
+     * the post-session flow state (e.g. setNeedsReveal) before the flow
+     * advances to the next step.
+     */
+    onAnswer: (questionId: string, answer: string) => Promise<void> | void;
     questionsCompleted: number; // 0–5, determines which question to show next
     category: QuizCategory;
 }
@@ -192,9 +198,10 @@ interface OptionCardProps {
     option: QuizOption;
     onSelect: () => void;
     delay: number;
+    disabled?: boolean;
 }
 
-const OptionCard: React.FC<OptionCardProps> = ({ option, onSelect, delay }) => {
+const OptionCard: React.FC<OptionCardProps> = ({ option, onSelect, delay, disabled }) => {
     const colors = useColors();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -233,15 +240,17 @@ const OptionCard: React.FC<OptionCardProps> = ({ option, onSelect, delay }) => {
             transition={{ type: 'timing', duration: 280, delay }}
             style={styles.optionCardWrapper}
         >
-            <Animated.View style={{ transform: [{ scale: scaleAnim }], flex: 1 }}>
+            <Animated.View style={{ transform: [{ scale: scaleAnim }], flex: 1, opacity: disabled ? 0.5 : 1 }}>
                 <TouchableOpacity
                     onPress={handlePress}
-                    onPressIn={handlePressIn}
-                    onPressOut={handlePressOut}
+                    onPressIn={disabled ? undefined : handlePressIn}
+                    onPressOut={disabled ? undefined : handlePressOut}
                     activeOpacity={1}
                     style={styles.optionCard}
+                    disabled={disabled}
                     accessibilityRole="button"
                     accessibilityLabel={option.label}
+                    accessibilityState={{ disabled: !!disabled }}
                 >
                     <Text style={styles.optionEmoji}>{option.emoji}</Text>
                     <Text style={styles.optionLabel}>{option.label}</Text>
@@ -265,11 +274,23 @@ const DiscoveryQuizModal: React.FC<DiscoveryQuizModalProps> = ({
     const { t } = useTranslation();
 
     const questions = useMemo(() => getQuestions(t)[category], [t, category]);
-    // Clamp index within bounds — if all 5 done, nothing to show
+    // Clamp index within bounds — if all questions done, nothing to show
     const questionIndex = Math.min(questionsCompleted, questions.length - 1);
     const currentQuestion = questions[questionIndex];
+    const allDone = questionsCompleted >= questions.length;
 
-    if (questionsCompleted >= questions.length) return null;
+    const [submitting, setSubmitting] = useState(false);
+
+    // Guard: if the quiz somehow opens after every question has been answered
+    // (e.g. match repeatedly failed and kept the quiz eligible), auto-close so
+    // the user doesn't get stuck staring at an empty BaseModal body.
+    useEffect(() => {
+        if (visible && allDone) {
+            onClose();
+        }
+    }, [visible, allDone, onClose]);
+
+    if (allDone) return null;
 
     // ─── Category accent colors (distinct per category for playfulness) ──────
     const CATEGORY_ACCENTS: Record<QuizCategory, { bg: string; border: string; text: string }> = {
@@ -295,10 +316,19 @@ const DiscoveryQuizModal: React.FC<DiscoveryQuizModalProps> = ({
     const isFirstQuestion = questionsCompleted === 0;
     const titleText = isFirstQuestion ? t('modals.discoveryQuiz.firstQuestion') : t('modals.discoveryQuiz.nextQuestion');
 
-    const handleSelect = useCallback((answer: string) => {
-        onAnswer(currentQuestion.id, answer);
-        onClose();
-    }, [onAnswer, currentQuestion.id, onClose]);
+    const handleSelect = useCallback(async (answer: string) => {
+        if (submitting) return;
+        setSubmitting(true);
+        try {
+            // Await the async answer pipeline (saveQuizAnswer → optional matchExperience →
+            // setNeedsReveal if ready) BEFORE closing. Ensures flow.advance() — called by
+            // onClose — sees the updated needsReveal snapshot and routes to 'reveal'.
+            await onAnswer(currentQuestion.id, answer);
+        } finally {
+            setSubmitting(false);
+            onClose();
+        }
+    }, [onAnswer, currentQuestion.id, onClose, submitting]);
 
     const handleSkip = useCallback(() => {
         if (Platform.OS !== 'web') {
@@ -368,11 +398,13 @@ const DiscoveryQuizModal: React.FC<DiscoveryQuizModalProps> = ({
                                 option={currentQuestion.options[0]}
                                 onSelect={() => handleSelect(currentQuestion.options[0].value)}
                                 delay={180}
+                                disabled={submitting}
                             />
                             <OptionCard
                                 option={currentQuestion.options[1]}
                                 onSelect={() => handleSelect(currentQuestion.options[1].value)}
                                 delay={240}
+                                disabled={submitting}
                             />
                         </View>
 

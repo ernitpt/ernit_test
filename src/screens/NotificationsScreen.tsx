@@ -45,6 +45,7 @@ import * as Haptics from 'expo-haptics';
 import { EmptyState } from '../components/EmptyState';
 import Button from '../components/Button';
 import { FOOTER_HEIGHT } from '../components/CustomTabBar';
+import RootFooterTabBar from '../components/RootFooterTabBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
@@ -118,6 +119,11 @@ const NotificationsScreen = () => {
     }
     return map;
   }, [notifications]);
+
+  // Analytics: track screen view on mount
+  useEffect(() => {
+    analyticsService.trackEvent('screen_view', 'navigation', { screen: 'NotificationsScreen' }, 'NotificationsScreen');
+  }, []);
 
   useEffect(() => {
     if (!userId) return;
@@ -315,7 +321,17 @@ const NotificationsScreen = () => {
                 // Check if gift is already attached before attempting
                 const existingGoal = await goalService.getGoalById(n.data.goalId);
                 if (!existingGoal?.giftAttachedAt) {
-                  await goalService.attachGiftToGoal(n.data.goalId, n.data.giftId, n.data.giverId || userId!, n.data.isMystery === true, userId!);
+                  try {
+                    await goalService.attachGiftToGoal(n.data.goalId, n.data.giftId, n.data.giverId || userId!, n.data.isMystery === true, userId!);
+                  } catch (attachErr: unknown) {
+                    // Treat race-condition errors as success: another path has already
+                    // attached this gift (e.g. a duplicate notification fired or the
+                    // user tapped twice). Re-fetch to confirm before reporting success.
+                    const code = (attachErr as { code?: string } | undefined)?.code;
+                    const isRace = code === 'DUPLICATE_GIFT' || code === 'GIFT_REDEEMED';
+                    if (!isRace) throw attachErr;
+                    logger.info(`Gift attach race resolved gracefully (${code})`);
+                  }
                 }
                 // H9: getGoalById after attach is wrapped in its own try/catch with fallback navigation
                 let goal = existingGoal?.giftAttachedAt ? existingGoal : null;
@@ -341,7 +357,12 @@ const NotificationsScreen = () => {
                 }
               } catch (error: unknown) {
                 logger.error('Error attaching empowered gift:', error);
-                showError('Could not attach the gift. Please try again.');
+                const code = (error as { code?: string } | undefined)?.code;
+                if (code === 'GIFT_EXPIRED') {
+                  showError('This gift has expired and can no longer be attached.');
+                } else {
+                  showError('Could not attach the gift. Please try again.');
+                }
                 navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Goals' } }); // H9: fallback navigation so user is never stranded
               }
             },
@@ -398,6 +419,18 @@ const NotificationsScreen = () => {
       } else {
         navigation.navigate('PurchasedGifts');
       }
+    }
+
+    // payment_cancelled — goal (and possibly gift) was removed before charge. No destination
+    // to navigate to; route to PurchasedGifts so the giver can see the cancellation in context.
+    if (n.type === 'payment_cancelled') {
+      navigation.navigate('PurchasedGifts');
+    }
+
+    // shared_partner_removed — the other partner left the shared challenge. Goal context
+    // may be stale/missing; route to the Goals list so user can re-engage from there.
+    if (n.type === 'shared_partner_removed') {
+      navigation.navigate('MainTabs', { screen: 'GoalsTab', params: { screen: 'Goals' } });
     }
 
     if ((n.type === 'goal_approval_response' || n.type === 'goal_edit_response') && n.data?.goalId) {
@@ -922,9 +955,17 @@ const NotificationsScreen = () => {
     }
 
     // Handle shared/together challenge notifications
-    if (item.type === 'shared_start' || item.type === 'shared_unlock' || item.type === 'shared_completion') {
-      const accentColor = item.type === 'shared_unlock' ? colors.success : colors.primary;
-      const bgColor = item.type === 'shared_unlock' ? colors.successLight : colors.primarySurface;
+    if (item.type === 'shared_start' || item.type === 'shared_unlock' || item.type === 'shared_completion' || item.type === 'shared_partner_removed') {
+      const accentColor = item.type === 'shared_unlock'
+        ? colors.success
+        : item.type === 'shared_partner_removed'
+          ? colors.warning
+          : colors.primary;
+      const bgColor = item.type === 'shared_unlock'
+        ? colors.successLight
+        : item.type === 'shared_partner_removed'
+          ? colors.warningLight
+          : colors.primarySurface;
       return (
         <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <TouchableOpacity
@@ -964,10 +1005,11 @@ const NotificationsScreen = () => {
     }
 
     // Handle payment notifications
-    if (item.type === 'payment_charged' || item.type === 'payment_failed') {
+    if (item.type === 'payment_charged' || item.type === 'payment_failed' || item.type === 'payment_cancelled') {
       const isFailure = item.type === 'payment_failed';
-      const accentColor = isFailure ? colors.error : colors.success;
-      const bgColor = isFailure ? colors.errorLight : colors.successLight;
+      const isCancelled = item.type === 'payment_cancelled';
+      const accentColor = isFailure ? colors.error : isCancelled ? colors.warning : colors.success;
+      const bgColor = isFailure ? colors.errorLight : isCancelled ? colors.warningLight : colors.successLight;
       return (
         <Animated.View entering={FadeInDown.delay(index * 40).duration(300).springify().damping(20)} style={{ backgroundColor: colors.surface }}>
           <TouchableOpacity
@@ -981,7 +1023,7 @@ const NotificationsScreen = () => {
           >
             <View style={styles.reminderCardContent}>
               <View style={[styles.reminderIconContainer, { backgroundColor: bgColor }]}>
-                {isFailure
+                {isFailure || isCancelled
                   ? <AlertCircle size={24} color={accentColor} />
                   : <CreditCard size={24} color={accentColor} />}
               </View>
@@ -1175,7 +1217,7 @@ const NotificationsScreen = () => {
           }
         />
 
-        <View accessibilityLiveRegion="polite">
+        <View accessibilityLiveRegion="polite" style={{ flex: 1 }}>
         {loading ? (
           <ScrollView contentContainerStyle={[styles.listContainer, { paddingBottom: Spacing.xl + FOOTER_HEIGHT + insets.bottom }]}>
             <NotificationSkeleton />
@@ -1248,6 +1290,7 @@ const NotificationsScreen = () => {
         onCancel={() => setClearNotificationId(null)}
         variant="danger"
       />
+      <RootFooterTabBar />
       </View>
     </ErrorBoundary>
   );

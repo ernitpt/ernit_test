@@ -775,12 +775,19 @@ const AuthScreen = () => {
       await logErrorToFirestore(error instanceof Error ? error : new Error('Password reset failed'), {
         screenName: 'AuthScreen',
         feature: 'PasswordReset',
-        additionalData: { emailDomain: email.split('@')[1] || 'unknown' }
+        additionalData: { emailDomain: email.split('@')[1] || 'unknown', errorCode: firebaseError.code }
       });
-      let message = t('authErrors.passwordResetFailed');
-      if (firebaseError.code === 'auth/invalid-email') message = t('authErrors.invalidEmailAddress');
-      if (firebaseError.code === 'auth/user-not-found') message = t('authErrors.passwordResetUserNotFound');
-      showError(message);
+      // Prevent email enumeration: for `auth/user-not-found` (and any other account
+      // existence signal), show the same success message as a real send. Only reveal
+      // a distinct error for syntactic problems (invalid-email) or transport errors
+      // that cannot reveal whether the account exists.
+      if (firebaseError.code === 'auth/invalid-email') {
+        showError(t('authErrors.invalidEmailAddress'));
+      } else if (firebaseError.code === 'auth/user-not-found') {
+        showSuccess(t('authErrors.passwordResetEmailSent'));
+      } else {
+        showError(t('authErrors.passwordResetFailed'));
+      }
     }
   };
 

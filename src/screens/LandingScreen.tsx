@@ -14,6 +14,7 @@ import { Colors, useColors } from '../config';
 import { Typography } from '../config/typography';
 import { Spacing } from '../config/spacing';
 import { useTranslation } from 'react-i18next';
+import { analyticsService } from '../services/AnalyticsService';
 
 type LandingScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Landing'>;
 
@@ -25,6 +26,11 @@ const LandingScreen = () => {
   const navigation = useNavigation<LandingScreenNavigationProp>();
   const { state } = useApp();
 
+  // Track landing page view
+  useEffect(() => {
+    analyticsService.trackEvent('landing_page_viewed', 'navigation', {}, 'LandingScreen');
+  }, []);
+
   // Redirect authenticated users to Goals
   useEffect(() => {
     if (state.user?.id) {
@@ -33,10 +39,12 @@ const LandingScreen = () => {
   }, [state.user?.id, navigation]);
 
   const handleSignIn = useCallback(() => {
+    analyticsService.trackEvent('landing_cta_tapped', 'conversion', { cta: 'sign_in' }, 'LandingScreen');
     navigation.navigate('Auth', { mode: 'signin' });
   }, [navigation]);
 
   const handleSignUp = useCallback(() => {
+    analyticsService.trackEvent('landing_cta_tapped', 'conversion', { cta: 'sign_up' }, 'LandingScreen');
     navigation.navigate('Auth', { mode: 'signup' });
   }, [navigation]);
 
@@ -52,8 +60,8 @@ const LandingScreen = () => {
 
           {/* Top Section - Logo & Tagline */}
           <MotiView
-            from={{ opacity: 0, translateY: 20 }}
-            animate={{ opacity: 1, translateY: 0 }}
+            from={{ translateY: 20 }}
+            animate={{ translateY: 0 }}
             transition={{ type: 'timing', duration: 600, delay: 200 }}
           >
             <View style={styles.topSection}>
@@ -80,8 +88,8 @@ const LandingScreen = () => {
 
           {/* Bottom Section - Two Options */}
           <MotiView
-            from={{ opacity: 0, translateY: 20 }}
-            animate={{ opacity: 1, translateY: 0 }}
+            from={{ translateY: 20 }}
+            animate={{ translateY: 0 }}
             transition={{ type: 'timing', duration: 600, delay: 500 }}
           >
             <View style={styles.bottomSection}>

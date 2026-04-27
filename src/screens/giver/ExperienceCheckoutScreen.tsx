@@ -15,7 +15,7 @@ import {
   KeyboardAvoidingView,
 } from "react-native";
 import { CheckoutSkeleton } from '../../components/SkeletonLoader';
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute, CommonActions } from "@react-navigation/native";
 import { useBeforeRemove } from '../../hooks/useBeforeRemove';
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
@@ -287,7 +287,11 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
 
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             showSuccess(t('giver.checkout.toast.paymentSuccess'));
-            navigation.replace("Confirmation", { experienceGift: gifts[0], goalId });
+            logger.log('[Checkout redirect] Navigating to Confirmation');
+            navigation.dispatch(CommonActions.navigate({
+              name: 'Confirmation',
+              params: { experienceGift: gifts[0], goalId },
+            }));
           } else if (gifts.length > 1) {
             await clearCartEverywhere();
             await removeStorageItem(`pending_payment_${clientSecret}`);
@@ -295,7 +299,11 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
               window.history.replaceState({}, document.title, window.location.pathname);
             }
             if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            navigation.replace("ConfirmationMultiple", { experienceGifts: gifts });
+            logger.log('[Checkout redirect] Navigating to ConfirmationMultiple');
+            navigation.dispatch(CommonActions.navigate({
+              name: 'ConfirmationMultiple',
+              params: { experienceGifts: gifts },
+            }));
           } else {
             logger.warn("⚠️ Gifts not found after polling");
             dispatch({ type: "CLEAR_CART" });  // Still clear cart — payment succeeded
@@ -370,26 +378,41 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
         const gifts = await pollForGifts(paymentIntent.id, totalQuantity, 20, 2000, pollCancelledRef);
         logger.log(`Poll result: ${gifts.length} gifts found`);
 
+        // Reset processing state before navigation so a silently-failed navigate
+        // can't leave the Pay button stuck in a loading state.
+        processingRef.current = false;
+        setIsProcessing(false);
+
         if (gifts.length === 1) {
           dispatch({ type: "SET_EXPERIENCE_GIFT", payload: gifts[0] });
-          dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
+          dispatch({ type: "CLEAR_CART" });
           await removeStorageItem(`pending_payment_${clientSecret}`);
           if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           showSuccess(t('giver.checkout.toast.paymentSuccess'));
-          navigation.replace("Confirmation", { experienceGift: gifts[0], goalId });
+          logger.log('[Checkout] Navigating to Confirmation');
+          navigation.dispatch(CommonActions.navigate({
+            name: 'Confirmation',
+            params: { experienceGift: gifts[0], goalId },
+          }));
         } else if (gifts.length > 1) {
-          dispatch({ type: "CLEAR_CART" }); // ✅ Clear cart after successful purchase
+          dispatch({ type: "CLEAR_CART" });
           await removeStorageItem(`pending_payment_${clientSecret}`);
           if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          navigation.replace("ConfirmationMultiple", { experienceGifts: gifts });
+          logger.log('[Checkout] Navigating to ConfirmationMultiple');
+          navigation.dispatch(CommonActions.navigate({
+            name: 'ConfirmationMultiple',
+            params: { experienceGifts: gifts },
+          }));
         } else {
           logger.warn("⚠️ Gifts not found after polling");
-          dispatch({ type: "CLEAR_CART" });  // Still clear cart — payment succeeded
+          dispatch({ type: "CLEAR_CART" });
           showInfo(t('giver.checkout.toast.paymentSuccessCheckPurchased'));
           setTimeout(() => navigation.navigate('MainTabs', { screen: 'ProfileTab', params: { screen: 'PurchasedGifts' } }), 2000);
         }
       } else if (paymentIntent.status === "processing") {
         showInfo(t('giver.checkout.toast.paymentProcessing'));
+        processingRef.current = false;
+        setIsProcessing(false);
       }
       // If redirect happens, the useEffect above will handle it
     } catch (err: unknown) {
@@ -409,9 +432,6 @@ const CheckoutInner: React.FC<CheckoutInnerProps> = ({
       analyticsService.trackEvent('payment_failed', 'conversion', { error: errorMessage }, 'ExperienceCheckoutScreen');
       showError(errorMessage);
       logger.error("Payment error:", err);
-      // BUG-12 FIX: Only reset processing state on failure.
-      // On success the component navigates away and will unmount — resetting here
-      // would briefly re-enable the purchase button during the navigation transition.
       processingRef.current = false;
       setIsProcessing(false);
     }
@@ -538,9 +558,13 @@ const NativeCheckoutScreen: React.FC = () => {
   const routeParams = route.params as { cartItems?: CartItem[]; goalId?: string; isMystery?: boolean; challengeType?: string; revealMode?: string; goalName?: string; goalType?: string; sameExperienceForBoth?: boolean } | undefined;
   const cartItems = routeParams?.cartItems || [];
   const goalId = routeParams?.goalId || state.empowerContext?.goalId;
-  const isMystery = routeParams?.isMystery ?? state.empowerContext?.isMystery ?? false;
-  const challengeType = routeParams?.challengeType;
-  const revealMode = routeParams?.revealMode;
+  // isMystery and revealMode encode the same user choice (see MysteryChoiceScreen.tsx:79).
+  // Different entry points pass only one of the two — normalize so downstream always gets a consistent pair.
+  const rawIsMystery = routeParams?.isMystery ?? state.empowerContext?.isMystery ?? false;
+  const rawRevealMode = routeParams?.revealMode as 'secret' | 'revealed' | undefined;
+  const revealMode: 'secret' | 'revealed' = rawRevealMode ?? (rawIsMystery ? 'secret' : 'revealed');
+  const isMystery = revealMode === 'secret';
+  const challengeType: 'solo' | 'shared' = routeParams?.challengeType === 'shared' ? 'shared' : 'solo';
   const goalName = routeParams?.goalName;
   const goalType = routeParams?.goalType;
   const sameExperienceForBoth = routeParams?.sameExperienceForBoth;
@@ -596,7 +620,7 @@ const NativeCheckoutScreen: React.FC = () => {
         // BUG-13 FIX: Eliminate floating-point artifacts before passing to Stripe.
         total = Math.round(total * 100) / 100;
         if (list.length === 0) {
-          showError("Could not load experiences for checkout.");
+          showError(t('giver.checkout.errors.loadFailed'));
           initRef.current = false;
           if (navigation.canGoBack()) navigation.goBack();
           return;
@@ -613,8 +637,8 @@ const NativeCheckoutScreen: React.FC = () => {
 
         // Pass challenge metadata alongside the payment intent
         const challengeMeta = {
-          challengeType: challengeType ?? 'solo',
-          revealMode: revealMode ?? 'revealed',
+          challengeType,
+          revealMode,
           goalName: goalName ?? '',
           goalType: goalType ?? 'custom',
           sameExperienceForBoth: sameExperienceForBoth ?? false,
@@ -829,9 +853,13 @@ const WebCheckoutScreen: React.FC = () => {
   const routeParams = route.params as { cartItems?: CartItem[]; goalId?: string; isMystery?: boolean; challengeType?: string; revealMode?: string; goalName?: string; goalType?: string; sameExperienceForBoth?: boolean } | undefined;
   const cartItems = routeParams?.cartItems || [];
   const goalId = routeParams?.goalId || state.empowerContext?.goalId;
-  const isMystery = routeParams?.isMystery ?? state.empowerContext?.isMystery ?? false;
-  const challengeType = routeParams?.challengeType;
-  const revealMode = routeParams?.revealMode;
+  // isMystery and revealMode encode the same user choice (see MysteryChoiceScreen.tsx:79).
+  // Different entry points pass only one of the two — normalize so downstream always gets a consistent pair.
+  const rawIsMystery = routeParams?.isMystery ?? state.empowerContext?.isMystery ?? false;
+  const rawRevealMode = routeParams?.revealMode as 'secret' | 'revealed' | undefined;
+  const revealMode: 'secret' | 'revealed' = rawRevealMode ?? (rawIsMystery ? 'secret' : 'revealed');
+  const isMystery = revealMode === 'secret';
+  const challengeType: 'solo' | 'shared' = routeParams?.challengeType === 'shared' ? 'shared' : 'solo';
   const goalName = routeParams?.goalName;
   const goalType = routeParams?.goalType;
   const sameExperienceForBoth = routeParams?.sameExperienceForBoth;
@@ -900,7 +928,7 @@ const WebCheckoutScreen: React.FC = () => {
       total = Math.round(total * 100) / 100;
 
       if (list.length === 0) {
-        showError("Could not load experiences for checkout.");
+        showError(t('giver.checkout.errors.loadFailed'));
         initRef.current = false;
         if (navigation.canGoBack()) navigation.goBack();
         else navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection' } });
@@ -924,8 +952,8 @@ const WebCheckoutScreen: React.FC = () => {
 
       // Pass challenge metadata alongside the payment intent
       const challengeMeta = {
-        challengeType: challengeType ?? 'solo',
-        revealMode: revealMode ?? 'revealed',
+        challengeType,
+        revealMode,
         goalName: goalName ?? '',
         goalType: goalType ?? 'custom',
         sameExperienceForBoth: sameExperienceForBoth ?? false,

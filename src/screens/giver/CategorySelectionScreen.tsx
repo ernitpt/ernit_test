@@ -103,22 +103,41 @@ const FeaturedHeroCard = ({
         colors={['transparent', Colors.overlayOnImageLight]}
         style={styles.heroGradient}
       />
-      <BlurView intensity={25} tint="dark" style={styles.heroTextOverlay}>
-        <View style={styles.heroTextInner}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.heroTitle} numberOfLines={2}>
-              {experience.title}
-            </Text>
-            {experience.location && (
-              <View style={styles.heroLocationRow}>
-                <MapPin size={13} color={colors.textOnImage} />
-                <Text style={styles.heroLocation}>{experience.location}</Text>
-              </View>
-            )}
+      {Platform.OS !== 'android' ? (
+        <BlurView intensity={25} tint="dark" style={styles.heroTextOverlay}>
+          <View style={styles.heroTextInner}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.heroTitle} numberOfLines={2}>
+                {experience.title}
+              </Text>
+              {experience.location && (
+                <View style={styles.heroLocationRow}>
+                  <MapPin size={13} color={colors.textOnImage} />
+                  <Text style={styles.heroLocation}>{experience.location}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.heroPrice}>{formatCurrency(experience.price)}</Text>
           </View>
-          <Text style={styles.heroPrice}>{formatCurrency(experience.price)}</Text>
+        </BlurView>
+      ) : (
+        <View style={[styles.heroTextOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.55)' }]}>
+          <View style={styles.heroTextInner}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.heroTitle} numberOfLines={2}>
+                {experience.title}
+              </Text>
+              {experience.location && (
+                <View style={styles.heroLocationRow}>
+                  <MapPin size={13} color={colors.textOnImage} />
+                  <Text style={styles.heroLocation}>{experience.location}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.heroPrice}>{formatCurrency(experience.price)}</Text>
+          </View>
         </View>
-      </BlurView>
+      )}
       <TouchableOpacity
         onPress={(e) => {
           e.stopPropagation();
@@ -219,21 +238,39 @@ const BentoCard = ({
         cachePolicy="memory-disk"
         accessibilityLabel={t('giver.category.accessibility.coverImage', { title: experience.title })}
       />
-      <BlurView intensity={20} tint="dark" style={styles.bentoOverlay}>
-        <View style={styles.bentoOverlayInner}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.bentoTitle} numberOfLines={2}>
-              {experience.title}
-            </Text>
-            {experience.subtitle && (
-              <Text style={styles.bentoSubtitle} numberOfLines={1}>
-                {experience.subtitle}
+      {Platform.OS !== 'android' ? (
+        <BlurView intensity={20} tint="dark" style={styles.bentoOverlay}>
+          <View style={styles.bentoOverlayInner}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bentoTitle} numberOfLines={2}>
+                {experience.title}
               </Text>
-            )}
+              {experience.subtitle && (
+                <Text style={styles.bentoSubtitle} numberOfLines={1}>
+                  {experience.subtitle}
+                </Text>
+              )}
+            </View>
+            <Text style={styles.bentoPrice}>{formatCurrency(experience.price)}</Text>
           </View>
-          <Text style={styles.bentoPrice}>{formatCurrency(experience.price)}</Text>
+        </BlurView>
+      ) : (
+        <View style={[styles.bentoOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.55)' }]}>
+          <View style={styles.bentoOverlayInner}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bentoTitle} numberOfLines={2}>
+                {experience.title}
+              </Text>
+              {experience.subtitle && (
+                <Text style={styles.bentoSubtitle} numberOfLines={1}>
+                  {experience.subtitle}
+                </Text>
+              )}
+            </View>
+            <Text style={styles.bentoPrice}>{formatCurrency(experience.price)}</Text>
+          </View>
         </View>
-      </BlurView>
+      )}
       <TouchableOpacity
         onPress={(e) => {
           e.stopPropagation();
@@ -285,8 +322,8 @@ const CategoryCarousel = ({
         windowSize={3}
         renderItem={({ item, index }) => (
           <MotiView
-            from={{ opacity: 0, translateX: 20 }}
-            animate={{ opacity: 1, translateX: 0 }}
+            from={{ translateX: 20 }}
+            animate={{ translateX: 0 }}
             transition={{ type: 'spring', delay: index * 60 }}
           >
             <BentoCard
@@ -643,8 +680,8 @@ const CategorySelectionScreen = () => {
             windowSize={3}
             renderItem={({ item, index }) => (
               <MotiView
-                from={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
+                from={{ scale: 0.95 }}
+                animate={{ scale: 1 }}
                 transition={{ type: 'spring', delay: index * 100 }}
               >
                 <FeaturedHeroCard

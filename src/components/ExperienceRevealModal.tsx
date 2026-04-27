@@ -38,13 +38,16 @@ interface RevealExperience {
 interface ExperienceRevealModalProps {
     visible: boolean;
     experience: RevealExperience | null;
-    onClose: () => void;
-    /** Navigates to ExperienceCheckout */
-    onClaim: () => void;
-    /** Navigates to experience browser */
+    /** Called when the user accepts the match as their reward. Marks revealed + closes. */
+    onLockIn: () => void;
+    /** Called when the user wants a different match. Parent should rematch and update the `experience` prop — modal stays open showing the new match. */
+    onRematch: () => void;
+    /** Called when the user rejects discovery and wants to browse manually. Navigates to the experience browser. */
     onBrowseOthers: () => void;
-    /** Percentage of goal reached (shown in the reveal headline) */
-    progressPct?: number;
+    /** Called when the modal is dismissed via backdrop (no commitment, re-fires next session). */
+    onClose: () => void;
+    /** Whether a rematch is currently in flight — disables buttons and shows loading state. */
+    rematching?: boolean;
 }
 
 // ─── Animation timing constants ───────────────────────────────────────────────
@@ -60,9 +63,10 @@ const ExperienceRevealModal: React.FC<ExperienceRevealModalProps> = ({
     visible,
     experience,
     onClose,
-    onClaim,
+    onLockIn,
+    onRematch,
     onBrowseOthers,
-    progressPct,
+    rematching = false,
 }) => {
     // Controls React Native Modal visibility (keeps it mounted during exit animation)
     const [modalVisible, setModalVisible] = useState(false);
@@ -185,11 +189,17 @@ const ExperienceRevealModal: React.FC<ExperienceRevealModalProps> = ({
     }, [onClose, backdropOpacity, cardTranslateY, headlineOpacity]);
 
     // ── Handlers ─────────────────────────────────────────────────────────────
-    const handleClaim = useCallback(() => {
+    const handleLockIn = useCallback(() => {
         animateClose();
-        // Small delay so the modal starts closing before nav transition
-        setTimeout(() => { if (!isMounted.current) return; onClaim(); }, 150);
-    }, [animateClose, onClaim]);
+        // Small delay so the modal starts closing before onLockIn completes its Firestore write
+        setTimeout(() => { if (!isMounted.current) return; onLockIn(); }, 150);
+    }, [animateClose, onLockIn]);
+
+    const handleRematch = useCallback(() => {
+        // Rematch stays inside the modal — parent updates the `experience` prop.
+        // Don't close; just call the handler.
+        onRematch();
+    }, [onRematch]);
 
     const handleBrowse = useCallback(() => {
         animateClose();
@@ -242,9 +252,8 @@ const ExperienceRevealModal: React.FC<ExperienceRevealModalProps> = ({
                 ]}
                 pointerEvents="none"
             >
-                <Text style={styles.headlineEmoji}>🎉</Text>
                 <Text style={styles.headlineText}>{t('modals.experienceReveal.revealedHeadline')}</Text>
-                <Text style={styles.headlineSubText}>{t('modals.experienceReveal.progressReached', { pct: progressPct ?? 75 })}</Text>
+                <Text style={styles.headlineSubText}>{t('modals.experienceReveal.curatedSubtitle')}</Text>
             </Animated.View>
 
             {/* ── Experience card — springs in from bottom ───────────────────── */}
@@ -309,19 +318,30 @@ const ExperienceRevealModal: React.FC<ExperienceRevealModalProps> = ({
                         {/* ── CTAs ──────────────────────────────────────────────── */}
                         <Animated.View style={[styles.ctaContainer, { opacity: ctaOpacity }]}>
                             <Button
-                                title={t('modals.experienceReveal.claimButton', { price: formattedPrice })}
+                                title={t('modals.experienceReveal.lockInButton')}
                                 variant="primary"
-                                onPress={handleClaim}
+                                onPress={handleLockIn}
+                                disabled={rematching}
+                                style={styles.primaryButton}
+                            />
+                            <Button
+                                title={t('modals.experienceReveal.showAnotherButton')}
+                                variant="secondary"
+                                size="sm"
+                                onPress={handleRematch}
+                                loading={rematching}
+                                disabled={rematching}
                                 style={styles.primaryButton}
                             />
                             <TouchableOpacity
                                 onPress={handleBrowse}
                                 style={styles.browseLink}
+                                disabled={rematching}
                                 accessibilityRole="button"
-                                accessibilityLabel={t('modals.experienceReveal.browseOthersA11y')}
+                                accessibilityLabel={t('modals.experienceReveal.letMePickA11y')}
                                 hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }}
                             >
-                                <Text style={styles.browseLinkText}>{t('modals.experienceReveal.browseOthers')}</Text>
+                                <Text style={styles.browseLinkText}>{t('modals.experienceReveal.letMePick')}</Text>
                             </TouchableOpacity>
                         </Animated.View>
                     </View>

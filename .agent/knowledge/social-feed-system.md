@@ -11,8 +11,7 @@ The social layer consists of a follower/friend graph, a secure Activity Feed, an
 
 ## 2. Activity Feed (`FeedService.ts`)
 - **Collection**: `feedPosts`.
-- **Privacy**: Pulls all recent posts but filters **client-side** to only show friends + self.
-    - *Architectural Note*: Simple but relies on client to respect privacy.
+- **Privacy**: Enforced **server-side** via Firestore `where('userId', 'in', [...friends, self])` query (max 30 IDs per `in` constraint — see Performance section below). The client does not post-filter; the query itself never returns non-friend posts.
 - **Post Types**:
     - `goal_started`
     - `goal_completed`
@@ -52,4 +51,10 @@ Friends leave encouragement messages on goals. Subcollection: `goals/{goalId}/mo
 - FeedScreen fires `feed_viewed` on mount/focus.
 
 ## Notifications
-- Comment notifications are sent to the post owner when a comment is added via `CommentService`.
+Fired from the social layer (see `notifications-system.md` for the full notification type list):
+- `post_comment` — `CommentService.addComment` → post owner.
+- `post_reaction` — `ReactionService` → post owner, aggregated ("Alice and 2 others reacted").
+- `experience_empowered` — Checkout success (empower context) → goal owner. Carries `giverName`, `experienceId`, `isMystery`.
+- `free_goal_milestone` — milestone feed post creation → friends watching the goal owner.
+- `free_goal_completed` — goal owner finished a free goal → friends (empower/congratulate prompt).
+- `motivation_received` — `MotivationService.leaveMotivation` → goal owner.

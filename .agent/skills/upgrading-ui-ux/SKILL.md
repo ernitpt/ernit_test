@@ -7,6 +7,10 @@ description: "Audit and upgrade UI/UX quality across the Ernit React Native app.
 
 Systematic workflow for auditing and upgrading screens to match production-grade UI/UX standards. Uses the app's existing design tokens and shared components.
 
+**Role of this skill vs. `ui-design-system`:**
+- **`upgrading-ui-ux` (this skill)** = the audit workflow. Use when reviewing/upgrading an existing screen — per-screen checklist, common fix patterns, token reference tables.
+- **`ui-design-system`** = the rulebook / enforcement reference. Use when writing new code — defines the non-negotiable rules (tokens only, shared components, skeleton loaders).
+
 ## When to Use
 
 **Must use:**
@@ -96,14 +100,22 @@ Run this on every screen. Items are ordered by visual impact.
 
 ### Imports
 ```tsx
-import Colors from '../config/colors';       // or use useColors() hook
-import Typography from '../config/typography';
-import Spacing from '../config/spacing';
-import BorderRadius from '../config/borderRadius';
-import Shadows from '../config/shadows';
-import Animations from '../config/animations';
-import { useColors } from '../themes/ThemeContext';
+// Static tokens (safe to use in StyleSheet.create and outside components)
+import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../config';
+import { Animations } from '../config/animations';
+
+// Theme-aware hook (use inside components, resolves via ThemeContext)
+import { useColors } from '../config';       // re-exported from src/config
+// or equivalently: import { useColors } from '../themes/useColors';
+
+// Responsive vertical sizing
 import { vh } from '../utils/responsive';
+```
+
+Inside a component:
+```tsx
+const colors = useColors();
+// then use colors.primary, colors.textPrimary, etc. — these adapt to theme
 ```
 
 ### Color Palette (Light)
@@ -198,18 +210,20 @@ import { Button } from '../components/Button';
 ```
 
 ### Fix: Missing skeleton loader
+Use the project's shared `SkeletonBox` from [src/components/SkeletonLoader.tsx](../../../src/components/SkeletonLoader.tsx) (plus pre-built `FeedPostSkeleton`, `NotificationSkeleton`).
+
 ```tsx
 // BAD
 if (loading) return <ActivityIndicator />;
 
-// GOOD — use skeleton that matches final layout
+// GOOD — use SkeletonBox that matches the final layout
+import { SkeletonBox } from '../components/SkeletonLoader';
+
 if (loading) return (
-  <View style={{ padding: Spacing.screenPadding }}>
-    <SkeletonPlaceholder>
-      <SkeletonPlaceholder.Item height={200} borderRadius={BorderRadius.lg} />
-      <SkeletonPlaceholder.Item height={20} width="60%" marginTop={Spacing.md} />
-      <SkeletonPlaceholder.Item height={16} width="40%" marginTop={Spacing.sm} />
-    </SkeletonPlaceholder>
+  <View style={{ padding: Spacing.screenPadding, gap: Spacing.sm }}>
+    <SkeletonBox width="100%" height={200} borderRadius={BorderRadius.lg} />
+    <SkeletonBox width="60%" height={20} />
+    <SkeletonBox width="40%" height={16} />
   </View>
 );
 ```

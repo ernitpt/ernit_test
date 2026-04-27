@@ -115,9 +115,39 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
 
                 if (!partnerGoalSnap?.exists) {
                     // C14: Partner goal was deleted after the shared challenge was set up.
-                    // Do NOT charge the giver for a ghost partner gift — abort and mark failed.
+                    // Do NOT charge the giver for a ghost partner gift — abort, mark failed,
+                    // and notify both giver and recipient so they aren't left wondering
+                    // why the reward never unlocked.
                     logger.error(`Partner goal not found for gift ${giftId}, aborting charge`);
-                    await giftRef.update({ payment: 'failed', failureReason: 'partner_goal_deleted', updatedAt: FieldValue.serverTimestamp() });
+                    const partnerRemovedBatch = db.batch();
+                    partnerRemovedBatch.update(giftRef, {
+                        payment: 'failed',
+                        failureReason: 'partner_goal_deleted',
+                        updatedAt: FieldValue.serverTimestamp(),
+                    });
+                    if (giftData.giverId) {
+                        partnerRemovedBatch.set(db.collection('notifications').doc(), {
+                            userId: giftData.giverId,
+                            type: 'shared_partner_removed',
+                            title: 'Challenge Update',
+                            message: `${recipientName} completed their goal, but the partner left the shared challenge. No charge will be made.`,
+                            data: { giftId, goalId },
+                            read: false,
+                            createdAt: FieldValue.serverTimestamp(),
+                        });
+                    }
+                    if (afterData.userId && afterData.userId !== giftData.giverId) {
+                        partnerRemovedBatch.set(db.collection('notifications').doc(), {
+                            userId: afterData.userId,
+                            type: 'shared_partner_removed',
+                            title: 'Challenge Update',
+                            message: 'Your partner left the shared challenge, so the reward could not be unlocked.',
+                            data: { giftId, goalId },
+                            read: false,
+                            createdAt: FieldValue.serverTimestamp(),
+                        });
+                    }
+                    await partnerRemovedBatch.commit();
                     return null;
                 } else if (!partnerGoalData?.isCompleted) {
                     // One partner done, waiting on the other — notify BOTH (H3)
@@ -158,17 +188,20 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                     const goalRef1 = db.doc(`goals/${goalId}`);
                     const goalRef2 = db.doc(`goals/${afterData.partnerGoalId}`);
 
-                    // Idempotency check FIRST, then unlock — all inside one transaction
-                    // to prevent concurrent invocations from both running the unlock batch.
+                    // Atomic: idempotency check + unlock both goals + write notifications
+                    // all inside one transaction. Previously the notification batch was
+                    // outside the transaction, so a batch failure AFTER the flag was set
+                    // meant the retry would skip notifications and users would never be
+                    // notified of the unlock.
                     let alreadyNotified = false;
                     try {
                         await db.runTransaction(async (tx) => {
                             const freshGift = await tx.get(giftRef);
                             if (freshGift.data()?.notificationSent) {
                                 alreadyNotified = true;
-                                return; // nothing to write; transaction exits cleanly
+                                return;
                             }
-                            // Mark as notified + completed atomically with goal unlocks
+                            const unlockMessage = 'Both of you completed the challenge! Your reward is unlocked.';
                             tx.update(giftRef, {
                                 notificationSent: true,
                                 status: 'completed',
@@ -182,6 +215,26 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                                 isUnlocked: true,
                                 unlockedAt: FieldValue.serverTimestamp(),
                             });
+                            tx.set(db.collection('notifications').doc(), {
+                                userId: afterData.userId,
+                                type: 'shared_unlock',
+                                title: 'Challenge Complete!',
+                                message: unlockMessage,
+                                data: { giftId, goalId },
+                                read: false,
+                                createdAt: FieldValue.serverTimestamp(),
+                            });
+                            if (partnerUserId && partnerUserId !== afterData.userId) {
+                                tx.set(db.collection('notifications').doc(), {
+                                    userId: partnerUserId,
+                                    type: 'shared_unlock',
+                                    title: 'Challenge Complete!',
+                                    message: unlockMessage,
+                                    data: { giftId, goalId },
+                                    read: false,
+                                    createdAt: FieldValue.serverTimestamp(),
+                                });
+                            }
                         });
                     } catch (txErr: unknown) {
                         logger.error(`❌ [PROD] Transaction failed for free shared gift ${giftId}:`, txErr);
@@ -192,31 +245,6 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                         logger.info(`ℹ️ [PROD] shared_unlock notification already sent for gift ${giftId} — skipping`);
                         return null;
                     }
-
-                    // Send shared_unlock notifications to BOTH users AFTER the transaction (fire-and-forget)
-                    const unlockMessage = 'Both of you completed the challenge! Your reward is unlocked.';
-                    const unlockNotifBatch = db.batch();
-                    unlockNotifBatch.set(db.collection('notifications').doc(), {
-                        userId: afterData.userId,
-                        type: 'shared_unlock',
-                        title: 'Challenge Complete!',
-                        message: unlockMessage,
-                        data: { giftId, goalId },
-                        read: false,
-                        createdAt: FieldValue.serverTimestamp(),
-                    });
-                    if (partnerUserId && partnerUserId !== afterData.userId) {
-                        unlockNotifBatch.set(db.collection('notifications').doc(), {
-                            userId: partnerUserId,
-                            type: 'shared_unlock',
-                            title: 'Challenge Complete!',
-                            message: unlockMessage,
-                            data: { giftId, goalId },
-                            read: false,
-                            createdAt: FieldValue.serverTimestamp(),
-                        });
-                    }
-                    await unlockNotifBatch.commit();
 
                     logger.info(`✅ [PROD] Free shared gift ${giftId} — both goals unlocked and notifications sent`);
                     return null;
@@ -307,11 +335,35 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
             const currency = giftData.deferredCurrency || 'eur';
 
             if (amount <= 0) {
-                logger.warn(`⚠️ [PROD] Deferred amount is 0 for gift ${giftId} — treating as free`);
+                // Zero/negative deferred amount is a data error — we must NOT silently
+                // mark the gift paid. That would give the recipient their reward while
+                // the giver is never billed. Write to failedCharges for manual review
+                // and notify the giver so they can correct the amount.
+                logger.error(`❌ [PROD] Invalid deferred amount for gift ${giftId}: ${amount} cents — refusing to charge`);
                 await giftRef.update({
-                    payment: 'paid',
-                    status: 'completed',
+                    payment: 'failed',
+                    status: 'active',
+                    chargeFailureReason: 'invalid_amount',
                     updatedAt: FieldValue.serverTimestamp(),
+                });
+                await db.collection('failedCharges').doc(giftId).set({
+                    giftId,
+                    giverId: giftData.giverId,
+                    recipientId,
+                    goalId,
+                    reason: 'invalid_amount',
+                    deferredAmount: giftData.deferredAmount,
+                    createdAt: FieldValue.serverTimestamp(),
+                    resolved: false,
+                }, { merge: true });
+                await db.collection('notifications').add({
+                    userId: giftData.giverId,
+                    type: 'payment_failed',
+                    title: 'Payment could not be processed',
+                    message: `${recipientName} completed their goal, but your gift amount is invalid. Please contact support to resolve.`,
+                    data: { giftId, goalId },
+                    read: false,
+                    createdAt: FieldValue.serverTimestamp(),
                 });
                 return null;
             }
@@ -520,25 +572,21 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                     ? (await db.doc(`goals/${afterData.partnerGoalId}`).get()).data()
                     : null;
 
-                // Fix 8 (hardened): Atomically claim the right to send the shared_unlock
-                // notification so concurrent invocations cannot both pass the check.
-                // freshGiftData was read before the transaction committed and is stale —
-                // we must re-read inside a new transaction.
+                // Atomically claim the right to send the shared_unlock notification
+                // AND write the notifications in a single transaction. Previously the
+                // notification batch was outside the transaction, so if the batch
+                // commit failed the flag was already set and retries skipped the
+                // notifications entirely (giver/partner never learned of the unlock).
                 let shouldSendSharedUnlockNotification = false;
                 await db.runTransaction(async (tx) => {
                     const latestGiftSnap = await tx.get(giftRef);
-                    if (!latestGiftSnap.data()?.notificationSent) {
-                        tx.update(giftRef, { notificationSent: true, updatedAt: FieldValue.serverTimestamp() });
-                        shouldSendSharedUnlockNotification = true;
+                    if (latestGiftSnap.data()?.notificationSent) {
+                        return;
                     }
-                });
-
-                if (shouldSendSharedUnlockNotification) {
-                    // ── H2: Notify BOTH users of shared unlock ────────────────────
                     const unlockMessage = 'Both of you completed the challenge! Your reward is unlocked.';
-                    const sharedUnlockBatch = db.batch();
-                    // Notify the completing user (goal owner who triggered this)
-                    sharedUnlockBatch.set(db.collection('notifications').doc(), {
+                    tx.update(giftRef, { notificationSent: true, updatedAt: FieldValue.serverTimestamp() });
+                    shouldSendSharedUnlockNotification = true;
+                    tx.set(db.collection('notifications').doc(), {
                         userId: afterData.userId,
                         type: 'shared_unlock',
                         title: 'Challenge Complete!',
@@ -547,9 +595,8 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                         read: false,
                         createdAt: FieldValue.serverTimestamp(),
                     });
-                    // Notify the partner (the other goal's owner)
                     if (partnerGoalForNotif?.userId && partnerGoalForNotif.userId !== afterData.userId) {
-                        sharedUnlockBatch.set(db.collection('notifications').doc(), {
+                        tx.set(db.collection('notifications').doc(), {
                             userId: partnerGoalForNotif.userId,
                             type: 'shared_unlock',
                             title: 'Challenge Complete!',
@@ -559,8 +606,9 @@ export const chargeDeferredGift = functions.firestore.onDocumentUpdated(
                             createdAt: FieldValue.serverTimestamp(),
                         });
                     }
-                    await sharedUnlockBatch.commit();
-                } else {
+                });
+
+                if (!shouldSendSharedUnlockNotification) {
                     logger.info(`ℹ️ [PROD] shared_unlock notification already sent for gift ${giftId} — skipping`);
                 }
             } else {

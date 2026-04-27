@@ -7,7 +7,13 @@ description: Enforces consistent modal structure, styling, and behavior across t
 
 ## Overview
 
-The Ernit app uses a consistent modal system built on React Native `<Modal>`. Every modal — whether a centered dialog or a bottom sheet — must follow the patterns in this file. All styling must use design tokens from `src/config/` (Colors, Typography, Spacing, BorderRadius, Shadows).
+The Ernit app has a shared `<BaseModal>` component at [src/components/BaseModal.tsx](../../../src/components/BaseModal.tsx) that handles backdrop, blur, slide animation, Android back-button, safe-area insets, and variant switching (center dialog vs. bottom sheet). **Almost every modal should use it directly.** Do not re-implement the `<Modal>` skeleton unless `<BaseModal>` cannot satisfy a specific requirement (and even then, prefer extending `<BaseModal>` over replacing it).
+
+This skill covers (in order of preference):
+1. **Using `<BaseModal>`** — the default path for 99% of cases.
+2. **Raw `<Modal>` patterns** — only when you have a documented reason `<BaseModal>` won't work. Kept for reference and for editing pre-BaseModal components that haven't been migrated yet.
+
+All styling must use design tokens from `src/config/` (Colors, Typography, Spacing, BorderRadius, Shadows) and `useColors()` for theme-aware values. Per CLAUDE.md: "ALWAYS use `<BaseModal>` from `src/components/BaseModal.tsx` for modal dialogs (variants: center/bottom)."
 
 **Announce at start:** "I'm using the modal-patterns skill to ensure consistent modal structure and behavior."
 
@@ -15,18 +21,55 @@ The Ernit app uses a consistent modal system built on React Native `<Modal>`. Ev
 
 | File | Role |
 |------|------|
-| `src/styles/commonStyles.ts` | Shared `modalOverlay` style |
-| `src/components/EmpowerChoiceModal.tsx` | Centered dialog (choice modal) |
-| `src/components/MotivationModal.tsx` | Input modal with success feedback |
-| `src/components/ReactionViewerModal.tsx` | Bottom sheet with tabs + skeleton loading |
-| `src/components/CommentModal.tsx` | Bottom sheet with keyboard-aware input |
-| `src/hooks/useModalAnimation.ts` | Shared slide animation hook for bottom sheets |
+| [src/components/BaseModal.tsx](../../../src/components/BaseModal.tsx) | **Shared modal primitive — USE THIS FIRST.** |
+| `src/styles/commonStyles.ts` | `modalOverlay` style (used internally by BaseModal; rarely needed directly) |
+| `src/hooks/useModalAnimation.ts` | Slide animation hook (used internally by BaseModal) |
+| `src/components/EmpowerChoiceModal.tsx` | Example: centered dialog |
+| `src/components/MotivationModal.tsx` | Example: input modal with success feedback |
+| `src/components/ReactionViewerModal.tsx` | Example: bottom sheet with tabs + skeleton |
+| `src/components/CommentModal.tsx` | Example: bottom sheet with keyboard-aware input |
 
 ---
 
-## 1. Standard Modal Structure
+## 1. Standard Modal Structure — `<BaseModal>` (preferred)
 
-Every modal **must** use this skeleton. No exceptions.
+**This is how 99% of modals should be written.** `<BaseModal>` handles backdrop, blur, animation, Android back button, safe-area insets, and variant switching for you.
+
+```tsx
+import { BaseModal } from '../components/BaseModal';
+
+<BaseModal
+  visible={visible}
+  onClose={onClose}
+  title="Gift an Experience"
+  variant="center" // or "bottom" for bottom sheet
+>
+  {/* Your modal content — no backdrop, no propagation blocker, no animation wrapper needed */}
+  <Text>Celebrate their progress</Text>
+  <Button title="Continue" onPress={handleContinue} />
+</BaseModal>
+```
+
+**Props:**
+- `visible: boolean` — **required**
+- `onClose: () => void` — **required**
+- `title?: string` — renders a standard header if provided
+- `variant?: 'center' | 'bottom'` — defaults to `'center'`
+- `noPadding?: boolean` — opt out of default content padding
+- `overlay?: ReactNode` — rendered above blur, below content
+- `overlayAbove?: ReactNode` — rendered above content (confetti, etc.)
+
+**Why this over raw `<Modal>`:**
+- Android back-button is wired up automatically
+- Blur + overlay + slide animation are consistent across every modal
+- Safe-area insets are respected on notched devices
+- One place to change modal behavior app-wide
+
+---
+
+## 2. Raw `<Modal>` Pattern (legacy / advanced only)
+
+**Only use this when `<BaseModal>` genuinely cannot cover your case.** If you find yourself writing this skeleton in 2026+, first ask whether you should extend `<BaseModal>` instead. This section exists for reference and for editing older components that predate `<BaseModal>`.
 
 ```tsx
 import { Modal, TouchableOpacity, View, StyleSheet } from 'react-native';

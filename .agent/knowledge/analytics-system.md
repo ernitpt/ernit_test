@@ -47,6 +47,12 @@ Automatic via `AppNavigator.tsx` `onStateChange` — drills into nested navigato
 - `notification_tapped` (NotificationsScreen)
 - `gift_message_updated` (ExperienceGiftService)
 - `feed_viewed` — tracked in FeedScreen on mount/focus
+- `goal_edited` — recipient self-edited a goal (GoalService.selfEditGoal)
+- `goal_edit_requested` — recipient requested an edit on a gifted goal
+- `goal_edit_approved` — giver approved an edit request
+- `goal_edit_rejected` — giver rejected an edit request
+- `goal_deleted` — goal deleted by owner
+- `share_goal_completed` — goal completion shared externally
 
 ### Social
 - `friend_request_accepted`, `friend_request_declined` (FriendService)
@@ -56,6 +62,7 @@ Automatic via `AppNavigator.tsx` `onStateChange` — drills into nested navigato
 
 ### Error
 - `error_boundary_triggered` (ErrorBoundary component)
+- `unhandled_rejection` (globalErrorHandlers, unhandled promise rejections)
 
 ### Notes
 - All event names are typed via `AnalyticsEventName` union in `src/types/index.ts`.

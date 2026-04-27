@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
+import { Clock } from 'lucide-react-native';
 import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
@@ -119,22 +120,25 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
     );
   }
 
-  // Approval status banners
-  const bannerMessage = !isSelfGift ? getApprovalBlockMessage(goal, empoweredName, 'banner') : null;
-  const showBanner0 = bannerMessage && locked && totalSessionsDone === 0;
-  const showBanner1 = !isSelfGift && locked && totalSessionsDone === 1;
-  const banner1Message = getApprovalBlockMessage(goal, empoweredName, 'banner');
+  // Approval status banner — getApprovalBlockMessage now returns null for the pre-first-session
+  // pending case (when the deadline hasn't passed), so the banner only appears when the user is
+  // genuinely waiting: after the first session, after the 24h window expires, a suggested change,
+  // or a 1-day/1-session hard block.
+  const bannerMessage = !isSelfGift ? getApprovalBlockMessage(goal, empoweredName, 'banner', t) : null;
+
+  const ApprovalBanner = bannerMessage ? (
+    <View style={styles.approvalMessageBox}>
+      <Clock size={14} color={colors.textSecondary} />
+      <Text style={styles.approvalMessageText} numberOfLines={2}>{bannerMessage.message}</Text>
+    </View>
+  ) : null;
 
   // Locked: 1-day/1-session OR has done 1 session already
   if ((locked && goal.targetCount === 1 && goal.sessionsPerWeek === 1)
     || (locked && goal.targetCount >= 1 && goal.weeklyCount >= 1)) {
     return (
       <>
-        {showBanner0 && bannerMessage && (
-          <View style={styles.approvalMessageBox}>
-            <Text style={styles.approvalMessageText}>{bannerMessage.message}</Text>
-          </View>
-        )}
+        {ApprovalBanner}
         <View style={styles.disabledStartContainer}>
           <Text style={styles.disabledStartText}>{t('recipient.sessionAction.waitingForApproval')}</Text>
         </View>
@@ -150,19 +154,7 @@ const SessionActionArea: React.FC<SessionActionAreaProps> = ({
   // Normal start button
   return (
     <View>
-      {/* Approval banners */}
-      {showBanner0 && bannerMessage && (
-        <View style={styles.approvalMessageBox}>
-          <Text style={styles.approvalMessageText}>{bannerMessage.message}</Text>
-        </View>
-      )}
-      {showBanner1 && banner1Message && (
-        <View style={[styles.approvalMessageBox, { backgroundColor: colors.successLighter, borderLeftColor: colors.successMedium }]}>
-          <Text style={[styles.approvalMessageText, { color: colors.primaryDeep }]}>
-            {banner1Message.message}
-          </Text>
-        </View>
-      )}
+      {ApprovalBanner}
 
       {/* Personalized hint indicator */}
       {hasPersonalizedHintWaiting && goal.personalizedNextHint && (
@@ -212,16 +204,21 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     color: colors.primaryDark,
   },
   approvalMessageBox: {
-    padding: Spacing.md,
-    backgroundColor: colors.warningLight,
-    borderRadius: BorderRadius.sm,
-    marginBottom: Spacing.lg,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.warning,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: colors.backgroundLight,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   approvalMessageText: {
     ...Typography.caption,
-    color: colors.warningDeep,
+    color: colors.textPrimary,
+    flex: 1,
     lineHeight: 18,
   },
   disabledStartContainer: {

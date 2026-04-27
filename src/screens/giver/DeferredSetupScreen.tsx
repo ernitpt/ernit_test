@@ -37,6 +37,7 @@ import Button from '../../components/Button';
 import { vh } from '../../utils/responsive';
 import { getUserMessage } from '../../utils/AppError';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { analyticsService } from '../../services/AnalyticsService';
 
 const _stripePk = process.env.EXPO_PUBLIC_STRIPE_PK;
 if (Platform.OS === 'web' && !_stripePk) {
@@ -71,6 +72,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
 
   const handleSaveCard = async () => {
     if (!stripe || !elements || isProcessing) return;
+    analyticsService.trackEvent('payment_initiated', 'conversion', { giftId: experienceGift?.id }, 'DeferredSetupScreen');
     setIsProcessing(true);
 
     try {
@@ -112,6 +114,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
       if (setupIntent?.status === 'succeeded') {
         // Card saved — clear SCA recovery key and proceed
         await AsyncStorage.removeItem('pending_sca_gift').catch(() => {});
+        analyticsService.trackEvent('payment_completed', 'conversion', { giftId: experienceGift?.id }, 'DeferredSetupScreen');
         navigation.replace('Confirmation', { experienceGift });
       } else {
         // SetupIntent not confirmed (requires_action, requires_payment_method, etc.)
@@ -125,6 +128,7 @@ const SetupInner: React.FC<SetupInnerProps> = ({ experienceGift }) => {
       }
     } catch (err: unknown) {
       logger.error('Error confirming SetupIntent:', err);
+      analyticsService.trackEvent('payment_failed', 'conversion', { giftId: experienceGift?.id, error: err instanceof Error ? err.message : String(err) }, 'DeferredSetupScreen');
       await logErrorToFirestore(err, {
         screenName: 'DeferredSetupScreen',
         feature: 'ConfirmSetupIntent',
@@ -297,6 +301,7 @@ const NativeDeferredSetup: React.FC = () => {
 
   const handleSaveCard = React.useCallback(async () => {
     if (isProcessing || !sheetReady) return;
+    analyticsService.trackEvent('payment_initiated', 'conversion', { giftId: experienceGift?.id }, 'DeferredSetupScreen');
     setIsProcessing(true);
 
     try {
@@ -309,10 +314,12 @@ const NativeDeferredSetup: React.FC = () => {
 
       // Card saved successfully
       if (experienceGift) {
+        analyticsService.trackEvent('payment_completed', 'conversion', { giftId: experienceGift?.id }, 'DeferredSetupScreen');
         navigation.replace('Confirmation', { experienceGift });
       }
     } catch (err: unknown) {
       logger.error('Error confirming native SetupIntent:', err);
+      analyticsService.trackEvent('payment_failed', 'conversion', { giftId: experienceGift?.id, error: err instanceof Error ? err.message : String(err) }, 'DeferredSetupScreen');
       await logErrorToFirestore(err, {
         screenName: 'DeferredSetupScreen',
         feature: 'NativeConfirmSetupIntent',
@@ -415,6 +422,12 @@ const WebDeferredSetup: React.FC = () => {
 
   const setupIntentClientSecret = routeParams?.setupIntentClientSecret;
   const experienceGift = routeParams?.experienceGift;
+
+  useEffect(() => {
+    if (setupIntentClientSecret && experienceGift) {
+      analyticsService.trackEvent('screen_view', 'navigation', { giftId: experienceGift?.id }, 'DeferredSetupScreen');
+    }
+  }, []);
 
   useEffect(() => {
     if (!setupIntentClientSecret || !experienceGift) {

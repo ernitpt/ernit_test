@@ -176,24 +176,35 @@ useEffect(() => {
 
 **In JSX — the three states:**
 ```tsx
-// 1. Loading → skeleton loaders (never spinners)
-if (loading) return <GoalCardSkeleton />;
+import { SkeletonBox } from '../components/SkeletonLoader';
+import Button from '../components/Button';
+import { EmptyState } from '../components/EmptyState';
 
-// 2. Error → user-facing message with retry
-if (error) return (
-  <View style={{ alignItems: 'center', padding: Spacing.screenPadding }}>
-    <Text style={{ ...Typography.body, color: Colors.textSecondary, textAlign: 'center' }}>
-      {error}
-    </Text>
-    <TouchableOpacity onPress={fetchData} style={{ marginTop: Spacing.md }}>
-      <Text style={{ ...Typography.bodyBold, color: Colors.secondary }}>Try Again</Text>
-    </TouchableOpacity>
+// 1. Loading → skeleton loaders (never spinners)
+if (loading) return (
+  <View style={{ padding: Spacing.screenPadding, gap: Spacing.listItemGap }}>
+    {[1, 2, 3].map((i) => (
+      <SkeletonBox key={i} width="100%" height={96} borderRadius={BorderRadius.md} />
+    ))}
   </View>
+);
+
+// 2. Error → user-facing message with retry, using shared <EmptyState> component
+if (error) return (
+  <EmptyState
+    icon="⚠️"
+    title="Could not load your goals"
+    message={error}
+    actionLabel="Try Again"
+    onAction={fetchData}
+  />
 );
 
 // 3. Success → render data
 return <GoalList goals={goals} />;
 ```
+
+**Rule:** never hand-roll a retry screen with raw `TouchableOpacity` — CLAUDE.md mandates `<EmptyState>` (which internally uses `<Button>`) for empty / error states.
 
 ### 9. User-Facing Error Messages
 
@@ -251,7 +262,9 @@ try {
     userId,
     additionalData: { goalId, attempts: 3 },
   });
-  Alert.alert('Error', 'Could not save your changes. Please try again.');
+  // Prefer toast/inline feedback over Alert.alert per CLAUDE.md.
+  // See src/components/Toast.tsx for the app-wide toast pattern.
+  showToast('Could not save your changes. Please try again.', 'error');
 }
 ```
 

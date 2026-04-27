@@ -33,6 +33,7 @@ import { logger } from '../../utils/logger';
 import { sanitizeText } from '../../utils/sanitization';
 import { logErrorToFirestore } from '../../utils/errorLogger';
 import { FOOTER_HEIGHT } from '../../components/CustomTabBar';
+import RootFooterTabBar from '../../components/RootFooterTabBar';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { EmptyState } from '../../components/EmptyState';
 import ErrorRetry from '../../components/ErrorRetry';
@@ -47,6 +48,7 @@ import Button from '../../components/Button';
 import { vh } from '../../utils/responsive';
 import { getUserMessage } from '../../utils/AppError';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { analyticsService } from '../../services/AnalyticsService';
 
 const ConfirmationScreen = () => {
   const { t } = useTranslation();
@@ -130,6 +132,7 @@ const ConfirmationScreen = () => {
   }, [hasValidData, navigation]);
 
   useEffect(() => {
+    analyticsService.trackEvent('screen_view', 'navigation', { giftId: routeParams?.experienceGift?.id, experienceId: routeParams?.experienceGift?.experienceId, isCategory: routeParams?.isCategory }, 'ConfirmationScreen');
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const confettiTimer = setTimeout(() => confettiRef.current?.start(), 300);
     Animated.parallel([
@@ -304,6 +307,7 @@ const ConfirmationScreen = () => {
   }, [personalizedMessage, experienceGift.id, state.user?.id]);
 
   const handleCopyCode = useCallback(async () => {
+    analyticsService.trackEvent('button_click', 'engagement', { buttonName: 'copy_code' }, 'ConfirmationScreen');
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await Clipboard.setStringAsync(experienceGift.claimCode);
@@ -317,6 +321,7 @@ const ConfirmationScreen = () => {
   }, [experienceGift.claimCode]);
 
   const handleShareCode = useCallback(async () => {
+    analyticsService.trackEvent('share_goal_completed', 'social', {}, 'ConfirmationScreen');
     try {
       const shareMessage = isTogether
         ? t('giver.confirmation.share.together', { code: experienceGift.claimCode })
@@ -353,7 +358,7 @@ const ConfirmationScreen = () => {
     return (
       <ErrorBoundary screenName="ConfirmationScreen" userId={state.user?.id}>
           <ErrorRetry
-            message="Could not load gift details"
+            message={t('giver.confirmation.errors.giftLoadFailed')}
             onRetry={() => {
               setLoadError(false);
               if (experienceGift?.experienceId) {
@@ -504,6 +509,7 @@ const ConfirmationScreen = () => {
                     onPress={handleSendMessage}
                     disabled={isSendingMessage || !personalizedMessage.trim()}
                     loading={isSendingMessage}
+                    textStyle={{ color: colors.secondary }}
                   />
                 )}
                 {messageSent && (
@@ -647,6 +653,8 @@ const ConfirmationScreen = () => {
           fullWidth
         />
       </View>
+
+      <RootFooterTabBar />
     </ErrorBoundary>
   );
 };

@@ -6,9 +6,41 @@
 -   **Loading**: Skeleton loaders for all async states (never spinners).
 
 ## 2. Styling Stack
--   **NativeWind** (Tailwind CSS for React Native): Primary styling approach. Use `className` props.
--   **Moti** (`moti` + `react-native-reanimated`): Layout animations (fade, slide, stagger, presence).
--   See `.agent/skills/moti/SKILL.md` for animation patterns and gotchas.
+- **Primary approach**: React Native `StyleSheet.create()` + design tokens from `src/config/`. Components follow the `const colors = useColors(); const styles = useMemo(() => createStyles(colors), [colors]);` pattern.
+- **Theme-aware colors**: `useColors()` hook from `src/themes/useColors.ts` (re-exported from `src/config`). Resolves via `ThemeContext`. Used in 116+ files. **This is the canonical runtime color access pattern.**
+- **Static tokens**: `Typography.*`, `Spacing.*`, `BorderRadius.*`, `Shadows.*` — imported from `src/config`, used directly in `StyleSheet`. Static `Colors.*` is available but theme-blind — prefer `useColors()` for anything that must adapt to theme.
+- **Moti** (`moti` + `react-native-reanimated`): Layout animations (fade, slide, stagger, presence). See `.agent/skills/moti/SKILL.md`.
+- **NativeWind**: installed but **not used** — zero `className=` occurrences in the codebase. Do not introduce it.
+
+### Canonical Component Pattern
+```tsx
+import React, { useMemo } from 'react';
+import { StyleSheet, View, Text } from 'react-native';
+import { useColors, Typography, Spacing, BorderRadius } from '../config';
+
+export const MyCard = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  return (
+    <View style={styles.card}>
+      <Text style={styles.title}>Hi</Text>
+    </View>
+  );
+};
+
+const createStyles = (colors: ReturnType<typeof useColors>) => StyleSheet.create({
+  card: {
+    backgroundColor: colors.surface,
+    padding: Spacing.cardPadding,
+    borderRadius: BorderRadius.md,
+  },
+  title: { ...Typography.heading3, color: colors.textPrimary },
+});
+```
+
+### Theme & Dark Mode
+- **`ThemeContext`** (`src/themes/ThemeContext.tsx`): wraps the app, exposes current theme + setter.
+- **`useColors()`**: resolves the active theme to a concrete palette. Every new screen must be checked in both light and dark modes — invisible text, lost borders, and harsh contrast are the typical failure modes.
 
 ## 3. Color System
 

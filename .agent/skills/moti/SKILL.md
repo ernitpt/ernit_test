@@ -156,7 +156,36 @@ const styles = StyleSheet.create({
 });
 ```
 
-### 4. Skeleton Loader (Loading State)
+### 4. Action Button Entry/Exit (CLAUDE.md canonical)
+
+**Project rule** — floating action buttons, menu triggers (3-dot menus), and overlay action buttons MUST use this exact pattern. Do not substitute different values. Source: `CLAUDE.md` §Aesthetics & UX.
+
+```tsx
+import { MotiView, AnimatePresence } from 'moti';
+
+<AnimatePresence>
+  {showMenu && (
+    <MotiView
+      from={{ opacity: 0, scale: 0.85, translateY: -4 }}
+      animate={{ opacity: 1, scale: 1, translateY: 0 }}
+      exit={{ opacity: 0, scale: 0.85, translateY: -4 }}
+      transition={{ type: 'timing', duration: 150 }}
+      style={styles.actionButton}
+    >
+      {/* action button content */}
+    </MotiView>
+  )}
+</AnimatePresence>
+```
+
+**Why these specific values:**
+- `scale: 0.85` + `translateY: -4` produces a subtle "drop-in from above" effect — distinct from card entries (which use `translateY: 20`, dropping in from below).
+- `duration: 150` (timing, not spring) keeps the motion crisp and predictable for repeatedly-toggled UI (menus, FABs).
+- Symmetric from/exit means the button retracts back to where it came from.
+
+**This overrides** the generic "Basic Mounting Animation" pattern in Section 1 when the animated element is an action-triggering button or menu, not a content card.
+
+### 5. Skeleton Loader (Loading State)
 
 Use `MotiView` with `timing` loop for shimmering skeleton placeholders. See `src/components/SkeletonLoader.tsx` for the shared `SkeletonBox` component.
 

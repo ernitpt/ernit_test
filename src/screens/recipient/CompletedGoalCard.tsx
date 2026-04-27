@@ -37,8 +37,8 @@ const CompletedGoalCard: React.FC<CompletedGoalCardProps> = ({ goal, index = 0 }
     return (
         <ErrorBoundary screenName="CompletedGoalCard" userId={state.user?.id}>
             <MotiView
-                from={{ opacity: 0, translateY: 10 }}
-                animate={{ opacity: 1, translateY: 0 }}
+                from={{ translateY: 10 }}
+                animate={{ translateY: 0 }}
                 transition={{ type: 'timing', duration: 300, delay: index * 60 }}
             >
                 <TouchableOpacity

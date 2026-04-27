@@ -16,7 +16,7 @@ import {
 import { TextInput } from '../../components/TextInput';
 import { BaseModal } from '../../components/BaseModal';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import SharedHeader from '../../components/SharedHeader';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CompositeNavigationProp } from '@react-navigation/native';
@@ -232,11 +232,11 @@ const CouponEntryScreen = () => {
         setPendingExperienceGift(experienceGift);
         setShowPersonalizedMessage(true);
       } else {
-        // No message, proceed directly to GoalSetting (RootStack)
-        navigation.dispatch(CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'GoalSetting', params: { experienceGift: serializeGift(experienceGift) } }],
-        }));
+        // GoalSetting lives in MainTabs > GoalsTab — must navigate via the nested form
+        navigation.navigate('MainTabs', {
+          screen: 'GoalsTab',
+          params: { screen: 'GoalSetting', params: { experienceGift: serializeGift(experienceGift) } },
+        });
       }
     } catch (error: unknown) {
       logger.error('Error claiming experience gift:', error);
@@ -259,10 +259,10 @@ const CouponEntryScreen = () => {
     // Small delay to let animation complete
     continueTimeoutRef.current = setTimeout(() => {
       if (pendingExperienceGift) {
-        navigation.dispatch(CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'GoalSetting', params: { experienceGift: serializeGift(pendingExperienceGift) } }],
-        }));
+        navigation.navigate('MainTabs', {
+          screen: 'GoalsTab',
+          params: { screen: 'GoalSetting', params: { experienceGift: serializeGift(pendingExperienceGift) } },
+        });
       }
     }, 200);
   };

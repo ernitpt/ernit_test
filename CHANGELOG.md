@@ -133,6 +133,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - i18n Phase 12 — final cleanup: helpers.ts locale-aware, userService preferredLanguage, LanguageSync hook, GoalSessionService date fix, JSON key reconciliation (1933 keys)
 - add 36 missing i18n keys to en/pt locales and replace 'lista de desejos' with 'favoritos' in pt.json
 - motivate button shows 'Motivation sent' disabled state after send (one per session)
+- data-gathering overhaul — Clarity CSP fix, GA4 in test, anonymous funnel telemetry, global error handler, 13 screens backfilled
+- add screen_view analytics event on mount for ChallengeLandingScreen, ChallengeSetupScreen, GiftFlowScreen, NotificationsScreen
+- discovery reveal flips to immediate — match shows reveal modal right after quiz with Lock-it-in / Show-me-another / Let-me-pick actions; drops 75% delay; adds rematch (excludes current pick) and clearDiscoveredExperience for opt-out
+- show app footer tab bar via new RootFooterTabBar component so user can navigate out of the confirmation screen
+- tapping a purchased gift opens its confirmation screen
+- add admin user search + detail page in ErnitPartnerApp with goal counts
+- show friendships + friend requests (sent/received) on admin user detail page
+- rewrite web/index.html SEO — fitness-first positioning, OG/Twitter/JSON-LD tags, splash logo as share image, favicon links
 
 ### Documentation
 - updated analytics tracking tables in data-gathering skill and analytics knowledge
@@ -142,6 +150,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - update knowledge base for goal edit flow and new notification types
 - update AUDIT_LOG with session 3 notification fixes and design token polish
 - update system-map with new components, features, notification types, and service methods
+- fix stale skill patterns and CLAUDE.md import rule (useColors, BaseModal, TextInput, moti action-button, data-gathering frontmatter, numbering)
+- add i18n-system.md knowledge file documenting i18next setup, EN/PT-PT translations, LanguageContext, and language switching
+- add b2b-system.md knowledge file documenting ernitxfi B2B architecture
+- add error-handling-system knowledge file
+- exhaustive skill+knowledge audit pass 2 — fix dead refs, sync notification/event types, add B2B/i18n/error-handling knowledge files, clarify UI skill roles
+- round-3 skill audit — unlink frontend-design, add CLAUDE.md override notes for building-native-ui and ui-ux-pro-max, polish B2B/i18n/error-handling docs, delete superseded user-flow memories
 
 ### Changed
 - replace hardcoded hex colors with Colors tokens across SessionActionArea, GoalCardModals, Toast, MysteryChoiceScreen, CompletionScreen, FreeGoalCompletionScreen, AchievementDetailScreen, BookingCalendar, CustomCalendar, and ChallengeLandingScreen
@@ -433,6 +447,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - remove BlurView, spring animation, and MotiText from footer nav on Android
 - remove MainScreen wrapper from all screen files (tab navigator handles footer/navigation)
 - migrate footer navigation to bottom tab navigator — instant tab switches, no white flash
+- round-4 cleanup — delete backup JSON files (PII), remove dead launch.json + migrate:feed scripts, prune 1 worktree, update gitignore, refresh stale memory files
+- replace hardcoded English strings with t() calls in 6 screens
+- FeedScreen UX lift — skeleton loaders on pagination (no spinner), spring stagger on post entry (50ms/card, 300ms cap), animated filter bar reveal
+- remove left-border stripe from FeedPost — typeLabel chip in header already conveys post type, cleaner modern card look
+- FeedPost avatar ring — full-opacity colored ring with 2px inset gap (Instagram Stories aesthetic) replacing the faint outline; ties post type to identity
+- DetailedGoalCard post-session flow → state machine (usePostSessionFlow hook) — eliminates chained setTimeouts, 6 boolean states, and ctaTimeoutRef leak risk; centralizes sequence media→hint→celebration→discovery→reveal→cta
+- inline simple text hints into celebration modal — single sheet for gifted goals with plain-text hints (rich hints with image/audio still use dedicated HintPopup)
+- celebration modal polish — drop left accent line from week milestone banner, strip emoji prefix from modal title, boost confetti (sessions 120→160, weeks 120-280→240-500, faster explosion + longer fall for weeks)
+- confetti shoots up from bottom of screen with slow fall (origin moved, explosionSpeed and fallSpeed tuned; removed overflow:hidden wrapper that was clipping particles above origin)
+- confetti particles fade out as they descend past the bottom instead of visibly stacking; slower fall (6000–7000ms); overflow:visible on wrapper
+- confetti — 3 cannons across bottom (20/50/80% width) for wider dispersion; fallSpeed dropped 6000/7000→3800/4500 so particles descend at natural pace
+- confetti fall tightened — 3800/4500 → 2600/3200 ms
+- drop filter row entry animation on FeedScreen — chips render instantly, no jiggle
+- drop target emoji from GoalsScreen no-goals-yet empty state
+- use .select() to trim user doc payload and parallelize rate-limit write with data fetches
+- index-backed prefix search via searchPrefixes array — replaces O(n) scan of 500 user docs with O(log n) Firestore query
+- revert over-engineered indexed search; keep .select() + parallel roundtrip wins and drop country filter
+- make 'Attach message' button text green to match the success badge
+- remove gift emoji from profile achievement cards
+- redesign pending-approval state in DetailedGoalCard
 
 ### Fixed
 - added Samsung Browser/Chrome Mobile PWA notification crash protection in PushNotificationService
@@ -1044,6 +1078,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add surface backgroundColor to 5 screen roots to prevent white flash on navigation
 - allow blob: in CSP connect-src for web image uploads
 - resize ExperienceDetailsScreen for mobile and pin sticky CTA via flex layout
+- partner onboarding — preserve placeholder UID via updateUser instead of creating a new Auth user (prevents orphaned coupons + experience.partnerId mismatch); one-off migration for Vertente Natural
+- normalize isMystery/revealMode in ExperienceCheckoutScreen so gift docs can't end up contradictory
+- improve pt-PT translations in ChallengeLandingScreen — fix tautology (merece/mereces), grammar (alguém que te importas), verb choice (Faz→Oferece, Fiel→Ritmo, Ajudá-los→Ajuda-o), Cofundador post-AO, propensos instead of prováveis
+- translate rotating hero words (workout/do yoga/dance/run) to PT — treinar/fazer yoga/dançar/correr, so 'Quero treinar' renders correctly instead of 'Quero workout'
+- harden gift\u2192goal attachment \u2014 auto-notify on pending gifts, gift_detached on goal delete, hard-fail zero-amount deferred charges, Stripe idempotency key, gift expiresAt guard, graceful DUPLICATE_GIFT handling
+- pt-PT translation audit — 10+ fixes: landing.tagline wrong text, booking defaultPartnerName 'olá' causing 'Olá olá!', guiam-nos→guiam-os pronoun errors, Mereceste cada momento→bocadinho disto, Praia ou montanha→montanhas, Concluído em→a, dias para o fim→para terminar, Alteração ao→do, insira→introduz
+- mirror chargeDeferredGift_Test with partner-removed notifications, in-transaction free-gift notifs, and in-transaction paid-unlock notifs
+- audit remediation — notification atomicity, feed-post read-rule, FCM cleanup on logout, password-reset enum hardening, reject edit request tx, partner-goal-deletion notifications, shared_partner_removed/payment_cancelled handlers, i18n sweep, screen_view events, dead code removal
+- discovery quiz — reveal now fires immediately after match when threshold is met; quiz awaits onAnswer before closing so state machine sees fresh needsReveal flag; auto-close on all-questions-done edge case; disable option buttons while saving
+- discovery reveal — (1) matchExperience falls back cross-category if preferred category has no published experiences, (2) onAnswer shows explicit error toast when catalog is completely empty instead of silent null, (3) completeSessionFlow retries match on goals stuck from prior silent failures
+- discovery match query — remove broken status='published' filter and match CategorySelection's pattern (fetch + filter drafts client-side); experiences without a status field now correctly become match candidates
+- reveal Lock-it-in now navigates to ExperienceCheckout with the matched experience + goalId (was a no-op); also removed the sparkle emoji from the reveal headline
+- discovery Lock-it-in now persists the matched experience as pledgedExperience so it survives checkout abandonment; adds Change Reward menu item that re-opens the reveal modal; clearDiscoveredExperience also clears pledgedExperience
+- confetti now fires reliably on celebration modal — switched from fragile ref+setTimeout trigger (silently no-op'd when the RN Modal hadn't mounted children) to autoStart + key-based remount
+- strip undefined location before writing discoveredExperience snapshot — Firestore rejects undefined field values; experiences without a location field (e.g. Rock Climbing) now persist correctly across onAnswer match, recovery match, onRematch, and lock-in flows
+- coupon redemption — Continue button now navigates to GoalSetting (was reset to non-existent root route)
+- GoalSettingScreen footer — remove white border/shadow that appeared above Next button in dark mode
+- reset isProcessing before navigation so stuck loading spinner can't strand users after payment succeeds
+- use CommonActions.navigate for post-payment navigation so it bubbles through composite navigators instead of silently dropping
+- always allow localhost origins in CORS so deployed callables work from localhost dev server
+- drop transaction.get from gift claim — Firestore rules block pre-claim reads, so rely on rules to enforce atomicity on update
+- show specific error reason instead of generic toast (already friends, duplicate request, rate limit, etc.)
+- persist non-business friend-request errors to Firestore via logErrorToFirestore so they're visible in admin tooling
+- restore footer tab bar and make page scrollable (inner wrapper missing flex: 1)
+- hide Add Friend button on FriendProfileScreen until friendship status is loaded
 
 ### Added
 - Automatic changelog system with `npm run log` script

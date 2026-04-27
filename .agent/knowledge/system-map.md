@@ -14,8 +14,11 @@ This directory contains the "Source of Truth" for Ernit's architecture.
 | **Payments** | `payments-system.md` | Stripe Intents, Webhooks, Deferred Gifts, and Security. |
 | **Experiences** | `experiences-gifts-system.md` | Product catalog, Gift objects, Gift Flow (free/deferred/shared), and Empower flow. |
 | **Hints & Coupons** | `hints-coupons-system.md` | AI/Personal hints storage and coupon reward logic. |
-| **UI & UX** | `ui-ux-system.md` | Color system (Emerald/Teal), Moti animations, NativeWind, components. |
+| **UI & UX** | `ui-ux-system.md` | StyleSheet + design tokens, `useColors()` hook, ThemeContext, Moti animations, Emerald/Teal palette. |
 | **Analytics** | `analytics-system.md` | AnalyticsService, event tracking, Firestore events collection. |
+| **i18n** | `i18n-system.md` | i18next setup, EN/PT-PT translations, LanguageContext, language switching. |
+| **B2B** | `b2b-system.md` | Separate B2B app: companies, employees, goals, sessions. |
+| **Error Handling** | `error-handling-system.md` | ErrorBoundary, logErrorToFirestore, globalErrorHandlers, AppError, errors collection. |
 
 ## Usage
 Use the `accessing-knowledge` skill to read these files. Do NOT try to memorize them. Read them when needed to ensure you have the latest context.

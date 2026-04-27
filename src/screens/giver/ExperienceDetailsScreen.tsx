@@ -468,7 +468,7 @@ function ExperienceDetailsScreenInner({ clientSecret }: { clientSecret: string }
                     style={{ border: 0, borderRadius: BorderRadius.md }}
                     allowFullScreen
                     loading="lazy"
-                    title="Location"
+                    title={t('experience.locationIframeTitle')}
                   />
                 ) : (
                   <WebView

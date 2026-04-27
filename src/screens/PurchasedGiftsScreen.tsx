@@ -35,6 +35,7 @@ import { Card } from '../components/Card';
 import { toJSDate } from '../utils/GoalHelpers';
 import { FOOTER_HEIGHT } from '../components/CustomTabBar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { analyticsService } from '../services/AnalyticsService';
 
 type PurchasedGiftsNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -106,12 +107,11 @@ const GiftItem = ({ item }: { item: ExperienceGift }) => {
   }, [item.experienceId]);
 
   const handlePress = useCallback(() => {
-    if (experience) {
-      navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'ExperienceDetails', params: { experience } } });
-    } else {
-      // Category-only gift or experience not yet loaded — no detail screen to show
-    }
-  }, [navigation, item, experience]);
+    navigation.navigate('Confirmation', {
+      experienceGift: item,
+      isCategory: !item.experienceId,
+    });
+  }, [navigation, item]);
 
   return (
     <Card
@@ -203,6 +203,14 @@ const PurchasedGiftsScreen = () => {
     }
   }, [fetchGifts]);
 
+  // Screen-view enrichment
+  useEffect(() => {
+    if (loading) return;
+    const claimedCount = gifts.filter(g => g.status === 'claimed').length;
+    const pendingCount = gifts.filter(g => g.status === 'pending').length;
+    analyticsService.trackEvent('screen_view', 'navigation', { giftCount: gifts.length, claimedCount, pendingCount }, 'PurchasedGiftsScreen');
+  }, [loading]);
+
   // Filter gifts based on selected filter
   const filteredGifts = useMemo(() => gifts.filter(gift => {
     if (filterStatus === 'all') return true;
@@ -211,14 +219,15 @@ const PurchasedGiftsScreen = () => {
 
   // Reset display count when filter changes
   const handleFilterChange = useCallback((status: 'all' | 'pending' | 'claimed') => {
+    analyticsService.trackEvent('button_click', 'engagement', { buttonName: 'filter_gifts', filterStatus: status }, 'PurchasedGiftsScreen');
     setFilterStatus(status);
     setDisplayCount(20);
   }, []);
 
   const renderGiftItem = useCallback(({ item, index }: { item: ExperienceGift; index: number }) => (
     <MotiView
-      from={{ opacity: 0, translateY: 12 }}
-      animate={{ opacity: 1, translateY: 0 }}
+      from={{ translateY: 12 }}
+      animate={{ translateY: 0 }}
       transition={{ type: 'timing', duration: 300, delay: index * 60 }}
       style={{ backgroundColor: colors.surface }}
     >

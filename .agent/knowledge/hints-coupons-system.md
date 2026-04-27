@@ -22,13 +22,18 @@ Hints provide motivation and clues for goals. They can be system-generated (AI) 
 ---
 
 ## Coupons Architecture
-Coupons are rewards linked to specific goals, often used in B2B or verified partner scenarios.
+Partner coupons are reward codes issued to recipients on goal completion (B2B and partner integrations).
 
 ### Core Concepts
-- **Storage**: `couponCode` field directly on the `Goal` document.
-- **Generation**: Logic appears to be manual or trigger-based (`saveCouponCode`).
-- **Redemption**: Handled via `CouponEntryScreen` which validates codes against backend logic (likely Cloud Functions or hardcoded lists depending on implementation).
+- **Service**: `src/services/CouponService.ts` — generates, issues, and redeems `PartnerCoupon` docs.
+- **Generation**: Unique 12-character alphanumeric codes created via CSPRNG (`expo-crypto`) with rejection sampling to eliminate modulo bias. Never seeded from `Math.random`.
+- **Storage**: Two places —
+  - `PartnerCoupon` records (dedicated collection, see `PartnerCoupon` type in `src/types/index.ts`).
+  - `couponCode` snapshot field on the `Goal` document for quick lookup (set via `GoalService.saveCouponCode`).
+- **Redemption**: `CouponEntryScreen` validates input codes against the server-side coupon records. Redemption flips `PartnerCoupon.isRedeemed` atomically via `runTransaction` to prevent double-claim.
 
 ### Key Files
-- `CouponEntryScreen.tsx`: UI for inputting codes.
-- `GoalService.ts`: `getCouponCode` / `saveCouponCode`.
+- `src/services/CouponService.ts` — generation, issuance, redemption (transactional).
+- `src/screens/recipient/CouponEntryScreen.tsx` — user-facing code entry UI.
+- `src/services/GoalService.ts` — `getCouponCode` / `saveCouponCode` for the snapshot on `goals/{goalId}`.
+- `src/types/index.ts` — `PartnerCoupon` type definition.

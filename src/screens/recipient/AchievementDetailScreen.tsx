@@ -59,6 +59,7 @@ import { logger } from '../../utils/logger';
 import { toJSDate } from '../../utils/GoalHelpers';
 import ErrorRetry from '../../components/ErrorRetry';
 import { Trophy, Copy, CheckCircle, Sparkles, Ticket, MessageCircle, Mail, Clock, PlayCircle, Flame } from 'lucide-react-native';
+import { analyticsService } from '../../services/AnalyticsService';
 import Button from '../../components/Button';
 import { getFlameHex } from '../../utils/streakColor';
 import ConfettiCannon from 'react-native-confetti-cannon';
@@ -568,6 +569,12 @@ const AchievementDetailScreen = () => {
     ? formatLocalDate(parsedDate, { month: 'short', day: 'numeric', year: 'numeric' })
     : null;
 
+  // Screen-view enrichment
+  useEffect(() => {
+    if (!goal?.id) return;
+    analyticsService.trackEvent('screen_view', 'navigation', { goalId: goal.id, hasReward }, 'AchievementDetailScreen');
+  }, [goal?.id]);
+
   // Cleanup copy timeouts on unmount
   useEffect(() => {
     return () => {
@@ -737,11 +744,12 @@ const AchievementDetailScreen = () => {
   // ───── Handler functions ─────
   const handleCopy = useCallback(async () => {
     if (!couponCode) return;
+    analyticsService.trackEvent('coupon_redeemed', 'conversion', { goalId: goal?.id, partnerId: partner?.id }, 'AchievementDetailScreen');
     await Clipboard.setStringAsync(couponCode);
     setIsCopied(true);
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
     copyTimeoutRef.current = setTimeout(() => setIsCopied(false), 2000);
-  }, [couponCode]);
+  }, [couponCode, goal?.id, partner?.id]);
 
   const handleCopyPhone = useCallback(async () => {
     if (!partner?.phone) return;
@@ -827,11 +835,13 @@ const AchievementDetailScreen = () => {
   }, [partner, experience, preferredDate, userName, handleEmailFallback, t]);
 
   const handleBookNowWhatsApp = useCallback(() => {
+    analyticsService.trackEvent('button_click', 'engagement', { buttonName: 'book_now', channel: 'whatsapp' }, 'AchievementDetailScreen');
     setBookingMethod('whatsapp');
     setShowCalendar(true);
   }, []);
 
   const handleBookNowEmail = useCallback(() => {
+    analyticsService.trackEvent('button_click', 'engagement', { buttonName: 'book_now', channel: 'email' }, 'AchievementDetailScreen');
     setBookingMethod('email');
     setShowCalendar(true);
   }, []);
@@ -878,7 +888,7 @@ const AchievementDetailScreen = () => {
           <StatusBar style="light" />
           <SharedHeader title={t('recipient.achievement.screenTitle')} showBack />
           <ErrorRetry
-            message="Could not load achievement details"
+            message={t('recipient.achievement.errors.loadFailed')}
             onRetry={() => {
               setError(false);
               setRetryKey(k => k + 1);
@@ -1066,12 +1076,7 @@ const AchievementDetailScreen = () => {
                 <Button
                   variant="primary"
                   title={t('recipient.achievement.shareButton')}
-                  onPress={() => navigation.navigate('ShareGoal', {
-                    goal,
-                    experienceGift: experienceGiftParam,
-                    sessions,
-                    sessionStreak,
-                  })}
+                  onPress={() => { analyticsService.trackEvent('button_click', 'social', { buttonName: 'share_achievement', goalId: goal?.id }, 'AchievementDetailScreen'); navigation.navigate('ShareGoal', { goal, experienceGift: experienceGiftParam, sessions, sessionStreak }); }}
                   fullWidth
                 />
               </View>

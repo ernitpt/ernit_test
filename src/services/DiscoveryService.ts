@@ -1,5 +1,5 @@
 import { db } from '../services/firebase';
-import { collection, getDocs, query, where, doc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, updateDoc, getDoc, serverTimestamp, deleteField } from 'firebase/firestore';
 import { Experience, ExperienceCategory } from '../types';
 import { logger } from '../utils/logger';
 
@@ -179,24 +179,46 @@ class DiscoveryService {
     goalId: string,
     category: ExperienceCategory,
     preferences: Record<string, string>,
+    excludeExperienceIds: string[] = [],
   ): Promise<Experience | null> {
     try {
-      logger.log('[DiscoveryService] matchExperience start:', goalId, category);
+      logger.log('[DiscoveryService] matchExperience start:', goalId, category, 'excluding:', excludeExperienceIds.length);
 
-      // 1. Fetch all published experiences in this category
+      // 1. Fetch experiences in this category.
+      // Match the catalog query pattern used by CategorySelectionScreen: fetch by
+      // category, then filter drafts client-side. Production experience docs
+      // typically don't have `status` set at all (undefined passes the filter);
+      // only docs explicitly marked `status: 'draft'` are hidden.
       const expQuery = query(
         collection(db, 'experiences'),
         where('category', '==', category),
-        where('status', '==', 'published'),
       );
-      const snapshot = await getDocs(expQuery);
+      let snapshot = await getDocs(expQuery);
+      let usedFallback = false;
 
+      // Fallback: if the user's category has zero candidates, pull the whole
+      // catalog so the discovery engine always has something to show.
       if (snapshot.empty) {
-        logger.warn('[DiscoveryService] No published experiences found for category:', category);
-        return null;
+        logger.warn('[DiscoveryService] No experiences for category', category, '— falling back to cross-category');
+        const fallbackQuery = query(collection(db, 'experiences'));
+        snapshot = await getDocs(fallbackQuery);
+        usedFallback = true;
+
+        if (snapshot.empty) {
+          logger.error('[DiscoveryService] experiences collection is empty');
+          return null;
+        }
       }
 
-      const experiences = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Experience));
+      const experiences = snapshot.docs
+        .map(d => ({ id: d.id, ...d.data() } as Experience))
+        .filter(e => e.status !== 'draft')
+        .filter(e => !excludeExperienceIds.includes(e.id));
+
+      if (experiences.length === 0) {
+        logger.warn('[DiscoveryService] All candidates filtered out (drafts + excluded) — no candidates left (fallback used:', usedFallback, ')');
+        return null;
+      }
 
       // 2. Score each experience
       const scored = experiences.map(exp => ({
@@ -374,6 +396,39 @@ class DiscoveryService {
       logger.log('[DiscoveryService] markExperienceRevealed:', goalId);
     } catch (err: unknown) {
       logger.error('[DiscoveryService] markExperienceRevealed failed:', err);
+      throw err;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // clearDiscoveredExperience
+  // -------------------------------------------------------------------------
+
+  /**
+   * Called when the user rejects the discovery engine's picks and wants to
+   * choose their own experience manually. Clears all discovery state on the
+   * goal so the quiz does not re-open and the reveal does not re-fire.
+   * Marks `experienceRevealed: true` so the post-session flow does not
+   * keep routing to 'reveal'.
+   */
+  async clearDiscoveredExperience(goalId: string): Promise<void> {
+    try {
+      const goalRef = doc(db, 'goals', goalId);
+      await updateDoc(goalRef, {
+        discoveredExperience: deleteField(),
+        discoveredAt: deleteField(),
+        // Also clear pledgedExperience if it was populated by a previous lock-in —
+        // the user is choosing to browse manually, so their prior auto-pick should
+        // not linger as a stale pledged reward on the goal.
+        pledgedExperience: deleteField(),
+        discoveryPreferences: {},
+        discoveryQuestionsCompleted: 0,
+        experienceRevealed: true,
+        experienceRevealedAt: serverTimestamp(),
+      });
+      logger.log('[DiscoveryService] clearDiscoveredExperience:', goalId);
+    } catch (err: unknown) {
+      logger.error('[DiscoveryService] clearDiscoveredExperience failed:', err);
       throw err;
     }
   }

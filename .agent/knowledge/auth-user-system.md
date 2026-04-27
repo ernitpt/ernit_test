@@ -31,3 +31,9 @@ Authentication is handled via Firebase Auth, but the app implements a custom "Au
 - **Login Dispatch**: Login dispatches the real Firestore user document on all paths including Google account-linking.
 - **Error Safety**: All `userService` methods have try/catch — failures do not propagate uncaught exceptions.
 - **Input Sanitization**: `sanitizeText` is called on profile `name` and `description` fields before any Firestore write.
+
+## User-Facing Context Providers
+Auth-adjacent context systems that shape how the authenticated user experiences the app:
+- **`ThemeContext`** (`src/themes/ThemeContext.tsx`) — exposes current theme + setter. Colors are resolved via `useColors()` hook (from `src/themes/useColors.ts`, re-exported from `src/config`). See `ui-ux-system.md` and `error-handling-system.md`.
+- **`LanguageContext`** (`src/context/LanguageContext.tsx`) — exposes current language (`en` / `pt-PT`) + setter. Wired into i18next. See `i18n-system.md`. Language toggle lives in the SideMenu.
+- Both contexts persist their current value via AsyncStorage and restore on cold start, so the user's preference survives logout.

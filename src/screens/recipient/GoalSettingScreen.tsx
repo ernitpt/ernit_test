@@ -40,7 +40,7 @@ import { analyticsService } from '../../services/AnalyticsService';
 import { notificationService } from '../../services/NotificationService';
 import { userService } from '../../services/userService';
 import { db, auth } from '../../services/firebase';
-import { addDoc, collection, deleteField, doc, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteField, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { experienceService } from '../../services/ExperienceService';
 import { SkeletonBox } from '../../components/SkeletonLoader';
 import { logger } from '../../utils/logger';
@@ -297,25 +297,30 @@ const GoalSettingScreen = () => {
   }, [currentStep]);
 
   // ─── Security: Atomically claim gift ──────────────────────────────
+  // We can't transaction.get() the gift first — Firestore rules don't grant the
+  // pre-claim user read access (would expose claimCode to anyone with a giftId).
+  // Instead we rely on the rules to enforce atomicity: the update is only allowed
+  // when status is pending/active and recipientId is unset (or matches us). A
+  // permission-denied response means another claim won the race.
   const updateGiftStatus = async (experienceGiftId: string) => {
     const currentUser = auth.currentUser;
     if (!currentUser) throw new Error('User not authenticated');
 
     const giftDocRef = doc(db, 'experienceGifts', experienceGiftId);
     const uid = currentUser.uid;
-    await runTransaction(db, async (transaction) => {
-      const freshGift = await transaction.get(giftDocRef);
-      if (!freshGift.exists()) throw new Error('Gift not found');
-      const currentStatus = freshGift.data().status;
-      if (currentStatus !== 'pending' && currentStatus !== 'active') throw new Error('Gift already claimed');
-      transaction.update(giftDocRef, {
+    try {
+      await updateDoc(giftDocRef, {
         status: 'claimed',
         claimedBy: uid,
         recipientId: uid,
         claimedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-    });
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === 'permission-denied') throw new Error('Gift already claimed');
+      throw err;
+    }
   };
 
   // ─── Per-step validation ──────────────────────────────────────────
@@ -1781,12 +1786,16 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingBottom: Platform.OS === 'ios' ? vh(30) : vh(18),
     paddingTop: vh(14),
-    backgroundColor: colors.white,
-    borderTopWidth: 1,
-    borderTopColor: colors.backgroundLight,
+    backgroundColor: colors.surface,
+    borderTopWidth: 0,
     ...Shadows.md,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: -4 },
+    ...Platform.select({
+      web: {},
+      default: {
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: -4 },
+      },
+    }),
   },
   ctaButton: {
     borderRadius: BorderRadius.lg,

@@ -10,7 +10,7 @@ Follow this recipe EXACTLY when the user asks for a new feature.
 - [ ] **Check Knowledge**: Use `accessing-knowledge` skill. exist?
     - *Why?* Don't build duplicate auth systems or inconsistent UI.
 - [ ] **Draft Plan**: Use `writing-plans` skill.
-    - Create `implementation_plan.md`.
+    - The skill saves the plan to `docs/plans/YYYY-MM-DD-<feature-name>.md` — do not create a flat `implementation_plan.md`.
     - **CRITICAL**: Define the "Definition of Done".
 - [ ] **Review**: Ask USER to approve the plan.
 

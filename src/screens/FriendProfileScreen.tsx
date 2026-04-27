@@ -48,6 +48,7 @@ import { EmptyState } from '../components/EmptyState';
 import { Avatar } from '../components/Avatar';
 import { MotiView } from 'moti';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { analyticsService } from '../services/AnalyticsService';
 
 type FriendProfileNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -165,7 +166,7 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
         <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg }}>
           {!hasExperience && (
             <TouchableOpacity
-              onPress={() => setShowEmpowerModal(true)}
+              onPress={() => { analyticsService.trackEvent('button_click', 'engagement', { buttonName: 'empower_goal', goalId: goal.id }, 'FriendProfileScreen'); setShowEmpowerModal(true); }}
               style={styles.empowerActionButton}
               activeOpacity={0.8}
               accessibilityRole="button"
@@ -188,7 +189,7 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
             </View>
           ) : (
             <TouchableOpacity
-              onPress={() => setShowMotivateModal(true)}
+              onPress={() => { analyticsService.trackEvent('button_click', 'engagement', { buttonName: 'motivate_goal', goalId: goal.id }, 'FriendProfileScreen'); setShowMotivateModal(true); }}
               style={styles.motivateActionButton}
               activeOpacity={0.8}
               accessibilityRole="button"
@@ -228,7 +229,7 @@ const GoalCard = ({ goal, currentUserId, userName }: { goal: Goal; currentUserId
       <BaseModal
         visible={showHintHistory}
         onClose={() => setShowHintHistory(false)}
-        title="Hint History"
+        title={t('friends.profile.hintHistoryTitle')}
         variant="center"
       >
         <ScrollView style={historyModalStyles.scrollView}>
@@ -467,13 +468,11 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
         {cover ? (
           <Image source={{ uri: cover }} style={styles.achievementImage} accessibilityLabel={`${pledged.title} cover image`} cachePolicy="memory-disk" contentFit="cover" />
         ) : (
-          <View style={[styles.achievementImage, styles.achievementImagePlaceholder]}>
-            <Text style={styles.achievementImagePlaceholderText}>🎁</Text>
-          </View>
+          <View style={[styles.achievementImage, styles.achievementImagePlaceholder]} />
         )}
         <View style={styles.achievementContent}>
           <Text style={styles.achievementTitle} numberOfLines={1}>{goal.title}</Text>
-          <Text style={styles.achievementGoal} numberOfLines={1}>🎁 {pledged.title}</Text>
+          <Text style={styles.achievementGoal} numberOfLines={1}>{pledged.title}</Text>
           <Text style={styles.achievementMeta}>
             {t('friends.profile.sessionsMeta', { sessions, weeks })}
           </Text>
@@ -519,9 +518,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
       {cover ? (
         <Image source={{ uri: cover }} style={styles.achievementImage} accessibilityLabel={`${experience?.title || 'Experience'} cover image`} cachePolicy="memory-disk" contentFit="cover" />
       ) : (
-        <View style={[styles.achievementImage, styles.achievementImagePlaceholder]}>
-          <Text style={styles.achievementImagePlaceholderText}>🎁</Text>
-        </View>
+        <View style={[styles.achievementImage, styles.achievementImagePlaceholder]} />
       )}
 
       <View style={styles.achievementContent}>
@@ -535,7 +532,7 @@ const AchievementCard: React.FC<{ goal: Goal; userName: string | null }> = ({ go
         ) : (
           <>
             <Text style={styles.achievementTitle} numberOfLines={1}>
-              🎁 {experience?.title || t('friends.profile.experienceUnlocked')}
+              {experience?.title || t('friends.profile.experienceUnlocked')}
             </Text>
             <Text style={styles.achievementPartner} numberOfLines={1}>
               👤 {partnerName}
@@ -642,6 +639,7 @@ const FriendProfileScreen: React.FC = () => {
   const [wishlist, setWishlist] = useState<Experience[]>([]);
   const [isFriend, setIsFriend] = useState(false);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  const [friendshipLoaded, setFriendshipLoaded] = useState(false);
   const [friendSince, setFriendSince] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
@@ -673,6 +671,7 @@ const FriendProfileScreen: React.FC = () => {
   const loadFriendProfile = useCallback(async () => {
     try {
       setIsLoading(true);
+      setFriendshipLoaded(false);
       setImageLoadError(false);
 
       const profile = await userService.getUserProfile(userId);
@@ -717,6 +716,9 @@ const FriendProfileScreen: React.FC = () => {
         setHasPendingRequest(pendingStatus);
         const friendRecord = myFriends.find((f: Friend) => f.friendId === userId);
         setFriendSince(friendRecord?.createdAt ?? null);
+        setFriendshipLoaded(true);
+      } else {
+        setFriendshipLoaded(true);
       }
     } catch (error: unknown) {
       if (!isMountedRef.current) return;
@@ -738,6 +740,12 @@ const FriendProfileScreen: React.FC = () => {
       return () => { isMountedRef.current = false; };
     }, [userId, loadFriendProfile])
   );
+
+  // Screen-view enrichment (fires after friendship status is loaded)
+  useEffect(() => {
+    if (isLoading) return;
+    analyticsService.trackEvent('screen_view', 'navigation', { friendId: userId, isFriend, hasPendingRequest }, 'FriendProfileScreen');
+  }, [userId, isFriend, hasPendingRequest, isLoading]);
 
   if (!userId) return null; // Early return AFTER all hooks
 
@@ -898,7 +906,12 @@ const FriendProfileScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* Friend Buttons */}
+          {/* Friend Buttons — gated on friendshipLoaded so the wrong branch doesn't flash during load */}
+          {!friendshipLoaded ? (
+            <View style={styles.friendButtonContainer}>
+              <SkeletonBox width={140} height={36} style={{ borderRadius: BorderRadius.sm }} />
+            </View>
+          ) : (
           <MotiView
             from={{ opacity: 0, scale: 0.85, translateY: -4 }}
             animate={{ opacity: 1, scale: 1, translateY: 0 }}
@@ -930,6 +943,7 @@ const FriendProfileScreen: React.FC = () => {
                   onPress={async () => {
                     // FIX 1b: guard against undefined currentUserId before use
                     if (!currentUserId) return;
+                    analyticsService.trackEvent('friend_request_sent', 'social', { friendId: userId }, 'FriendProfileScreen');
                     setIsActionLoading(true);
                     try {
                       await friendService.sendFriendRequest(
@@ -960,6 +974,7 @@ const FriendProfileScreen: React.FC = () => {
               )}
             </View>
           </MotiView>
+          )}
         </View>
 
         {/* Tabs */}
@@ -1055,6 +1070,7 @@ const FriendProfileScreen: React.FC = () => {
                 onPress={async () => {
                   // FIX 1b: guard against undefined currentUserId before use
                   if (!currentUserId) return;
+                  analyticsService.trackEvent('friend_removed', 'social', { friendId: userId }, 'FriendProfileScreen');
                   setIsActionLoading(true);
                   try {
                     await friendService.removeFriend(currentUserId, userId);

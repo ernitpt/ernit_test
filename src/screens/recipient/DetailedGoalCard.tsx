@@ -47,6 +47,7 @@ import {
   PartnerGoalData,
 } from './goalCardUtils';
 import { useGoalProgress } from './hooks/useGoalProgress';
+import { usePostSessionFlow } from './hooks/usePostSessionFlow';
 import WeeklyCalendar from './components/WeeklyCalendar';
 import ProgressBars from './components/ProgressBars';
 import TimerDisplay from './components/TimerDisplay';
@@ -93,17 +94,21 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   const [currentGoal, setCurrentGoal] = useState(goal);
   const [empoweredName, setEmpoweredName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showHint, setShowHint] = useState(false);
   const [lastHint, setLastHint] = useState<HintObject | string | null>(null);
   const [lastSessionNumber, setLastSessionNumber] = useState<number>(0);
   // Ref keeps lastSessionNumber readable synchronously — state updates are async
   // so handlePostToFeed uses this ref instead of stale state
   const lastSessionNumberRef = useRef<number>(0);
   const [showCancelPopup, setShowCancelPopup] = useState(false);
-  const [showCelebration, setShowCelebration] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [showGoalEditModal, setShowGoalEditModal] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+
+  // Post-session modal flow (state machine — replaces chained setTimeout + booleans)
+  const flow = usePostSessionFlow();
+
+  // Rematch-in-flight state for the reveal modal's "Show me another" action
+  const [rematching, setRematching] = useState(false);
   const { showSuccess, showError, showInfo } = useToast();
   const [celebrationData, setCelebrationData] = useState<{
     userName: string;
@@ -118,6 +123,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     totalWeeks: number;
     weekJustCompleted: boolean;
     completedWeekNumber: number;
+    inlineHint?: HintObject | string | null;
   } | null>(null);
   const [debugTimeKey, setDebugTimeKey] = useState(0);
   const cancelMessage = t('recipient.detailedGoal.cancelSessionMessage');
@@ -125,7 +131,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   // Media capture state
   const [sessionMediaUri, setSessionMediaUri] = useState<string | null>(null);
   const [sessionMediaType, setSessionMediaType] = useState<'photo' | 'video' | null>(null);
-  const [showMediaPrompt, setShowMediaPrompt] = useState(false);
   const [lastSessionMediaUrl, setLastSessionMediaUrl] = useState<string | null>(null);
   const [lastSessionMediaType, setLastSessionMediaType] = useState<'photo' | 'video' | null>(null);
   const [pendingFinishData, setPendingFinishData] = useState<{
@@ -136,13 +141,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     gift: Awaited<ReturnType<typeof experienceGiftService.getExperienceGiftById>> | null;
   } | null>(null);
 
-  // CTA state
-  const [showCTA, setShowCTA] = useState(false);
-  const [ctaDecision, setCTADecision] = useState<CTADecision | null>(null);
-
-  // Discovery engine state
-  const [showDiscoveryQuiz, setShowDiscoveryQuiz] = useState(false);
-  const [showExperienceReveal, setShowExperienceReveal] = useState(false);
+  // CTA + Discovery: visibility is owned by `flow` (state machine).
+  // `flow.ctaDecision` and `flow.setCTADecision` carry the async-loaded CTA payload.
 
   // Venue/location state
   const [showVenueModal, setShowVenueModal] = useState(false);
@@ -201,12 +201,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     }
   }, [isTimerRunning, timerFadeAnim]);
 
-  // Cleanup CTA timeout on unmount to prevent memory leaks
-  useEffect(() => {
-    return () => {
-      if (ctaTimeoutRef.current) clearTimeout(ctaTimeoutRef.current);
-    };
-  }, []);
 
   // ─── Hooks ──────────────────────────────────────────────────────
 
@@ -626,7 +620,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
   const finishLock = useRef(false);
   const hintGeneratingRef = useRef(false);
-  const ctaTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // ─── Complete session flow (after media prompt resolves) ─────────
   // Defined BEFORE handleFinish so it can be referenced in handleFinish's body
@@ -679,10 +672,18 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     setSessionMediaType(null);
     setPendingFinishData(null);
 
-    // Process hints (skip for self-gifted goals)
-    if (!isSelfGift) {
-      await processHintAfterSession(updated, totalSessionsDone, experience, recipientName);
-    }
+    // Process hints (skip for self-gifted goals). Return the hint value so we can decide
+    // whether it's a "rich" hint (image/audio → dedicated HintPopup) or a "simple" text
+    // hint (inlined as a section inside the celebration, one modal instead of two).
+    const hintValue = !isSelfGift
+      ? await processHintAfterSession(updated, totalSessionsDone, experience, recipientName)
+      : null;
+    const isRichHint = !!(
+      hintValue &&
+      typeof hintValue === 'object' &&
+      (hintValue.imageUrl || hintValue.audioUrl)
+    );
+    const simpleInlineHint = hintValue && !isRichHint ? hintValue : null;
 
     // Check for streak milestones (7, 14, 21, 30)
     const STREAK_MILESTONES = [7, 14, 21, 30];
@@ -720,20 +721,83 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       totalWeeks: updated.targetCount,
       weekJustCompleted,
       completedWeekNumber,
+      inlineHint: simpleInlineHint,
     });
 
-    if (!isSelfGift) {
-      // Gifted goals: always show hint first, celebration chains after dismissal
-      setShowHint(true);
-    } else {
-      // Self-gifted: no hints, direct to celebration
-      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setShowCelebration(true);
+    if (isSelfGift && Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
+
+    // Recovery: if the user has already answered enough quiz questions but no match
+    // was ever persisted (e.g. previous match attempts returned null because the
+    // catalog was empty, or the pre-fix quiz auto-closed without matching), retry
+    // the match here using their existing preferences. This unsticks accounts that
+    // are trapped with questionsCompleted >= 3 and discoveredExperience still null.
+    let effectiveGoal: Goal = updated;
+    if (
+      !updated.discoveredExperience &&
+      updated.preferredRewardCategory &&
+      discoveryService.canMatchExperience(updated.discoveryQuestionsCompleted || 0)
+    ) {
+      try {
+        logger.log('[DetailedGoalCard] Recovery match attempt', {
+          goalId: updated.id,
+          category: updated.preferredRewardCategory,
+          questionsCompleted: updated.discoveryQuestionsCompleted,
+        });
+        const matched = await discoveryService.matchExperience(
+          updated.id,
+          updated.preferredRewardCategory,
+          updated.discoveryPreferences || {},
+        );
+        if (matched) {
+          const discoveredExperience = {
+            experienceId: matched.id,
+            title: matched.title,
+            subtitle: matched.subtitle,
+            description: matched.description,
+            category: matched.category,
+            price: matched.price,
+            coverImageUrl: matched.coverImageUrl,
+            imageUrl: matched.imageUrl,
+            partnerId: matched.partnerId,
+            ...(matched.location !== undefined ? { location: matched.location } : {}),
+          };
+          effectiveGoal = { ...updated, discoveredExperience, discoveredAt: new Date() };
+          setCurrentGoal(effectiveGoal);
+          logger.log('[DetailedGoalCard] Recovery match succeeded:', matched.title);
+        } else {
+          logger.warn('[DetailedGoalCard] Recovery match returned null — catalog empty');
+        }
+      } catch (err) {
+        logger.warn('[DetailedGoalCard] Recovery match failed:', err);
+      }
+    }
+
+    // Compute flow applicability up front (replaces chained setTimeout at celebration.onClose).
+    // Uses `effectiveGoal` so the recovery-match path above feeds into needsReveal.
+    const flowTotalSessions = (effectiveGoal.targetCount || 1) * (effectiveGoal.sessionsPerWeek || 1);
+    const flowSessionsDone = (effectiveGoal.currentCount || 0) * (effectiveGoal.sessionsPerWeek || 1) + (effectiveGoal.weeklyCount || 0);
+    const needsDiscoveryQuiz = discoveryService.needsDiscoveryQuiz(effectiveGoal) &&
+      discoveryService.isInQuizPhase(flowSessionsDone, flowTotalSessions);
+    // Show the reveal as soon as an experience has been matched and the user hasn't
+    // locked it in yet. The 75% "secret reward" gate was removed — for self-set
+    // challenges, users get more value from seeing the match early so they can
+    // accept, rematch, or switch to manual browse.
+    const needsReveal = !!effectiveGoal.discoveredExperience && !effectiveGoal.experienceRevealed;
+
+    flow.startCelebrationFlow({
+      // Only route through the dedicated HintPopup step for rich hints (image scratch / audio).
+      // Simple text hints ride along inside the celebration modal as an inline section.
+      hasHint: isRichHint,
+      needsDiscoveryQuiz,
+      needsReveal,
+    });
 
     onFinish?.(updated);
 
-    // Check for CTA (free goals with pledged experience only)
+    // Async CTA check — decision arrives later and is injected into the flow via setCTADecision.
+    // If it resolves before the user dismisses celebration, CTA shows next. Otherwise it's skipped.
     if (updated.isFreeGoal && !updated.giftAttachedAt && updated.pledgedExperience) {
       ctaService.shouldShowInlineCTA({
         goalId: updated.id,
@@ -743,10 +807,10 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         weeklyCount: updated.weeklyCount,
         isWeekCompleted: updated.isWeekCompleted,
         currentCount: updated.currentCount,
-        totalSessions: (updated.targetCount || 1) * (updated.sessionsPerWeek || 1),
+        totalSessions: flowTotalSessions,
       }).then(decision => {
         if (decision.shouldShow) {
-          setCTADecision(decision);
+          flow.setCTADecision(decision);
         }
       }).catch(err => logger.warn('CTA check failed:', err));
     }
@@ -773,7 +837,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               coverImageUrl: matched.coverImageUrl,
               imageUrl: matched.imageUrl,
               partnerId: matched.partnerId,
-              location: matched.location,
+              ...(matched.location !== undefined ? { location: matched.location } : {}),
             };
             const discoveredAt = new Date();
             // Persist to Firestore first — only update local state after confirmed write
@@ -931,9 +995,9 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         if (updated.isFreeGoal && !gift) {
           // Discovery engine: if experience was discovered but not yet revealed, show reveal first
           if (updated.discoveredExperience && !updated.experienceRevealed) {
-            setShowExperienceReveal(true);
-            // After reveal is dismissed, onClose will mark as revealed.
-            // The user can claim from the reveal modal or navigate to FreeGoalCompletion manually.
+            flow.openReveal();
+            // After reveal is dismissed, onClose will mark as revealed and navigate to AchievementDetail
+            // (because currentGoal.isCompleted is true in that branch of the reveal onClose handler).
             return;
           }
           navigation.navigate('AchievementDetail', {
@@ -974,7 +1038,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
         // If no media captured during timer, show prompt; otherwise go straight to completion flow
         if (!sessionMediaUri) {
-          setShowMediaPrompt(true);
+          flow.openMediaPrompt();
         } else {
           // Media already captured during timer — proceed directly
           await completeSessionFlow(updated, totalSessionsDone, experience, recipientName, gift);
@@ -1004,7 +1068,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   // ─── Media prompt handlers ────────────────────────────────────────
 
   const handleMediaPromptSkip = useCallback(async () => {
-    setShowMediaPrompt(false);
+    // flow.startCelebrationFlow (called inside completeSessionFlow) transitions step from 'media' → 'hint'/'celebration'
     if (pendingFinishData) {
       const { updated, totalSessionsDone, experience, recipientName, gift } = pendingFinishData;
       setSessionMediaUri(null);
@@ -1014,7 +1078,6 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
   }, [pendingFinishData, completeSessionFlow]);
 
   const handleMediaPromptContinue = useCallback(async () => {
-    setShowMediaPrompt(false);
     if (pendingFinishData) {
       const { updated, totalSessionsDone, experience, recipientName, gift } = pendingFinishData;
       await completeSessionFlow(updated, totalSessionsDone, experience, recipientName, gift);
@@ -1064,7 +1127,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     totalSessionsDone: number,
     experience: Awaited<ReturnType<typeof experienceService.getExperienceById>> | null,
     recipientName: string | null,
-  ) => {
+  ): Promise<HintObject | string | null> => {
     const hasPersonalizedHint =
       updated.personalizedNextHint &&
       updated.personalizedNextHint.forSessionNumber === totalSessionsDone + 1;
@@ -1118,6 +1181,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       }
 
       setLastHint(hintObj);
+      return hintObj;
     } else {
       const aiHintSessionNumber = totalSessionsDone + 1;
 
@@ -1145,6 +1209,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         hintToShow = "Keep going! You're doing great";
       }
       setLastHint(hintToShow);
+      return hintToShow;
     }
   }, []);
 
@@ -1220,21 +1285,41 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
     return msg;
   }, [currentGoal.partnerGoalId, currentGoal.approvalStatus, t]);
 
-  const goalMenuItems: PopupMenuItem[] = useMemo(() => [
-    {
-      key: 'edit',
-      label: (currentGoal.empoweredBy && currentGoal.empoweredBy !== appState.user?.id) ? t('recipient.detailedGoal.menu.requestChange') : t('recipient.detailedGoal.menu.editGoal'),
-      onPress: () => setShowGoalEditModal(true),
-      disabled: isTimerRunning || currentGoal.isCompleted,
-    },
-    {
+  // Show "Change reward" when the pledged reward came from the discovery engine
+  // (discoveredExperience snapshot still present) and the user hasn't purchased yet.
+  // Re-opens the reveal modal so they can pick another match or bail to manual browse.
+  const canChangeDiscoveryReward =
+    currentGoal.isFreeGoal &&
+    !!currentGoal.discoveredExperience &&
+    !!currentGoal.pledgedExperience &&
+    !currentGoal.experienceGiftId;
+
+  const goalMenuItems: PopupMenuItem[] = useMemo(() => {
+    const items: PopupMenuItem[] = [
+      {
+        key: 'edit',
+        label: (currentGoal.empoweredBy && currentGoal.empoweredBy !== appState.user?.id) ? t('recipient.detailedGoal.menu.requestChange') : t('recipient.detailedGoal.menu.editGoal'),
+        onPress: () => setShowGoalEditModal(true),
+        disabled: isTimerRunning || currentGoal.isCompleted,
+      },
+    ];
+    if (canChangeDiscoveryReward) {
+      items.push({
+        key: 'change-reward',
+        label: t('recipient.detailedGoal.menu.changeReward'),
+        onPress: () => flow.openReveal(),
+        disabled: isTimerRunning,
+      });
+    }
+    items.push({
       key: 'remove',
       label: t('recipient.detailedGoal.menu.removeGoal'),
       onPress: () => setShowRemoveDialog(true),
       variant: 'danger' as const,
       disabled: isTimerRunning,
-    },
-  ], [isTimerRunning, currentGoal.empoweredBy, currentGoal.isCompleted, appState.user?.id, t]);
+    });
+    return items;
+  }, [isTimerRunning, currentGoal.empoweredBy, currentGoal.isCompleted, appState.user?.id, t, canChangeDiscoveryReward, flow]);
 
   // ─── Render ───────────────────────────────────────────────────────
 
@@ -1458,17 +1543,11 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
       {/* Modals */}
       <HintPopup
-        visible={showHint}
+        visible={flow.step === 'hint'}
         hint={(lastHint || '') as PersonalizedHint | string}
         sessionNumber={lastSessionNumber}
         totalSessions={progress.overallTotal}
-        onClose={() => {
-          setShowHint(false);
-          // Chain to celebration so user can post to feed with session media
-          if (celebrationData) {
-            setShowCelebration(true);
-          }
-        }}
+        onClose={flow.advance}
       />
 
       <CancelSessionModal
@@ -1479,32 +1558,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       />
 
       <CelebrationModal
-        visible={showCelebration}
-        onClose={() => {
-          setShowCelebration(false);
-          setCelebrationData(null);
-
-          // Discovery engine: show quiz or reveal after celebration
-          const totalSessions = (currentGoal.targetCount || 1) * (currentGoal.sessionsPerWeek || 1);
-          const sessionsDone = (currentGoal.currentCount || 0) * (currentGoal.sessionsPerWeek || 1) + (currentGoal.weeklyCount || 0);
-
-          if (discoveryService.needsDiscoveryQuiz(currentGoal) &&
-              discoveryService.isInQuizPhase(sessionsDone, totalSessions)) {
-            setTimeout(() => setShowDiscoveryQuiz(true), 500);
-            return;
-          }
-
-          if (currentGoal.discoveredExperience && !currentGoal.experienceRevealed &&
-              discoveryService.isReadyForReveal(sessionsDone, totalSessions, currentGoal.experienceRevealed)) {
-            setTimeout(() => setShowExperienceReveal(true), 500);
-            return;
-          }
-
-          // Show CTA 2s after celebration dismisses (if decision was stored)
-          if (ctaDecision && !showCTA) {
-            ctaTimeoutRef.current = setTimeout(() => setShowCTA(true), 2000);
-          }
-        }}
+        visible={flow.step === 'celebration'}
+        onClose={flow.advance}
         onPostToFeed={handlePostToFeed}
         goalTitle={currentGoal.description || currentGoal.title}
         sessionNumber={celebrationData?.sessionNumber}
@@ -1519,6 +1574,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
         totalWeeks={celebrationData?.totalWeeks}
         weekJustCompleted={celebrationData?.weekJustCompleted}
         completedWeekNumber={celebrationData?.completedWeekNumber}
+        inlineHint={celebrationData?.inlineHint ?? null}
         onSessionPrivacy={(visibility) => {
           // Future: update last session visibility in Firestore
           // For now, if private: don't post to feed (handled by not calling onPostToFeed)
@@ -1527,7 +1583,7 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       />
 
       <SessionMediaPrompt
-        visible={showMediaPrompt}
+        visible={flow.step === 'media'}
         capturedMediaUri={sessionMediaUri}
         capturedMediaType={sessionMediaType}
         onCamera={handleCaptureMedia}
@@ -1560,24 +1616,24 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       />
 
       {/* Inline Experience Purchase CTA */}
-      {showCTA && ctaDecision && currentGoal.isFreeGoal && currentGoal.pledgedExperience && (
+      {flow.step === 'cta' && flow.ctaDecision && currentGoal.isFreeGoal && currentGoal.pledgedExperience && (
         <InlineExperienceCTA
           experience={{
             title: currentGoal.pledgedExperience.title,
             coverImageUrl: currentGoal.pledgedExperience.coverImageUrl,
             price: currentGoal.pledgedExperience.price,
           }}
-          statMessage={ctaDecision.message.stat}
-          statSource={ctaDecision.message.source}
+          statMessage={flow.ctaDecision.message.stat}
+          statSource={flow.ctaDecision.message.source}
           onGift={() => {
-            setShowCTA(false);
+            flow.advance();
             navigation.navigate('ExperienceCheckout', {
               cartItems: [{ experienceId: currentGoal.pledgedExperience?.experienceId ?? "", quantity: 1 }],
               goalId: currentGoal.id,
             });
           }}
           onDismiss={() => {
-            setShowCTA(false);
+            flow.advance();
             ctaService.recordDismiss(currentGoal.id);
           }}
         />
@@ -1586,8 +1642,8 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
       {/* Discovery Quiz Modal */}
       {currentGoal.preferredRewardCategory && (
         <DiscoveryQuizModal
-          visible={showDiscoveryQuiz}
-          onClose={() => setShowDiscoveryQuiz(false)}
+          visible={flow.step === 'discovery'}
+          onClose={flow.advance}
           onAnswer={async (questionId, answer) => {
             const newCount = (currentGoal.discoveryQuestionsCompleted || 0) + 1;
             try {
@@ -1599,41 +1655,58 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
               }));
               // If enough answers collected, trigger matching
               if (discoveryService.canMatchExperience(newCount) && !currentGoal.discoveredExperience) {
+                logger.log('[DetailedGoalCard] Triggering matchExperience', {
+                  goalId: currentGoal.id,
+                  category: currentGoal.preferredRewardCategory,
+                  questionsCompleted: newCount,
+                });
                 const matched = await discoveryService.matchExperience(
                   currentGoal.id,
                   currentGoal.preferredRewardCategory!,
                   { ...currentGoal.discoveryPreferences, [questionId]: answer }
                 );
-                if (matched) {
-                  const discoveredExperience = {
-                    experienceId: matched.id,
-                    title: matched.title,
-                    subtitle: matched.subtitle,
-                    description: matched.description,
-                    category: matched.category,
-                    price: matched.price,
-                    coverImageUrl: matched.coverImageUrl,
-                    imageUrl: matched.imageUrl,
-                    partnerId: matched.partnerId,
-                    location: matched.location,
-                  };
-                  const discoveredAt = new Date();
-                  // Persist to Firestore first — only update local state after confirmed write
-                  try {
-                    await updateDoc(doc(db, 'goals', currentGoal.id), {
-                      discoveredExperience,
-                      discoveredAt,
-                    });
-                    setCurrentGoal(prev => ({
-                      ...prev,
-                      discoveredExperience,
-                      discoveredAt,
-                    }));
-                    showSuccess(t('recipient.detailedGoal.discoveryMatch'));
-                  } catch (e) {
-                    logger.error('Failed to persist discovery:', e);
-                    showError('Failed to save your discovery. Please try again.');
-                  }
+                if (!matched) {
+                  // Catalog is completely empty (no published experiences at all) — give
+                  // the user explicit feedback and let them browse manually instead of
+                  // silently stalling.
+                  logger.error('[DetailedGoalCard] matchExperience returned null — catalog empty');
+                  showError(t('recipient.detailedGoal.error.noExperiencesAvailable'));
+                  return;
+                }
+                const discoveredExperience = {
+                  experienceId: matched.id,
+                  title: matched.title,
+                  subtitle: matched.subtitle,
+                  description: matched.description,
+                  category: matched.category,
+                  price: matched.price,
+                  coverImageUrl: matched.coverImageUrl,
+                  imageUrl: matched.imageUrl,
+                  partnerId: matched.partnerId,
+                  ...(matched.location !== undefined ? { location: matched.location } : {}),
+                };
+                const discoveredAt = new Date();
+                // Persist to Firestore first — only update local state after confirmed write
+                try {
+                  await updateDoc(doc(db, 'goals', currentGoal.id), {
+                    discoveredExperience,
+                    discoveredAt,
+                  });
+                  setCurrentGoal(prev => ({
+                    ...prev,
+                    discoveredExperience,
+                    discoveredAt,
+                  }));
+                  logger.log('[DetailedGoalCard] Match succeeded, opening reveal', matched.title);
+
+                  // Always route to the reveal immediately after a successful match.
+                  // The state machine's needsReveal was frozen at flow start; this
+                  // patches it so the upcoming advance() from the quiz's onClose
+                  // routes to 'reveal' instead of 'cta'/'idle'.
+                  flow.setNeedsReveal(true);
+                } catch (e) {
+                  logger.error('Failed to persist discovery:', e);
+                  showError(t('recipient.detailedGoal.error.discoveryPersist'));
                 }
               }
             } catch (err: unknown) {
@@ -1647,37 +1720,98 @@ const DetailedGoalCard: React.FC<DetailedGoalCardProps> = ({ goal, onFinish }) =
 
       {/* Experience Reveal Modal */}
       <ExperienceRevealModal
-        visible={showExperienceReveal}
+        visible={flow.step === 'reveal'}
         experience={currentGoal.discoveredExperience || null}
-        progressPct={celebrationData?.progressPct}
-        onClose={async () => {
-          setShowExperienceReveal(false);
+        rematching={rematching}
+        onLockIn={async () => {
+          // Persist the match as the goal's pledged reward so it survives the user
+          // bailing out of checkout — it shows up in JourneyScreen / share / feed
+          // as the "your reward" panel. We also mark the discovery revealed so the
+          // auto-reveal flow doesn't nag on the next session.
+          const discovered = currentGoal.discoveredExperience;
+          if (discovered) {
+            try {
+              await updateDoc(doc(db, 'goals', currentGoal.id), {
+                pledgedExperience: discovered,
+              });
+              setCurrentGoal(prev => ({ ...prev, pledgedExperience: discovered }));
+            } catch (err: unknown) {
+              logger.warn('Failed to persist pledgedExperience:', err);
+            }
+          }
           try {
             await discoveryService.markExperienceRevealed(currentGoal.id);
             setCurrentGoal(prev => ({ ...prev, experienceRevealed: true, experienceRevealedAt: new Date() }));
           } catch (err: unknown) {
             logger.warn('Failed to mark experience revealed:', err);
           }
-          // If goal is already completed, navigate to achievement screen
-          if (currentGoal.isCompleted) {
-            navigation.navigate('AchievementDetail', {
-              goal: serializeNav(currentGoal),
-              mode: 'completion',
-            });
-          }
-        }}
-        onClaim={() => {
-          setShowExperienceReveal(false);
-          if (currentGoal.discoveredExperience) {
+          flow.dismiss();
+          if (discovered) {
             navigation.navigate('ExperienceCheckout', {
-              cartItems: [{ experienceId: currentGoal.discoveredExperience.experienceId, quantity: 1 }],
+              cartItems: [{
+                experienceId: discovered.experienceId,
+                quantity: 1,
+              }],
               goalId: currentGoal.id,
             });
           }
         }}
-        onBrowseOthers={() => {
-          setShowExperienceReveal(false);
+        onRematch={async () => {
+          if (rematching) return;
+          setRematching(true);
+          try {
+            const currentId = currentGoal.discoveredExperience?.experienceId;
+            const matched = await discoveryService.matchExperience(
+              currentGoal.id,
+              currentGoal.preferredRewardCategory!,
+              currentGoal.discoveryPreferences || {},
+              currentId ? [currentId] : [],
+            );
+            if (matched) {
+              const discoveredExperience = {
+                experienceId: matched.id,
+                title: matched.title,
+                subtitle: matched.subtitle,
+                description: matched.description,
+                category: matched.category,
+                price: matched.price,
+                coverImageUrl: matched.coverImageUrl,
+                imageUrl: matched.imageUrl,
+                partnerId: matched.partnerId,
+                ...(matched.location !== undefined ? { location: matched.location } : {}),
+              };
+              setCurrentGoal(prev => ({ ...prev, discoveredExperience, discoveredAt: new Date() }));
+            } else {
+              showInfo(t('recipient.detailedGoal.noOtherMatches'));
+            }
+          } catch (err: unknown) {
+            logger.error('Rematch failed:', err);
+            showError(t('recipient.detailedGoal.error.rematchFailed'));
+          } finally {
+            setRematching(false);
+          }
+        }}
+        onBrowseOthers={async () => {
+          try {
+            await discoveryService.clearDiscoveredExperience(currentGoal.id);
+            setCurrentGoal(prev => ({
+              ...prev,
+              discoveredExperience: undefined,
+              discoveryPreferences: {},
+              discoveryQuestionsCompleted: 0,
+              experienceRevealed: true,
+              experienceRevealedAt: new Date(),
+            }));
+          } catch (err: unknown) {
+            logger.warn('Failed to clear discovery:', err);
+          }
+          flow.dismiss();
           navigation.navigate('MainTabs', { screen: 'HomeTab', params: { screen: 'CategorySelection' } });
+        }}
+        onClose={() => {
+          // Backdrop dismiss — user saw the match but didn't commit. Don't mark revealed;
+          // the reveal will re-open on next session's flow until they lock in or opt out.
+          flow.advance();
         }}
       />
 

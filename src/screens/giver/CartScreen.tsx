@@ -38,6 +38,7 @@ import { MotiView } from 'moti';
 import { Card } from '../../components/Card';
 import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { analyticsService } from '../../services/AnalyticsService';
 
 type NavProp = NativeStackNavigationProp<GiverStackParamList, "Cart">;
 
@@ -142,6 +143,17 @@ export default function CartScreen() {
     }
   }, [state.guestCart, state.user]);
 
+  // Screen-view enrichment
+  useEffect(() => {
+    if (loading) return;
+    const itemCount = currentCart.reduce((sum, item) => sum + item.quantity, 0);
+    const cartTotal = cartExperiences.reduce((sum, exp) => {
+      const cartItem = currentCart.find(i => i.experienceId === exp.id);
+      return cartItem ? sum + exp.price * cartItem.quantity : sum;
+    }, 0);
+    analyticsService.trackEvent('screen_view', 'navigation', { itemCount, total: cartTotal }, 'CartScreen');
+  }, [loading]);
+
   const updateQuantity = async (experienceId: string, newQty: number) => {
     if (newQty < 1) {
       return removeItem(experienceId);
@@ -151,6 +163,7 @@ export default function CartScreen() {
       return;
     }
 
+    analyticsService.trackEvent('button_click', 'engagement', { buttonName: 'quantity_change', experienceId, newQty }, 'CartScreen');
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     // Mark this item as updating
@@ -196,6 +209,7 @@ export default function CartScreen() {
   const confirmRemoveItem = async () => {
     const experienceId = removeConfirmId;
     if (!experienceId) return;
+    analyticsService.trackEvent('button_click', 'engagement', { buttonName: 'remove_cart_item', experienceId }, 'CartScreen');
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     setIsRemoving(true);
 
@@ -242,6 +256,7 @@ export default function CartScreen() {
   const cartItemCount = useMemo(() => currentCart.reduce((sum, item) => sum + item.quantity, 0) || 0, [currentCart]);
 
   const proceedToCheckout = () => {
+    analyticsService.trackEvent('button_click', 'conversion', { buttonName: 'proceed_to_checkout', itemCount: cartItemCount, total }, 'CartScreen');
     if (!currentCart || currentCart.length === 0) {
       showInfo(t('giver.cart.info.emptyCheckout'));
       return;
@@ -259,6 +274,7 @@ export default function CartScreen() {
   };
 
   const handleKeepShopping = useCallback(() => {
+    analyticsService.trackEvent('button_click', 'engagement', { buttonName: 'keep_shopping' }, 'CartScreen');
     navigation.navigate("CategorySelection");
   }, [navigation]);
 
@@ -340,8 +356,8 @@ export default function CartScreen() {
                 return (
                   <MotiView
                     key={item.experienceId}
-                    from={{ opacity: 0, translateY: 12 }}
-                    animate={{ opacity: 1, translateY: 0 }}
+                    from={{ translateY: 12 }}
+                    animate={{ translateY: 0 }}
                     transition={{ type: 'timing', duration: 300, delay: index * 60 }}
                   >
                   <Card variant="elevated" noPadding style={styles.cartItemCard}>

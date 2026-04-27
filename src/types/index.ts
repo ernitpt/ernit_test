@@ -718,7 +718,7 @@ export type RootStackParamList = {
   FriendsList: undefined;
   Cart: undefined;
   PurchasedGifts: undefined;
-  Confirmation: { experienceGift: ExperienceGift; goalId?: string };
+  Confirmation: { experienceGift: ExperienceGift; goalId?: string; isCategory?: boolean; challengeType?: string; preferredRewardCategory?: string };
   ConfirmationMultiple: { experienceGifts: ExperienceGift[] };
   LoginPromptModal: undefined;
   AchievementDetail: { goal: Goal; experienceGift?: ExperienceGift; mode?: 'completion' | 'review' };
@@ -737,7 +737,7 @@ export type GiverStackParamList = {
   CategorySelection: { prefilterCategory?: ExperienceCategory } | undefined;
   ExperienceDetails: { experience: Experience };
   ExperienceCheckout: { experience?: Experience; cartItems?: CartItem[]; goalId?: string; isMystery?: boolean; giftId?: string };
-  Confirmation: { experienceGift: ExperienceGift; goalId?: string };
+  Confirmation: { experienceGift: ExperienceGift; goalId?: string; isCategory?: boolean; challengeType?: string; preferredRewardCategory?: string };
   Cart: undefined;
 };
 
@@ -815,6 +815,7 @@ export type AnalyticsEventName =
   | 'app_open'
   // Error
   | 'error_boundary_triggered'
+  | 'unhandled_rejection'
   // Share
   | 'share_goal_completed'
   // Funnel entry events

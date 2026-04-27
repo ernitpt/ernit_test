@@ -7,13 +7,9 @@ import {
     limit,
     getDocs,
     doc,
-    getDoc,
     updateDoc,
     increment,
-    onSnapshot,
     Timestamp,
-    QueryDocumentSnapshot,
-    DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { FeedPost } from '../types';
@@ -197,78 +193,6 @@ class FeedService {
     }
 
     /**
-     * Listen to real-time feed updates (friends' posts + own posts)
-     * Returns unsubscribe function to prevent memory leaks
-     */
-    listenToFeed(
-        userId: string,
-        callback: (posts: FeedPost[]) => void,
-        limitCount: number = 20
-    ): () => void {
-        let unsubscribe: (() => void) | null = null;
-        let isCancelled = false;
-
-        // Get friends first, then set up listener
-        friendService.getFriends(userId).then(friends => {
-            // Guard: if cleanup was called before getFriends resolved, don't set up listener
-            if (isCancelled) return;
-
-            const friendIds = friends.map(f => f.friendId);
-            const allowedUserIds = [userId, ...friendIds];
-
-            // NOTE: Firestore 'in' queries support up to 30 values.
-            // If the user has more than 29 friends, only the first 29 are included here
-            // (plus the user's own posts = 30 total). For larger friend lists, use getFriendsFeed.
-            if (allowedUserIds.length > 30) {
-                logger.warn(
-                    `FeedService.listenToFeed: truncating ${allowedUserIds.length} friend IDs to 30 ` +
-                    `due to Firestore 'in' operator limit. Users beyond 30 friends will have ` +
-                    `incomplete real-time feeds. Use getFriendsFeed for full paginated access.`
-                );
-            }
-            const limitedIds = allowedUserIds.slice(0, 30);
-            const q = query(
-                this.feedPostsCollection,
-                where('userId', 'in', limitedIds),
-                orderBy('createdAt', 'desc'),
-                limit(100)
-            );
-
-            unsubscribe = onSnapshot(q, (snapshot) => {
-                const posts: FeedPost[] = [];
-
-                for (const docSnapshot of snapshot.docs) {
-                    const data = docSnapshot.data();
-                    if (data.isDeleted) continue;
-                    posts.push({
-                        id: docSnapshot.id,
-                        ...data,
-                        createdAt: toDateSafe(data.createdAt),
-                    } as FeedPost);
-
-                    if (posts.length >= limitCount) break;
-                }
-
-                callback(posts.slice(0, limitCount));
-            }, (error) => {
-                logger.error('[FeedService] Feed snapshot error:', error.message);
-                // Signal empty so UI exits the loading state rather than hanging indefinitely
-                callback([]);
-            });
-        }).catch(error => {
-            logger.error('❌ Error setting up feed listener:', error);
-        });
-
-        // Return cleanup function
-        return () => {
-            isCancelled = true;
-            if (unsubscribe) {
-                unsubscribe();
-            }
-        };
-    }
-
-    /**
      * Update reaction count for a post.
      * Private: only called internally from ReactionService which handles its own auth checks.
      */
@@ -300,27 +224,6 @@ class FeedService {
         }
     }
 
-    /**
-     * Get a single feed post by direct document read
-     */
-    async getFeedPost(postId: string): Promise<FeedPost | null> {
-        try {
-            const postRef = doc(db, 'feedPosts', postId);
-            const postDoc = await getDoc(postRef);
-
-            if (!postDoc.exists()) return null;
-
-            const data = postDoc.data();
-            return {
-                id: postDoc.id,
-                ...data,
-                createdAt: toDateSafe(data.createdAt),
-            } as FeedPost;
-        } catch (error: unknown) {
-            logger.error('❌ Error fetching feed post:', error);
-            throw error;
-        }
-    }
 }
 
 export const feedService = new FeedService();

@@ -9,6 +9,10 @@ description: Enforces consistent UI styling across the Ernit app. Use whenever c
 
 The Ernit app has a centralized design token system in `src/config/`. Every screen and component **must** use these tokens instead of hardcoded values.
 
+**Role of this skill vs. `upgrading-ui-ux`:**
+- **`ui-design-system` (this skill)** = the rulebook. Use when creating new components/screens or adding new styles — defines what's allowed.
+- **`upgrading-ui-ux`** = the audit workflow. Use when reviewing/upgrading existing screens. See its `references/` subfolder for full token tables (color, typography, spacing, border-radius, shadows).
+
 **Announce at start:** "I'm using the ui-design-system skill to ensure consistent styling."
 
 ## Token Files
@@ -111,63 +115,70 @@ const styles = StyleSheet.create({
 ```
 
 ### Empty State Pattern
-Centered layout with icon + heading + body + CTA:
+**Always use the shared `<EmptyState>` component** from [src/components/EmptyState.tsx](../../../src/components/EmptyState.tsx). Do not hand-roll centered layouts with raw `TouchableOpacity` — CLAUDE.md forbids this.
+
 ```tsx
-<View style={{ alignItems: 'center', paddingHorizontal: Spacing.huge }}>
-  <Text style={{ fontSize: 44 }}>🎯</Text>
-  <Text style={{ ...Typography.heading2, color: Colors.textPrimary, textAlign: 'center' }}>
-    Title Here
-  </Text>
-  <Text style={{ ...Typography.body, color: Colors.textSecondary, textAlign: 'center' }}>
-    Subtitle here
-  </Text>
-  <TouchableOpacity style={{
-    backgroundColor: Colors.secondary,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xxl,
-    borderRadius: BorderRadius.lg,
-    ...Shadows.colored(Colors.secondary),
-  }}>
-    <Text style={{ ...Typography.bodyBold, color: Colors.white }}>CTA Label</Text>
-  </TouchableOpacity>
-</View>
+import { EmptyState } from '../components/EmptyState';
+
+<EmptyState
+  icon="🎯"
+  title="No goals yet"
+  message="Set your first challenge and start earning rewards"
+  actionLabel="Create Goal"
+  onAction={handleCreateGoal}
+/>
 ```
+
+The component handles the centered layout, motion entry (`translateY: 8 → 0`, 400ms timing), `useColors()` theming, and the action button (which internally uses `<Button variant="secondary" size="sm">`).
+
+**Props:**
+- `icon?: string` — emoji or icon char
+- `title: string` — **required**
+- `message?: string` — body text
+- `actionLabel?: string` + `onAction?: () => void` — optional CTA (both required together)
+- `style?: ViewStyle` — container style override
 
 ### Button Variants
+**Always use the shared `<Button>` component** from [src/components/Button.tsx](../../../src/components/Button.tsx). Do not define custom button styles — CLAUDE.md forbids this. The component handles press feedback (scale 0.97 bouncy spring), loading state, disabled state, and theme-aware colors via `useColors()`.
 
-**Primary (filled):**
 ```tsx
-{
-  backgroundColor: Colors.secondary,
-  paddingVertical: Spacing.md,
-  paddingHorizontal: Spacing.xxl,
-  borderRadius: BorderRadius.lg,
-  ...Shadows.colored(Colors.secondary),
-}
-// Text: Typography.bodyBold, color: Colors.white
+import Button from '../components/Button';
+
+// Primary (filled brand button — default)
+<Button variant="primary" size="md" title="Save Goal" onPress={handleSave} />
+
+// Secondary (soft primary surface with border)
+<Button variant="secondary" size="sm" title="Edit" onPress={handleEdit} />
+
+// Danger (destructive)
+<Button variant="danger" size="md" title="Delete" onPress={handleDelete} />
+
+// Ghost (transparent, text-only)
+<Button variant="ghost" size="sm" title="Cancel" onPress={onClose} />
+
+// Icon-only (44x44 circle — meets accessibility minimum touch target)
+<Button variant="icon" icon={<X size={20} color={colors.white} />} onPress={onClose} />
+
+// Gradient primary (for hero CTAs)
+<Button variant="primary" size="lg" title="Get Started" onPress={start} gradient fullWidth />
+
+// Loading state (preserves button size, swaps content for spinner)
+<Button variant="primary" title="Save" onPress={save} loading={submitting} disabled={!isValid} />
 ```
 
-**Secondary (outline):**
-```tsx
-{
-  backgroundColor: Colors.primarySurface,
-  paddingVertical: Spacing.sm,       // 8pt — closest token to 10
-  paddingHorizontal: Spacing.xl,
-  borderRadius: BorderRadius.md,
-  borderWidth: 1,
-  borderColor: Colors.primary,
-}
-// Text: Typography.smallBold, color: Colors.primary
-```
+**Props:**
+- `variant: 'primary' | 'secondary' | 'danger' | 'ghost' | 'icon'` — defaults to `'primary'`
+- `size: 'sm' | 'md' | 'lg'` — defaults to `'md'` (ignored for `icon` variant)
+- `title?: string` — required unless `variant === 'icon'`
+- `onPress: () => void` — required
+- `disabled?: boolean` — auto-dims to opacity 0.5
+- `loading?: boolean` — swaps content for native spinner while preserving size
+- `icon?: ReactNode` + `iconPosition?: 'left' | 'right'` — accompanying icon next to text
+- `fullWidth?: boolean` — stretches to container width
+- `gradient?: boolean` — applies `gradientPrimary` (primary/icon variants only)
+- `accessibilityLabel?: string` — falls back to `title`
 
-**Ghost (text only):**
-```tsx
-{
-  paddingVertical: Spacing.sm,
-  paddingHorizontal: Spacing.lg,
-}
-// Text: Typography.smallBold, color: Colors.secondary
-```
+**Per CLAUDE.md:** no emoji characters or icon components in button **text labels**. The `icon` prop is for accompanying icons alongside text, not replacing it. The `icon` variant is the exception (icon-only is intentional for close/menu buttons).
 
 ### List Mounting Animation (via Moti)
 ```tsx

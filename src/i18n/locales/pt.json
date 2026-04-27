@@ -592,7 +592,7 @@
       "progressLabel": "progresso"
     },
     "achievementCard": {
-      "completedOn": "Concluído em {{date}}",
+      "completedOn": "Concluído a {{date}}",
       "viewDetails": "Ver Detalhes"
     },
     "experienceCard": {
@@ -707,7 +707,7 @@
           "confirmA11y": "Confirmar aprovação do objetivo"
         },
         "suggestModal": {
-          "title": "Sugerir Alteração ao Objetivo",
+          "title": "Sugerir Alteração do Objetivo",
           "currentLabel": "Atual: {{weeks}} semanas, {{sessions}} sessões/semana",
           "weeksLabel": "Semanas",
           "sessionsLabel": "Sessões/Semana",
@@ -967,7 +967,8 @@
       "sessionsMeta": "{{sessions}} sessões concluídas • {{weeks}} semanas",
       "sessionsThisWeek": "Sessões esta semana",
       "viewHintHistory": "Ver Histórico de Dicas",
-      "weeksCompleted": "Semanas concluídas"
+      "weeksCompleted": "Semanas concluídas",
+      "hintHistoryTitle": "Histórico de Dicas"
     },
     "addFriendAccessibility": "Adicionar amigo",
     "error": {
@@ -1173,6 +1174,9 @@
       },
       "accessibility": {
         "goBack": "Voltar"
+      },
+      "errors": {
+        "loadFailed": "Não foi possível carregar as experiências para checkout."
       }
     },
     "confirmation": {
@@ -1213,7 +1217,7 @@
           "step2Title": "Definir Objetivos",
           "step2Desc": "Criam objetivos pessoais para ganhar a experiência",
           "step3Title": "Acompanhar Progresso",
-          "step3Desc": "Dicas de IA guiam-nos enquanto trabalham para os objetivos",
+          "step3Desc": "Dicas de IA guiam-os enquanto trabalham para os objetivos",
           "step4Title": "Desbloquear Recompensa",
           "step4Desc": "A experiência é revelada quando os objetivos são concluídos"
         },
@@ -1252,6 +1256,9 @@
         "personalMessage": "Mensagem pessoal",
         "copyCode": "Copiar código do presente",
         "shareCode": "Partilhar código do presente"
+      },
+      "errors": {
+        "giftLoadFailed": "Não foi possível carregar os detalhes do presente"
       }
     },
     "confirmationMultiple": {
@@ -1280,7 +1287,7 @@
         "step2Title": "Definir Objetivos",
         "step2Desc": "Criam objetivos pessoais para ganhar a experiência",
         "step3Title": "Acompanhar Progresso",
-        "step3Desc": "Dicas de IA guiam-nos enquanto trabalham para os objetivos",
+        "step3Desc": "Dicas de IA guiam-os enquanto trabalham para os objetivos",
         "step4Title": "Desbloquear Recompensa",
         "step4Desc": "A experiência é revelada quando os objetivos são concluídos"
       },
@@ -1355,7 +1362,7 @@
   },
   "landing": {
     "appName": "Ernit",
-    "tagline": "Experiências que valem a pena oferecer",
+    "tagline": "Recompensas & Experiências Gamificadas",
     "signIn": "Entrar",
     "signUp": "Começar",
     "challenge": {
@@ -1375,20 +1382,20 @@
         "badge": "100% Gratuito",
         "step1Title": "Escolhe o Teu Desafio",
         "step1Desc": "Escolhe o que queres melhorar e por quanto tempo. Ginásio, yoga, corrida, leitura, ou qualquer outra coisa",
-        "step2Title": "Mantém-te Fiel",
+        "step2Title": "Mantém o Ritmo",
         "step2Desc": "Faz as tuas sessões, cria sequências e motiva-te com amigos que acompanham a tua jornada, e que podem até recompensar-te pelo caminho",
         "step3Title": "Ganha-a",
-        "step3Desc": "Termina o teu desafio e merece a recompensa que mereces!",
+        "step3Desc": "Termina o teu desafio e conquista a recompensa que mereces!",
         "finalTitle": "Pronto para te\ndesafiar a ti mesmo?",
         "finalSubtitle": "Junta-te a milhares de pessoas que constroem melhores hábitos com amigos.",
         "finalCta": "Criar o Meu Desafio"
       },
       "gift": {
-        "titlePrefix": "Ajudá-los a",
+        "titlePrefix": "Ajuda-o a",
         "titleSuffix": "",
-        "subtitle": "Dá força a alguém que te importas.\nSó pagas quando eles tiverem sucesso.",
-        "stat": "Uma recompensa e alguém a apoiá-los torna-os ",
-        "statHighlight": "2x mais prováveis",
+        "subtitle": "Dá força a alguém especial.\nSó pagas quando tiver sucesso.",
+        "stat": "Uma recompensa e alguém a apoiar torna-os ",
+        "statHighlight": "2x mais propensos",
         "statSuffix": " de ter sucesso.",
         "statSource": "– Universidade da Pensilvânia",
         "cta": "Oferecer uma Experiência",
@@ -1400,7 +1407,7 @@
         "step3Title": "Pagas Quando Tiverem Sucesso",
         "step3Desc": "Só pagas quando eles atingirem o objetivo. Zero risco. Toda a recompensa.",
         "finalTitle": "Pronto para dar força\na alguém?",
-        "finalSubtitle": "Faz um presente que realmente significa algo.",
+        "finalSubtitle": "Oferece o presente que realmente significa algo.",
         "finalCta": "Oferecer uma Experiência"
       },
       "howItWorks": {
@@ -1409,8 +1416,8 @@
       },
       "team": {
         "title": "A Equipa",
-        "coFounderCeo": "Co-Fundador e CEO",
-        "coFounderCto": "Co-Fundador e CTO"
+        "coFounderCeo": "Cofundador e CEO",
+        "coFounderCto": "Cofundador e CTO"
       },
       "incubator": {
         "incubatedAt": "Incubado em",
@@ -1438,6 +1445,12 @@
       },
       "errors": {
         "couldNotLoadRewardImages": "Não foi possível carregar as imagens das recompensas."
+      },
+      "rotatingWords": {
+        "workout": "treinar",
+        "doYoga": "fazer yoga",
+        "dance": "dançar",
+        "run": "correr"
       }
     }
   },
@@ -2049,7 +2062,7 @@
     "achievement": {
       "screenTitle": "Conquista",
       "goalCompleted": "Objetivo Concluído!",
-      "completedOn": "Concluído em {{date}}",
+      "completedOn": "Concluído a {{date}}",
       "duration": "Duração: {{weeks}} semanas",
       "totalSessions": "Total de Sessões: {{count}}",
       "longestStreak": "Maior Sequência: {{count}} dias",
@@ -2094,7 +2107,7 @@
         "legend": "És uma lenda.",
         "hardWork": "O esforço compensa.",
         "newYou": "Este és o novo tu.",
-        "deserved": "Mereceste cada momento.",
+        "deserved": "Mereceste cada bocadinho disto.",
         "proud": "Orgulha-te de ti.",
         "milestone": "Este é um momento marcante."
       },
@@ -2105,6 +2118,9 @@
         "partnerEmailUnavailable": "O e-mail do parceiro não está disponível.",
         "whatsappError": "Não foi possível abrir o WhatsApp. Por favor, tenta outro método de contacto.",
         "emailFallback": "Não foi possível abrir o cliente de e-mail. Por favor, tenta outro método de contacto."
+      },
+      "errors": {
+        "loadFailed": "Não foi possível carregar os detalhes da conquista"
       },
       "toast": {
         "rewardClaimed": "Recompensa resgatada! Verifica o teu e-mail para mais detalhes.",
@@ -2226,7 +2242,8 @@
       },
       "menu": {
         "editGoal": "Editar Objetivo",
-        "requestChange": "Pedir uma Alteração ao Objetivo",
+        "requestChange": "Pedir uma Alteração do Objetivo",
+        "changeReward": "Mudar Recompensa",
         "removeGoal": "Remover Objetivo",
         "edit": "Editar Objetivo",
         "pause": "Pausar Objetivo",
@@ -2285,8 +2302,11 @@
         "updateProgress": "Não foi possível atualizar o progresso do objetivo. Por favor, tenta de novo.",
         "discoveryPersist": "Falha ao guardar a tua descoberta. Por favor, tenta de novo.",
         "venueSave": "Falha ao guardar o local. Por favor, tenta de novo.",
-        "inviteCode": "Não foi possível encontrar o código de convite"
+        "inviteCode": "Não foi possível encontrar o código de convite",
+        "rematchFailed": "Não foi possível encontrar outra opção. Por favor, tenta de novo.",
+        "noExperiencesAvailable": "Ainda não há experiências disponíveis. Explora o catálogo manualmente."
       },
+      "noOtherMatches": "Essa é a única opção nesta categoria. Experimenta explorar manualmente.",
       "toast": {
         "sessionLogged": "Sessão registada!",
         "goalPaused": "Objetivo pausado",
@@ -2368,13 +2388,14 @@
         "weeksCompleted": "Semanas concluídas",
         "shareToFeed": "Partilhar no Feed",
         "skip": "Saltar",
-        "close": "Fechar"
+        "close": "Fechar",
+        "fromGiver": "De {{name}}"
       }
     },
     "pledgedExperience": {
       "title": "A Tua Experiência de Recompensa",
       "locked": "Completa o teu objetivo para desbloquear esta experiência",
-      "daysLeft": "{{count}} dias para o fim",
+      "daysLeft": "{{count}} dias para terminar",
       "sessionsLeft": "{{count}} sessões restantes",
       "almostThere": "Quase lá!",
       "readyToClaim": "Pronto para resgatar!",
@@ -2517,16 +2538,17 @@
       "pending": "Pendente",
       "yourGiver": "o teu ofertante",
       "goalChangeSuggested": "Alteração de Objetivo Sugerida",
-      "goalChangeSuggestedMessage": "{{giverName}} sugeriu uma alteração ao objetivo. Por favor, revê e aceita ou modifica a sugestão nas tuas notificações.",
-      "goalChangeSuggestedAfterFirst": "Parabéns pela tua primeira sessão! {{giverName}} sugeriu uma alteração ao objetivo. Por favor, revê e aceita ou modifica a sugestão nas tuas notificações para continuar.",
+      "goalChangeSuggestedMessage": "{{giverName}} sugeriu uma alteração — revê nas notificações.",
+      "goalChangeSuggestedAfterFirst": "Primeira sessão feita. {{giverName}} sugeriu uma alteração — revê nas notificações.",
       "goalChangeSuggestedContinue": "{{giverName}} sugeriu uma alteração ao objetivo. Por favor, revê e aceita ou modifica a sugestão antes de continuar.",
       "goalNotApproved": "Objetivo Não Aprovado",
       "oneDayOneSessionBlocked": "Objetivos com apenas 1 dia e 1 sessão por semana não podem ser concluídos até à aprovação do ofertante.",
+      "oneDayOneSessionBlockedBanner": "{{giverName}} tem de aprovar antes de poderes começar.",
       "firstSessionDone": "Primeira Sessão Concluída",
-      "firstSessionDoneMessage": "Parabéns pela tua primeira sessão! As sessões restantes serão desbloqueadas depois de {{giverName}} aprovar este objetivo (ou automaticamente em 24 horas).",
+      "firstSessionDoneMessage": "Boa — primeira sessão feita. À espera que {{giverName}} aprove as restantes.",
       "waitingApprovalFirstDone": "À espera da aprovação de {{giverName}}! Podes começar com a primeira sessão, mas as restantes serão desbloqueadas depois de {{giverName}} aprovar o teu objetivo (ou automaticamente em 24 horas).",
       "waitingForApproval": "À Espera de Aprovação",
-      "waitingApprovalBanner": "À espera da aprovação de {{giverName}}! Podes começar com a primeira sessão, mas as restantes serão desbloqueadas depois de {{giverName}} aprovar o teu objetivo (ou automaticamente em 24 horas)."
+      "approvalDeadlinePassedBanner": "Prazo de aprovação expirado — a desbloquear o teu objetivo."
     },
     "goalProgress": {
       "onTrack": "No caminho certo",
@@ -2549,7 +2571,7 @@
       "message": "Olá! Gostaria de reservar a experiência: {{experienceName}}. Recebi-a como presente no Ernit.",
       "buttonLabel": "Reservar via WhatsApp",
       "error": "Não foi possível abrir o WhatsApp. Por favor, tenta outro método de contacto.",
-      "defaultPartnerName": "olá",
+      "defaultPartnerName": "amigo(a)",
       "earliestConvenience": "assim que possível",
       "scheduleMessage": "Olá {{partnerName}}!\n\nSou {{userName}} e completei o meu objetivo Ernit e ganhei {{experienceTitle}}!\n\nGostaria de agendar a minha experiência para {{date}}.\n\nAté breve!"
     },
@@ -2558,7 +2580,7 @@
       "body": "Olá,\n\nGostaria de reservar a seguinte experiência:\n\nExperiência: {{experienceName}}\nCódigo de Presente: {{giftCode}}\n\nPor favor, indique as datas disponíveis.\n\nObrigado!",
       "buttonLabel": "Reservar via E-mail",
       "error": "Não foi possível abrir o cliente de e-mail. Por favor, tenta outro método de contacto.",
-      "defaultPartnerName": "olá",
+      "defaultPartnerName": "amigo(a)",
       "earliestConvenience": "assim que possível",
       "scheduleBody": "Olá {{partnerName}}!\n\nCompletei o meu objetivo Ernit e ganhei {{experienceTitle}}!\n\nGostaria de agendar a minha experiência para {{date}}.\n\nAté breve!\n{{userName}}"
     }
@@ -2645,17 +2667,18 @@
       "selected": "Selecionado"
     },
     "experienceReveal": {
-      "revealedHeadline": "A tua recompensa foi\nrevelada!",
-      "progressReached": "{{pct}}% do teu objetivo atingido",
+      "revealedHeadline": "Escolhemos algo\npara ti!",
+      "curatedSubtitle": "Com base nas tuas respostas",
       "perPerson": "por pessoa",
-      "claimButton": "Resgatar Esta Experiência  {{price}}",
-      "browseOthers": "Ver outras opções",
-      "browseOthersA11y": "Ver outras opções de experiências",
+      "lockInButton": "Confirmar",
+      "showAnotherButton": "Mostrar outra",
+      "letMePick": "Prefiro escolher",
+      "letMePickA11y": "Explorar experiências manualmente",
       "dismissReveal": "Fechar revelação"
     },
     "goalEdit": {
       "title": "Editar Objetivo",
-      "titleRequest": "Pedir Alteração ao Objetivo",
+      "titleRequest": "Pedir Alteração do Objetivo",
       "requestSentTitle": "Pedido Enviado",
       "requestSentEmoji": "📬",
       "requestSentHeading": "Pedido enviado!",
@@ -2691,7 +2714,7 @@
       "minSessionsNote": "Mín. {{count}} sessões (já registaste {{logged}} esta semana)"
     },
     "goalChangeSuggestion": {
-      "title": "Sugestão de Alteração ao Objetivo",
+      "title": "Sugestão de Alteração do Objetivo",
       "messageFrom": "Mensagem de {{name}}:",
       "originalGoal": "O teu objetivo original:",
       "giverSuggestion": "Sugestão de {{name}}:",
@@ -2719,7 +2742,7 @@
       "skipForNow": "Saltar por agora",
       "adventure": {
         "adv_1": {
-          "text": "Praia ou montanha?",
+          "text": "Praia ou montanhas?",
           "opt0": "Praia",
           "opt1": "Montanha"
         },
@@ -2863,7 +2886,7 @@
       "closeHintModal": "Fechar modal de dica",
       "hideExamples": "Ocultar exemplos de dicas",
       "showExamples": "Mostrar exemplos de dicas",
-      "errorEmpty": "Por favor, insira uma mensagem de dica",
+      "errorEmpty": "Por favor, introduz uma mensagem de dica",
       "errorSendFailed": "Falha ao enviar dica. Por favor, tente novamente."
     },
     "contact": {
@@ -2967,5 +2990,14 @@
         "getReward": "Obter Recompensa"
       }
     }
+  },
+  "giftFlow": {
+    "errors": {
+      "experiencesLoadFailedTitle": "Não foi possível carregar as experiências",
+      "experiencesLoadFailedMessage": "Verifica a tua ligação e tenta novamente"
+    }
+  },
+  "experience": {
+    "locationIframeTitle": "Localização"
   }
 }

@@ -118,7 +118,17 @@ export const stripeCreatePaymentIntent_Test = onRequest(
                 primaryPartnerId,
                 personalizedMessage,
                 isMystery,
+                idempotencyKey,
             } = req.body || {};
+
+            let safeIdempotencyKey: string | undefined;
+            if (idempotencyKey !== undefined) {
+                if (typeof idempotencyKey !== 'string' || idempotencyKey.trim().length === 0 || idempotencyKey.length > 128) {
+                    res.status(400).json({ error: 'idempotencyKey must be a non-empty string of at most 128 characters' });
+                    return;
+                }
+                safeIdempotencyKey = idempotencyKey;
+            }
 
             // ✅ Verify giverId matches authenticated user
             if (giverId !== userId) {
@@ -193,30 +203,36 @@ export const stripeCreatePaymentIntent_Test = onRequest(
             // Convert cart to metadata-safe format
             const cartJSON = JSON.stringify(cart);
 
-            // Create PaymentIntent — use server-validated amount
-            const intent = await stripe.paymentIntents.create({
-                amount: serverTotal, // Already in cents from T2-3 fix
-                currency: "eur",
-                automatic_payment_methods: {
-                    enabled: true,
-                    allow_redirects: "always",
+            // Create PaymentIntent — use server-validated amount.
+            // When the client supplies an idempotencyKey, pass it to Stripe so a
+            // retry with the same key returns the original PaymentIntent instead
+            // of creating a duplicate.
+            const intent = await stripe.paymentIntents.create(
+                {
+                    amount: serverTotal, // Already in cents from T2-3 fix
+                    currency: "eur",
+                    automatic_payment_methods: {
+                        enabled: true,
+                        allow_redirects: "always",
+                    },
+                    metadata: {
+                        type: "multiple_experience_gifts",
+                        giverId,
+                        giverName: (giverName || '').slice(0, 100),
+                        primaryPartnerId: primaryPartnerId || "",
+                        cart: cartJSON,
+                        personalizedMessage: (personalizedMessage || '').slice(0, 500),
+                        isMystery: isMystery ? "true" : "false",
+                        source: "ernit_experience_gift",
+                        challengeType: sanitize(req.body.challengeType, 20) || 'solo',
+                        revealMode: sanitize(req.body.revealMode, 20) || 'revealed',
+                        goalName: sanitize(req.body.goalName, 200) || '',
+                        goalType: sanitize(req.body.goalType, 50) || 'custom',
+                        sameExperienceForBoth: req.body.sameExperienceForBoth === true ? 'true' : 'false',
+                    },
                 },
-                metadata: {
-                    type: "multiple_experience_gifts",
-                    giverId,
-                    giverName: (giverName || '').slice(0, 100),
-                    primaryPartnerId: primaryPartnerId || "",
-                    cart: cartJSON,
-                    personalizedMessage: (personalizedMessage || '').slice(0, 500),
-                    isMystery: isMystery ? "true" : "false",
-                    source: "ernit_experience_gift",
-                    challengeType: sanitize(req.body.challengeType, 20) || 'solo',
-                    revealMode: sanitize(req.body.revealMode, 20) || 'revealed',
-                    goalName: sanitize(req.body.goalName, 200) || '',
-                    goalType: sanitize(req.body.goalType, 50) || 'custom',
-                    sameExperienceForBoth: req.body.sameExperienceForBoth === true ? 'true' : 'false',
-                },
-            });
+                safeIdempotencyKey ? { idempotencyKey: safeIdempotencyKey } : undefined
+            );
 
             res.status(200).json({
                 clientSecret: intent.client_secret,

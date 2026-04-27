@@ -289,8 +289,8 @@ const GoalsScreen: React.FC = () => {
 
   const renderGoal = useCallback(({ item }: { item: Goal }) => (
     <MotiView
-      from={{ opacity: 0, translateY: 16 }}
-      animate={{ opacity: 1, translateY: 0 }}
+      from={{ translateY: 16 }}
+      animate={{ translateY: 0 }}
       transition={{ type: 'timing', duration: 400 }}
       style={styles.cardWrapper}
     >
@@ -323,7 +323,6 @@ const GoalsScreen: React.FC = () => {
           /* ── Empty State ── */
           <View style={styles.emptyContainer}>
             <EmptyState
-              icon="🎯"
               title={t('goals.empty.title')}
               message={t('goals.empty.message')}
               actionLabel={t('goals.empty.actionLabel')}

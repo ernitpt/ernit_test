@@ -33,7 +33,8 @@ export const stripeService = {
       goalName?: string;
       goalType?: string;
       sameExperienceForBoth?: boolean;
-    }
+    },
+    idempotencyKey?: string
   ): Promise<{ clientSecret: string; paymentIntentId: string }> => {
     try {
       // Get the current user's ID token
@@ -43,6 +44,13 @@ export const stripeService = {
       }
 
       const idToken = await currentUser.getIdToken();
+
+      // Generate idempotency key OUTSIDE withRetry so every retry shares the same
+      // key, letting Stripe recognise the second request as a duplicate rather
+      // than creating two PaymentIntents. Callers may also supply their own key
+      // to survive across function invocations (e.g. a screen-level ref).
+      const resolvedIdempotencyKey = idempotencyKey
+        || `pi_${giverId}_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
 
       const data = await withRetry(async () => {
         const controller = new AbortController();
@@ -61,6 +69,7 @@ export const stripeService = {
             cart: cartItems,
             personalizedMessage: personalizedMessage || "",
             isMystery: isMystery || false,
+            idempotencyKey: resolvedIdempotencyKey,
             ...(challengeMeta ?? {}),
           }),
           signal: controller.signal,

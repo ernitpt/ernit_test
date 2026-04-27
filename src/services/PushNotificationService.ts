@@ -158,6 +158,48 @@ class PushNotificationService {
     }
 
     /**
+     * Remove the CURRENT device's FCM token from the given user's Firestore doc.
+     * Call this on logout so that a subsequent user logging in on the same device
+     * does not inherit push delivery intended for the logged-out user.
+     *
+     * Failure here is non-fatal — logout must proceed even if token lookup fails
+     * (e.g. permission revoked, messaging not initialized).
+     */
+    async removeTokenForUser(userId: string): Promise<void> {
+        if (Platform.OS !== 'web' || !this.isInitialized || !this.messaging) return;
+        try {
+            const permission = this.getPermissionStatus();
+            if (permission !== 'granted') return;
+
+            const vapidKey = process.env.EXPO_PUBLIC_FIREBASE_VAPID_KEY;
+            if (!vapidKey) return;
+
+            const registration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
+            if (!registration) return;
+
+            const currentToken = await getToken(this.messaging, {
+                vapidKey,
+                serviceWorkerRegistration: registration,
+            });
+            if (!currentToken) return;
+
+            const userRef = doc(db, 'users', userId);
+            await runTransaction(db, async (transaction) => {
+                const snap = await transaction.get(userRef);
+                if (!snap.exists()) return;
+                const tokens: string[] = snap.data()?.fcmTokens ?? [];
+                const filtered = tokens.filter((t: string) => t !== currentToken);
+                if (filtered.length !== tokens.length) {
+                    transaction.update(userRef, { fcmTokens: filtered });
+                }
+            });
+            logger.log('🔔 FCM token removed from Firestore for logged-out user');
+        } catch (error: unknown) {
+            logger.warn('🔔 Could not remove FCM token on logout (non-fatal):', error);
+        }
+    }
+
+    /**
      * Listen for foreground messages (when app is open)
      * @param callback - Function to call when a message is received
      */

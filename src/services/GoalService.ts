@@ -276,6 +276,15 @@ export class GoalService {
       const giftData = giftSnap.data();
       if (giftData.isRedeemed) throw new AppError('GIFT_REDEEMED', 'Gift has already been redeemed', 'business');
 
+      // Guard against attaching a gift whose own shelf-life has expired
+      // (independent of the goal's 30-day post-completion deadline).
+      if (giftData.expiresAt) {
+        const giftExpiry = toJSDate(giftData.expiresAt);
+        if (giftExpiry && new Date() > giftExpiry) {
+          throw new AppError('GIFT_EXPIRED', 'This gift has expired and can no longer be attached', 'business');
+        }
+      }
+
       const updateFields: Record<string, unknown> = {
         experienceGiftId,
         giftAttachedAt: serverTimestamp(),
@@ -1075,22 +1084,29 @@ export class GoalService {
    */
   async rejectGoalEditRequest(goalId: string): Promise<void> {
     const ref = doc(db, 'goals', goalId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
-    const goal = normalizeGoal({ id: snap.id, ...snap.data() });
 
-    if (goal.empoweredBy !== auth.currentUser?.uid) {
-      throw new AppError('UNAUTHORIZED', 'Only the giver can reject edit requests', 'auth');
-    }
+    // Wrap ownership + pending-check + clear in a single transaction to prevent
+    // a TOCTOU race where a concurrent approveGoalEditRequest wins between the
+    // read and the clear — both would succeed silently, leaving the recipient
+    // with no feedback that the rejection was a no-op.
+    const goal = await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists()) throw new AppError('GOAL_NOT_FOUND', 'Goal not found', 'not_found');
+      const txGoal = normalizeGoal({ id: snap.id, ...snap.data() });
 
-    const pending = goal.pendingEditRequest;
-    if (!pending) {
-      throw new AppError('VALIDATION_ERROR', 'No pending edit request found', 'validation');
-    }
+      if (txGoal.empoweredBy !== auth.currentUser?.uid) {
+        throw new AppError('UNAUTHORIZED', 'Only the giver can reject edit requests', 'auth');
+      }
+      if (!txGoal.pendingEditRequest) {
+        throw new AppError('VALIDATION_ERROR', 'No pending edit request found', 'validation');
+      }
 
-    await updateDoc(ref, {
-      pendingEditRequest: null,
-      updatedAt: serverTimestamp(),
+      transaction.update(ref, {
+        pendingEditRequest: null,
+        updatedAt: serverTimestamp(),
+      });
+
+      return txGoal;
     });
 
     analyticsService.trackEvent('goal_edit_rejected', 'conversion', { goalId });

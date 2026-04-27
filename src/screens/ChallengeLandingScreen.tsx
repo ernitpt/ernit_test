@@ -91,10 +91,10 @@ const getSelfConfig = (colors: typeof Colors, t: (key: string) => string): ModeC
     accentColor: colors.secondary,
     gradient: [colors.primarySurface, colors.successLighter, colors.white] as const,
     rotatingWords: [
-        { word: 'workout', color: colors.secondary },
-        { word: 'do yoga', color: colors.categoryAmber },
-        { word: 'dance', color: colors.error },
-        { word: 'run', color: colors.cyan },
+        { word: t('landing.challenge.rotatingWords.workout'), color: colors.secondary },
+        { word: t('landing.challenge.rotatingWords.doYoga'), color: colors.categoryAmber },
+        { word: t('landing.challenge.rotatingWords.dance'), color: colors.error },
+        { word: t('landing.challenge.rotatingWords.run'), color: colors.cyan },
     ],
     titlePrefix: t('landing.challenge.self.titlePrefix'),
     titleSuffix: t('landing.challenge.self.titleSuffix'),
@@ -146,10 +146,10 @@ const getGiftConfig = (colors: typeof Colors, t: (key: string) => string): ModeC
     accentColor: colors.warning,
     gradient: [colors.warningLighter, colors.white, colors.white] as const,
     rotatingWords: [
-        { word: 'workout', color: colors.decorativeWarm },
-        { word: 'do yoga', color: colors.decorativeGold },
-        { word: 'dance', color: colors.decorativeRose },
-        { word: 'run', color: colors.decorativeYellow },
+        { word: t('landing.challenge.rotatingWords.workout'), color: colors.decorativeWarm },
+        { word: t('landing.challenge.rotatingWords.doYoga'), color: colors.decorativeGold },
+        { word: t('landing.challenge.rotatingWords.dance'), color: colors.decorativeRose },
+        { word: t('landing.challenge.rotatingWords.run'), color: colors.decorativeYellow },
     ],
     titlePrefix: t('landing.challenge.gift.titlePrefix'),
     titleSuffix: t('landing.challenge.gift.titleSuffix'),
@@ -535,6 +535,7 @@ export default function ChallengeLandingScreen() {
 
     // Analytics: track landing page view on mount
     useEffect(() => {
+        analyticsService.trackEvent('screen_view', 'navigation', { screen: 'ChallengeLandingScreen' }, 'ChallengeLandingScreen');
         analyticsService.trackEvent('landing_page_viewed', 'navigation', {});
     }, []);
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { Colors, useColors } from '../../../config';
 import { BorderRadius } from '../../../config/borderRadius';
 import { Typography } from '../../../config/typography';
 import { Spacing } from '../../../config/spacing';
+import type { HintObject } from '../goalCardUtils';
 
 // ─── CancelSessionModal ─────────────────────────────────────────────
 
@@ -91,6 +92,11 @@ interface CelebrationModalProps {
   // Weekly celebration tiers
   weekJustCompleted?: boolean;
   completedWeekNumber?: number;
+  // Inline hint (merged from former HintPopup flow for text-only hints).
+  // When provided, a "From <giver>" section renders at the top of the modal body.
+  // Rich hints (image-scratch, audio) still go through the dedicated HintPopup and
+  // should NOT be passed here.
+  inlineHint?: HintObject | string | null;
   // Privacy callback: called with 'friends' (share) or 'private' (skip)
   onSessionPrivacy?: (visibility: 'friends' | 'private') => void;
 }
@@ -108,48 +114,43 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
   totalWeeks,
   weekJustCompleted,
   completedWeekNumber,
+  inlineHint,
   onSessionPrivacy,
 }) => {
   const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const confettiRef = useRef<ConfettiCannon | null>(null);
-  const confettiTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const [fullscreenMedia, setFullscreenMedia] = useState(false);
 
-  // Cleanup timeout on unmount
+  // Bump a key every time the modal becomes visible so <ConfettiCannon key={confettiKey} />
+  // remounts and its autoStart={true} triggers reliably. The previous ref + setTimeout
+  // pattern silently no-op'd if the ref hadn't attached yet (the RN Modal lazily mounts
+  // children, so the ref attachment can race the 200ms timeout).
+  const [confettiKey, setConfettiKey] = useState(0);
   useEffect(() => {
-    return () => {
-      if (confettiTimeoutRef.current) clearTimeout(confettiTimeoutRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (visible) {
-      confettiTimeoutRef.current = setTimeout(() => {
-        confettiRef.current?.start();
-      }, 200);
-    }
-    return () => {
-      if (confettiTimeoutRef.current) clearTimeout(confettiTimeoutRef.current);
-    };
+    if (visible) setConfettiKey(k => k + 1);
   }, [visible]);
 
 
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
-  // Weekly celebration tier config — use design tokens, no hardcoded hex
+  // Weekly celebration tier config — confetti scales up with week number so week-completion
+  // feedback clearly outpaces session-completion feedback.
   const weekTier = useMemo(() => {
     if (!weekJustCompleted || !completedWeekNumber) return null;
     const n = completedWeekNumber;
-    if (n === 1) return { emoji: '🎉', title: t('recipient.goalCardModals.celebration.week1Title'), subtitle: t('recipient.goalCardModals.celebration.week1Subtitle'), confettiCount: 120, confettiColors: null as string[] | null };
-    if (n === 2) return { emoji: '🔥', title: t('recipient.goalCardModals.celebration.week2Title'), subtitle: t('recipient.goalCardModals.celebration.week2Subtitle'), confettiCount: 180, confettiColors: null };
-    if (n === 3) return { emoji: '⭐', title: t('recipient.goalCardModals.celebration.week3Title'), subtitle: t('recipient.goalCardModals.celebration.week3Subtitle'), confettiCount: 220, confettiColors: [colors.celebrationGold, colors.warning, colors.error, colors.celebrationGold, colors.white] };
-    return { emoji: '🏆', title: t('recipient.goalCardModals.celebration.weekNTitle', { n }), subtitle: t('recipient.goalCardModals.celebration.weekNSubtitle'), confettiCount: 280, confettiColors: [colors.celebrationGold, colors.warning, colors.error, colors.celebrationGold, colors.categoryPink, colors.accent] };
+    if (n === 1) return { emoji: '🎉', title: t('recipient.goalCardModals.celebration.week1Title'), subtitle: t('recipient.goalCardModals.celebration.week1Subtitle'), confettiCount: 240, confettiColors: null as string[] | null };
+    if (n === 2) return { emoji: '🔥', title: t('recipient.goalCardModals.celebration.week2Title'), subtitle: t('recipient.goalCardModals.celebration.week2Subtitle'), confettiCount: 320, confettiColors: null };
+    if (n === 3) return { emoji: '⭐', title: t('recipient.goalCardModals.celebration.week3Title'), subtitle: t('recipient.goalCardModals.celebration.week3Subtitle'), confettiCount: 400, confettiColors: [colors.celebrationGold, colors.warning, colors.error, colors.celebrationGold, colors.white] };
+    return { emoji: '🏆', title: t('recipient.goalCardModals.celebration.weekNTitle', { n }), subtitle: t('recipient.goalCardModals.celebration.weekNSubtitle'), confettiCount: 500, confettiColors: [colors.celebrationGold, colors.warning, colors.error, colors.celebrationGold, colors.categoryPink, colors.accent] };
   }, [weekJustCompleted, completedWeekNumber, colors]);
 
-  const modalTitle = weekTier ? `${weekTier.emoji} ${t('recipient.goalCardModals.celebration.weekComplete')}` : t('recipient.goalCardModals.celebration.sessionComplete');
-  const confettiCount = weekTier ? weekTier.confettiCount : 120;
+  // Modal title: no emoji prefix — keeps the header clean; the milestone banner body
+  // still carries the emoji for weeks when applicable.
+  const modalTitle = weekTier
+    ? t('recipient.goalCardModals.celebration.weekComplete')
+    : t('recipient.goalCardModals.celebration.sessionComplete');
+  const confettiCount = weekTier ? weekTier.confettiCount : 160;
   const confettiColors = weekTier?.confettiColors ?? [colors.primary, colors.secondary, colors.warning, colors.error, colors.categoryViolet, colors.categoryPink];
 
   return (
@@ -161,21 +162,51 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = React.memo(({
         variant="center"
         noPadding={false}
         overlayAbove={
-          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
-            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: screenHeight * 2 }}>
-              <ConfettiCannon
-                ref={confettiRef}
-                autoStart={false}
-                count={Platform.OS === 'android' ? Math.floor(confettiCount * 0.6) : confettiCount}
-                origin={{ x: screenWidth / 2, y: -20 }}
-                explosionSpeed={weekTier ? 400 : 350}
-                fallSpeed={3000}
-                colors={confettiColors}
-              />
+          visible ? (
+            <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'visible' }]}>
+              {/* Three cannons across the bottom width give a much wider horizontal
+                  spread than a single center-origin burst (the library has no spread-
+                  angle prop). Total particle count is split across them. */}
+              {[0.2, 0.5, 0.8].map((xFraction, i) => (
+                <ConfettiCannon
+                  key={`${confettiKey}-${i}`}
+                  autoStart={true}
+                  count={Math.floor((Platform.OS === 'android' ? confettiCount * 0.6 : confettiCount) / 3)}
+                  origin={{ x: screenWidth * xFraction, y: screenHeight + 10 }}
+                  explosionSpeed={weekTier ? 700 : 550}
+                  // fallSpeed is the duration of the fall animation in ms; lower = faster.
+                  fallSpeed={weekTier ? 3200 : 2600}
+                  fadeOut={true}
+                  colors={confettiColors}
+                />
+              ))}
             </View>
-          </View>
+          ) : null
         }
       >
+        {/* Inline hint from giver (merged from former HintPopup step for text-only hints) */}
+        {inlineHint && (
+          <MotiView
+            from={{ opacity: 0, translateY: -6 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'spring', damping: 18, stiffness: 200, delay: 150 }}
+          >
+            <View style={styles.inlineHintCard}>
+              <Text style={styles.inlineHintEmoji}>✨</Text>
+              <View style={{ flex: 1 }}>
+                {typeof inlineHint === 'object' && inlineHint.giverName && (
+                  <Text style={styles.inlineHintFrom}>
+                    {t('recipient.goalCardModals.celebration.fromGiver', { name: inlineHint.giverName })}
+                  </Text>
+                )}
+                <Text style={styles.inlineHintText}>
+                  {typeof inlineHint === 'string' ? inlineHint : (inlineHint.text || '')}
+                </Text>
+              </View>
+            </View>
+          </MotiView>
+        )}
+
         {/* Weekly milestone banner */}
         {weekTier && (
           <MotiView
@@ -374,6 +405,34 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     ...Typography.subheading,
     color: colors.white,
   },
+  // Inline hint card (text-only hints merged from former HintPopup step)
+  inlineHintCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    backgroundColor: colors.primarySurface,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  inlineHintEmoji: {
+    fontSize: Typography.subheading.fontSize,
+    lineHeight: Typography.subheading.lineHeight,
+    marginTop: 2,
+  },
+  inlineHintFrom: {
+    ...Typography.caption,
+    color: colors.primaryDark,
+    fontWeight: '600',
+    marginBottom: Spacing.xxs,
+  },
+  inlineHintText: {
+    ...Typography.body,
+    color: colors.textPrimary,
+    lineHeight: 22,
+  },
   // Feed post preview
   weekMilestoneBanner: {
     flexDirection: 'row',
@@ -383,8 +442,6 @@ const createStyles = (colors: typeof Colors) => StyleSheet.create({
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
     marginBottom: Spacing.md,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.warning,
   },
   weekMilestoneEmoji: {
     fontSize: Typography.emojiBase.fontSize,

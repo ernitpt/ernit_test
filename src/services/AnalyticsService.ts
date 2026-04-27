@@ -93,11 +93,8 @@ class AnalyticsService {
   /** Flush any remaining events (call on app background / unmount) */
   async flush(): Promise<void> {
     if (this.buffer.length === 0) return;
-    // Skip flush if user is not authenticated — Firestore rules require auth
-    if (!auth.currentUser) {
-      this.buffer = []; // Discard events from unauthenticated sessions
-      return;
-    }
+    // Anonymous (pre-auth) events persist with userId='anonymous' so we can measure
+    // the pre-signup funnel. Firestore rules permit this — see firestore.rules events block.
 
     const eventsToFlush = [...this.buffer];
     this.buffer = [];

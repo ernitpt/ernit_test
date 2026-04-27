@@ -363,12 +363,6 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
     // Static shadow offset extracted to avoid new object on every render (P3-16)
     const shadowOffset = useMemo(() => ({ width: 0, height: 2 }), []);
 
-    // borderLeft style derived from typeInfo.color — memoised so React.memo is not defeated (P3-16)
-    const borderLeftStyle = useMemo(() => ({
-        borderLeftWidth: 3,
-        borderLeftColor: typeInfo.color,
-    }), [typeInfo.color]);
-
     return (
         <Animated.View
             accessibilityLabel={`${post.userName} - ${
@@ -382,7 +376,6 @@ const FeedPost: React.FC<FeedPostProps> = ({ post, isHighlighted = false }) => {
             } - ${timeAgo}`}
             style={[
             styles.container,
-            borderLeftStyle,
             {
                 // iOS shadow
                 shadowColor: isHighlighted ? colors.secondary : colors.textPrimary,

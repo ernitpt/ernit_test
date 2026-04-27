@@ -110,3 +110,9 @@ play-store-service-account.json
 
 # Claude Code worktrees
 .claude/worktrees/
+
+# Script backup snapshots (may contain PII — never commit)
+scripts/.backup-*.json
+
+# Local dev scripts with service-account dependencies
+scripts/findCoupon.js
